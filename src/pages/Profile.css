@@ -1,0 +1,286 @@
+/* src/pages/Profile.css */
+
+.profile-container {
+  position: relative;
+  background: #000;
+  color: #fff;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Canvas для анимации треугольников */
+.space-canvas {
+  position: fixed; /* fixed вместо absolute для лучшей работы на мобильных */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background: #000;
+  touch-action: none; /* Отключаем стандартные жесты для canvas */
+}
+
+.profile-content {
+  position: relative;
+  z-index: 1;
+  padding: 20px;
+  pointer-events: auto;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Верхний бар */
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.profile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0; /* Для корректного обрезания текста */
+}
+
+.profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+}
+
+.profile-avatar-placeholder {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #240059;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+  font-size: 24px;
+}
+
+.profile-header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-username {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-id {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Баланс */
+.profile-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.balance-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.balance-icon {
+  width: 10px;
+  height: 10px;
+  background: #240059;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.balance-icon-img {
+  width: 20px;  /* Измени размер */
+  height: 20px;
+  object-fit: contain;
+}
+
+.balance-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Статистика */
+.profile-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 12px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Реферальная секция */
+.referral-section {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.referral-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.referral-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.referral-item {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.referral-label {
+  display: block;
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.referral-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.referral-description {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.6;
+  line-height: 1.5;
+}
+
+/* Адаптивность для маленьких экранов */
+@media (max-width: 480px) {
+  .profile-content {
+    padding: 16px;
+  }
+
+  .profile-header {
+    gap: 16px;
+  }
+
+  .profile-avatar,
+  .profile-avatar-placeholder {
+    width: 50px;
+    height: 50px;
+  }
+
+  .profile-username {
+    font-size: 16px;
+  }
+
+  .profile-stats {
+    gap: 12px;
+  }
+
+  .stat-item {
+    padding: 12px 8px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .referral-section {
+    padding: 16px;
+  }
+
+  .referral-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+/* Адаптивность для очень маленьких экранов */
+@media (max-width: 360px) {
+  .profile-username {
+    font-size: 14px;
+  }
+
+  .balance-value {
+    font-size: 14px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+
+  .referral-section {
+    padding: 16px;
+  }
+
+  .referral-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

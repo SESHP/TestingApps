@@ -1,0 +1,66 @@
+/* ========== ПЕРЕМЕННЫЕ И СТИЛИ ДЛЯ ТЕМ ========== */
+
+/* СВЕТЛАЯ ТЕМА (по умолчанию) */
+:root,
+[data-theme="light"] {
+  /* Основные цвета */
+  --primary-color: #240059;           /* Фиолетовый */
+  --text-primary: #000000;            /* Чёрный (для текста) */
+  --text-secondary: #666666;          /* Серый (для вторичного текста) */
+  --text-tertiary: #999999;           /* Светло-серый */
+  
+  /* Фоны */
+  --bg-primary: #ffffff;              /* Белый */
+  --bg-secondary: #f5f5f5;            /* Очень светло-серый */
+  --bg-tertiary: #eeeeee;             /* Светло-серый */
+  
+  /* Границы и тени */
+  --border-color: #dddddd;            /* Светло-серая граница */
+  --shadow-color: rgba(0, 0, 0, 0.1); /* Чёрная тень */
+  
+  /* Дополнительные цвета */
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --warning-color: #ffc107;
+}
+
+/* ТЁМНАЯ ТЕМА */
+[data-theme="dark"] {
+  /* Основные цвета */
+  --primary-color: #ffffff;           /* Фиолетовый (остаётся таким же) */
+  --text-primary: #ffffff;            /* Белый (для текста) */
+  --text-secondary: #cccccc;          /* Светло-серый */
+  --text-tertiary: #888888;           /* Тёмно-серый */
+  
+  /* Фоны */
+  --bg-primary: #1a1a1a;              /* Очень тёмный серый */
+  --bg-secondary: #2d2d2d;            /* Тёмный серый */
+  --bg-tertiary: #3a3a3a;             /* Более светлый тёмный серый */
+  
+  /* Границы и тени */
+  --border-color: #444444;            /* Тёмная граница */
+  --shadow-color: rgba(0, 0, 0, 0.3); /* Чёрная тень (сильнее) */
+  
+  /* Дополнительные цвета */
+  --success-color: #28a745;
+  --error-color: #dc3545;
+  --warning-color: #ffc107;
+}
+
+/* ПРИМЕНЕНИЕ ПЕРЕМЕННЫХ К ОСНОВНЫМ ЭЛЕМЕНТАМ */
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Плавный переход между темами */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Отключаем переход для некоторых элементов (чтобы не было лага при анимации иконки) */
+button:active,
+a:active {
+  transition: none;
+}
