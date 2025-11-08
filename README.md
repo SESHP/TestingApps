@@ -1,70 +1,222 @@
-# Getting Started with Create React App
+# TON Guarantee - Реферальная система
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 🚀 Установка и запуск
 
-## Available Scripts
+### Требования
+- Node.js 16+ 
+- PostgreSQL 13+
+- npm или yarn
 
-In the project directory, you can run:
+### 1. Настройка PostgreSQL
 
-### `npm start`
+```bash
+# Создайте базу данных
+createdb ton_guarantee
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+# Или через psql
+psql -U postgres
+CREATE DATABASE ton_guarantee;
+\q
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 2. Настройка Backend
 
-### `npm test`
+```bash
+# Перейдите в папку backend
+cd backend
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Установите зависимости
+npm install
 
-### `npm run build`
+# Скопируйте .env.example в .env
+cp .env.example .env
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+# Отредактируйте .env и добавьте свои данные
+nano .env
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Пример `.env`:
+```env
+PORT=3001
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=ton_guarantee
+DB_PASSWORD=your_password
+DB_PORT=5432
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+# Запустите сервер
+npm start
 
-### `npm run eject`
+# Для разработки (с автоперезагрузкой)
+npm run dev
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Backend будет доступен на `http://localhost:3001`
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 3. Настройка Frontend
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+# Вернитесь в корневую папку
+cd ..
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Установите зависимости (если еще не установлены)
+npm install
 
-## Learn More
+# Скопируйте .env.example в .env
+cp .env.example .env
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Отредактируйте .env
+nano .env
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Пример `.env`:
+```env
+REACT_APP_API_URL=http://localhost:3001
+REACT_APP_BOT_USERNAME=your_bot_username
+```
 
-### Code Splitting
+```bash
+# Запустите React приложение
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Frontend будет доступен на `http://localhost:3000`
 
-### Analyzing the Bundle Size
+## 📋 Структура проекта
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```
+ton-guarantee/
+├── backend/
+│   ├── server.js           # Основной файл сервера
+│   ├── package.json        # Зависимости backend
+│   └── .env               # Конфигурация (не в git)
+├── src/
+│   ├── pages/
+│   │   ├── Profile.js     # Страница профиля с рефералами
+│   │   └── Profile.css
+│   ├── utils/
+│   │   ├── api.js         # API клиент
+│   │   └── telegramUtils.js
+│   └── App.js
+├── .env                   # Конфигурация frontend (не в git)
+└── package.json
+```
 
-### Making a Progressive Web App
+## 🔑 API Endpoints
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### POST /api/user/init
+Инициализация пользователя и получение реферального кода
 
-### Advanced Configuration
+**Body:**
+```json
+{
+  "initData": "telegram_init_data_string",
+  "referralCode": "ABC123" // опционально
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+**Response:**
+```json
+{
+  "user": {
+    "id": 123456789,
+    "username": "testuser",
+    "firstName": "Test",
+    "lastName": "User",
+    "referralCode": "XYZ789",
+    "balance": 10.5,
+    "totalDeals": 5,
+    "rating": 4.8
+  },
+  "referralStats": {
+    "totalReferrals": 3,
+    "totalEarned": 1.5
+  }
+}
+```
 
-### Deployment
+### GET /api/user/:telegramId/referrals
+Получение статистики рефералов
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+**Response:**
+```json
+{
+  "stats": {
+    "totalReferrals": 3,
+    "totalEarned": 1.5
+  },
+  "referrals": [
+    {
+      "telegramId": 987654321,
+      "username": "friend1",
+      "firstName": "Friend",
+      "lastName": "One",
+      "earnedAmount": 0.5,
+      "createdAt": "2025-01-15T10:30:00Z"
+    }
+  ]
+}
+```
 
-### `npm run build` fails to minify
+### GET /api/referral/check/:code
+Проверка валидности реферального кода
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**Response:**
+```json
+{
+  "valid": true,
+  "referrer": {
+    "id": 123456789,
+    "firstName": "Test",
+    "lastName": "User",
+    "username": "testuser"
+  }
+}
+```
+
+## 🗄️ Структура базы данных
+
+### Таблица `users`
+- `id` - Serial Primary Key
+- `telegram_id` - BigInt (уникальный)
+- `username` - Varchar(255)
+- `first_name` - Varchar(255)
+- `last_name` - Varchar(255)
+- `referral_code` - Varchar(8) (уникальный)
+- `referred_by` - BigInt (Foreign Key)
+- `balance` - Decimal(18, 8)
+- `total_deals` - Integer
+- `rating` - Decimal(3, 2)
+- `created_at` - Timestamp
+- `updated_at` - Timestamp
+
+### Таблица `referrals`
+- `id` - Serial Primary Key
+- `referrer_id` - BigInt (Foreign Key)
+- `referred_id` - BigInt (Foreign Key)
+- `earned_amount` - Decimal(18, 8)
+- `created_at` - Timestamp
+
+## 🎯 Как работает реферальная система
+
+1. Каждый пользователь получает уникальный 8-символьный реферальный код при регистрации
+2. Реферальная ссылка имеет формат: `https://t.me/your_bot?start=REFERRAL_CODE`
+3. Когда новый пользователь переходит по ссылке, код сохраняется в URL параметре `ref`
+4. При инициализации пользователя код передается на backend
+5. Создается связь между реферером и рефералом в таблице `referrals`
+6. При каждой сделке реферала, 5% комиссии идет рефереру
+
+## 🔧 Дальнейшая разработка
+
+- [ ] Добавить валидацию Telegram initData с использованием bot token
+- [ ] Добавить механизм начисления реферальных вознаграждений
+- [ ] Добавить историю реферальных начислений
+- [ ] Добавить multi-level реферальную систему (2-3 уровня)
+- [ ] Добавить админ панель для управления рефералами
+- [ ] Добавить аналитику и статистику
+
+## 📝 Лицензия
+
+MIT

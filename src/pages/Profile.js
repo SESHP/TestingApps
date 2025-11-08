@@ -1,23 +1,70 @@
 // src/pages/Profile.js
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getTelegramUser, getFullName } from '../utils/telegramUtils';
+import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic } from '../utils/telegramUtils';
+import { initUser, getReferralStats } from '../utils/api';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 
 function Profile() {
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [referralStats, setReferralStats] = useState({
+    totalReferrals: 0,
+    totalEarned: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
+  const [isCopied, setIsCopied] = useState(false);
   const canvasRef = useRef(null);
-  const particlesRef = useRef([]); // Храним частицы в ref для доступа из обработчиков
+  const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
 
-  // Загрузка пользователя
+  // Загрузка пользователя и инициализация
   useEffect(() => {
-    const telegramUser = getTelegramUser();
-    setUser(telegramUser);
-    setIsLoading(false);
+    const loadUser = async () => {
+      try {
+        const telegramUser = getTelegramUser();
+        setUser(telegramUser);
+
+        // Получаем referral code из URL если есть
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCode = urlParams.get('ref');
+
+        // Инициализируем пользователя на бэкенде
+        const initData = getInitData();
+        const response = await initUser(initData, referralCode);
+
+        setUserData(response.user);
+        setReferralStats(response.referralStats);
+      } catch (error) {
+        console.error('Ошибка загрузки пользователя:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
+
+  // Копирование реферальной ссылки
+  const handleCopyReferralLink = () => {
+    if (!userData?.referralCode) return;
+
+    const botUsername = process.env.REACT_APP_BOT_USERNAME || 'your_bot';
+    const referralLink = `https://t.me/${botUsername}?start=${userData.referralCode}`;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(referralLink)
+        .then(() => {
+          setIsCopied(true);
+          notificationHaptic('success');
+          setTimeout(() => setIsCopied(false), 2000);
+        })
+        .catch(err => {
+          console.error('Ошибка копирования:', err);
+        });
+    }
+  };
 
   // Анимация canvas
   useEffect(() => {
@@ -297,7 +344,9 @@ function Profile() {
                 alt="TON" 
                 className="balance-icon-img"
               />
-              <div className="balance-value">10</div>
+              <div className="balance-value">
+                {userData?.balance?.toFixed(2) || '0.00'}
+              </div>
             </div>
           </div>
         </div>
@@ -306,29 +355,48 @@ function Profile() {
         <div className="profile-stats">
           <div className="stat-item">
             <span className="stat-label">Сделок</span>
-            <span className="stat-value">0</span>
+            <span className="stat-value">{userData?.totalDeals || 0}</span>
           </div>
           <div className="stat-item">
             <span className="stat-label">Рейтинг</span>
-            <span className="stat-value">0.0</span>
+            <span className="stat-value">{userData?.rating?.toFixed(1) || '0.0'}</span>
           </div>
         </div>
 
         {/* Реферальная секция */}
         <div className="referral-section">
-          <h3 className="referral-title">Реферальная ссылка</h3>
+          <h3 className="referral-title">Реферальная программа</h3>
           <div className="referral-stats">
             <div className="referral-item">
               <span className="referral-label">Приглашено</span>
-              <span className="referral-value">0</span>
+              <span className="referral-value">{referralStats.totalReferrals}</span>
             </div>
             <div className="referral-item">
               <span className="referral-label">Заработано TON</span>
-              <span className="referral-value">0</span>
+              <span className="referral-value">{referralStats.totalEarned.toFixed(2)}</span>
             </div>
           </div>
+          
+          {/* Реферальный код */}
+          {userData?.referralCode && (
+            <div className="referral-code-container">
+              <div className="referral-code-label">Ваш реферальный код:</div>
+              <div className="referral-code-box">
+                <span className="referral-code">{userData.referralCode}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Кнопка копирования */}
+          <button 
+            className={`copy-referral-btn ${isCopied ? 'copied' : ''}`}
+            onClick={handleCopyReferralLink}
+          >
+            {isCopied ? '✓ Скопировано!' : '📋 Копировать реферальную ссылку'}
+          </button>
+
           <p className="referral-description">
-            Пригласи друзей и получай TON с каждой сделки.
+            Пригласи друзей и получай 5% TON с каждой их сделки.
           </p>
         </div>
       </div>

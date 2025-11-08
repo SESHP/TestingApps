@@ -1,0 +1,201 @@
+/* src/components/ReferralList.css */
+
+.referral-list {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.referral-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.referral-list-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.referral-count {
+  background: rgba(242, 125, 0, 0.2);
+  color: #F27D00;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Состояния загрузки и ошибки */
+.referral-list-loading,
+.referral-list-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.referral-list-error {
+  color: #ff4444;
+}
+
+/* Пустое состояние */
+.referral-list-empty {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.referral-list-empty p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.empty-hint {
+  font-size: 13px !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Список рефералов */
+.referral-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.referral-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.referral-list-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(242, 125, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.referral-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.referral-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F27D00 0%, #FF9500 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.referral-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.referral-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.referral-username {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.referral-date {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+}
+
+.referral-earned {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.earned-amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4CAF50;
+}
+
+.earned-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+  .referral-list {
+    padding: 16px;
+  }
+
+  .referral-list-item {
+    padding: 10px;
+  }
+
+  .referral-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .referral-name {
+    font-size: 13px;
+  }
+
+  .earned-amount {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .referral-info {
+    gap: 8px;
+  }
+
+  .referral-details {
+    gap: 1px;
+  }
+
+  .referral-username {
+    display: none;
+  }
+}
