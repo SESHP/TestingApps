@@ -43,14 +43,14 @@ function Profile() {
     setCanvasSize();
 
     const particles = [];
-    const numParticles = 50;
+    const numParticles = 30;
 
     // Инициализация частиц
     for (let i = 0; i < numParticles; i++) {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        size: Math.random() * 5 + 3,
+        size: Math.random() * 5 + 1,
         speedX: (Math.random() - 0.5) * 1,
         speedY: (Math.random() - 0.5) * 1,
         angle: Math.random() * Math.PI * 2,
@@ -190,8 +190,8 @@ function Profile() {
 
         if (dist < 150 && dist > 0) {
           const force = (150 - dist) / 150;
-          p.speedX += (dx / dist) * force * 0.5;
-          p.speedY += (dy / dist) * force * 0.5;
+          p.speedX += (dx / dist) * force * 0.2;
+          p.speedY += (dy / dist) * force * 0.2;
         }
       }
     };
@@ -214,8 +214,8 @@ function Profile() {
           if (dist < 150 && dist > 0) {
             const force = (150 - dist) / 150;
             // Уменьшили силу с 5 до 2 для более плавного взаимодействия
-            p.speedX += (dx / dist) * force * 3.5;
-            p.speedY += (dy / dist) * force * 3.5;
+            p.speedX += (dx / dist) * force * 0.2;
+            p.speedY += (dy / dist) * force * 0.2;
           }
         }
       }
