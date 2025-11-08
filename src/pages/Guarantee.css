@@ -1,0 +1,145 @@
+/* src/pages/Guarantee.css */
+
+.guarantee-container {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guarantee-content {
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.guarantee-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.guarantee-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.guarantee-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #fff 0%, #F27D00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.guarantee-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.guarantee-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.info-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(242, 125, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.info-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.info-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #fff;
+}
+
+.info-card p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.coming-soon {
+  text-align: center;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(242, 125, 0, 0.1) 0%, rgba(242, 125, 0, 0.05) 100%);
+  border: 1px solid rgba(242, 125, 0, 0.2);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.coming-soon p {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #F27D00;
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+  .guarantee-container {
+    padding: 16px;
+  }
+
+  .guarantee-icon {
+    font-size: 48px;
+  }
+
+  .guarantee-title {
+    font-size: 24px;
+  }
+
+  .guarantee-subtitle {
+    font-size: 14px;
+  }
+
+  .info-card {
+    padding: 20px;
+  }
+
+  .info-icon {
+    font-size: 32px;
+  }
+
+  .info-card h3 {
+    font-size: 18px;
+  }
+
+  .info-card p {
+    font-size: 13px;
+  }
+}

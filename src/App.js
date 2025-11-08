@@ -1,13 +1,25 @@
 // src/App.js
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { initTelegramApp } from './utils/telegramUtils';
 import Profile from './pages/Profile';
 import Guarantee from './pages/Guarantee';
 import BottomTabs from './components/BottomTabs';
 import './App.css';
 
 function App() {
+  useEffect(() => {
+    // Инициализация Telegram Mini App при загрузке приложения
+    const isTelegram = initTelegramApp();
+    
+    if (isTelegram) {
+      console.log('✅ Приложение запущено в Telegram');
+    } else {
+      console.log('🌐 Приложение запущено в браузере (режим разработки)');
+    }
+  }, []);
+
   return (
     <div className="app-container">
       <Router>
