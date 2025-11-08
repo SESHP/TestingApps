@@ -236,10 +236,12 @@ export function showAlert(message, callback) {
 
 export function showConfirm(message, callback) {
   if (tg) {
+    // Если приложение работает в Telegram - используем встроенное окно
     tg.showConfirm(message, callback);
   } else {
-    const result = confirm(message);
-    callback(result);
+    // Режим разработки (браузер) - просто логируем и подтверждаем
+    console.log('showConfirm:', message);
+    callback(true);
   }
 }
 
