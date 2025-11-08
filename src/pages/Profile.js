@@ -297,7 +297,7 @@ function Profile() {
                 alt="TON" 
                 className="balance-icon-img"
               />
-              <div className="balance-value">0</div>
+              <div className="balance-value">10</div>
             </div>
           </div>
         </div>
