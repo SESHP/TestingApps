@@ -59,7 +59,7 @@ function Profile() {
     if (!userData?.referralCode || isDisabled) return;
 
     const botUsername = process.env.REACT_APP_BOT_USERNAME || 'your_bot';
-    const referralLink = `https://t.me/${botUsername}?start=${userData.referralCode}`;
+    const referralLink = `https://t.me/algeds_bot/alged?startapp=${userData.referralCode}`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(referralLink)
