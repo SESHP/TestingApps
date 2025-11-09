@@ -39,7 +39,8 @@ CREATE TABLE referrals (
         REFERENCES users(telegram_id) ON DELETE CASCADE,
     CONSTRAINT fk_referred FOREIGN KEY (referred_id) 
         REFERENCES users(telegram_id) ON DELETE CASCADE,
-    CONSTRAINT unique_referral UNIQUE(referrer_id, referred_id)
+    CONSTRAINT unique_referral UNIQUE(referrer_id, referred_id),
+    CONSTRAINT no_self_referral CHECK (referrer_id != referred_id)
 );
 
 -- Индексы для referrals

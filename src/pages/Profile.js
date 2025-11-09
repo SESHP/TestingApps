@@ -123,7 +123,7 @@ function Profile() {
     setCanvasSize();
 
     const particles = [];
-    const numParticles = 30;
+    const numParticles = 50;
 
     for (let i = 0; i < numParticles; i++) {
       particles.push({
@@ -283,8 +283,8 @@ function Profile() {
 
           if (dist < 150 && dist > 0) {
             const force = (150 - dist) / 150;
-            p.speedX += (dx / dist) * force * 0.2;
-            p.speedY += (dy / dist) * force * 0.2;
+            p.speedX += (dx / dist) * force * 0.5;
+            p.speedY += (dy / dist) * force * 0.5;
           }
         }
       }

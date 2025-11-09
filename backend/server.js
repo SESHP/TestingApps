@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+let PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -132,11 +132,39 @@ function validateTelegramData(initData) {
   return null;
 }
 
+// Генерация стабильного тестового ID на основе времени запуска сессии
+const DEV_SESSION_ID = Math.floor(Date.now() / 10000); // Меняется каждые ~3 часа
+
+function getTestUserData(referralCode = null) {
+  // Для тестирования: если есть реферальный код, создаем нового пользователя
+  // Иначе используем стабильный ID для основного тестового пользователя
+  if (referralCode) {
+    return {
+      id: Math.floor(Math.random() * 1000000000),
+      first_name: 'Invited',
+      last_name: 'User',
+      username: `invited_${Date.now()}`
+    };
+  } else {
+    return {
+      id: 999999999, // Фиксированный ID для главного тестового пользователя
+      first_name: 'Test',
+      last_name: 'User',
+      username: 'test_main_user'
+    };
+  }
+}
+
 // API: Получение или создание пользователя
 app.post('/api/user/init', async (req, res) => {
   const client = await pool.connect();
   try {
     const { initData, referralCode } = req.body;
+    
+    console.log('📥 Запрос инициализации:', { 
+      hasInitData: !!initData, 
+      referralCode: referralCode || 'none' 
+    });
     
     // Валидация данных (в dev режиме можем использовать тестовые данные)
     let userData;
@@ -144,17 +172,18 @@ app.post('/api/user/init', async (req, res) => {
       userData = validateTelegramData(initData);
     } else {
       // Тестовые данные для разработки
-      userData = {
-        id: Math.floor(Math.random() * 1000000000),
-        first_name: 'Test',
-        last_name: 'User',
-        username: 'testuser'
-      };
+      userData = getTestUserData(referralCode);
     }
 
     if (!userData) {
       return res.status(400).json({ error: 'Неверные данные' });
     }
+
+    console.log('👤 Пользователь для обработки:', {
+      id: userData.id,
+      name: `${userData.first_name} ${userData.last_name}`,
+      hasReferralCode: !!referralCode
+    });
 
     await client.query('BEGIN');
 
@@ -167,18 +196,29 @@ app.post('/api/user/init', async (req, res) => {
     let user = userResult.rows[0];
 
     if (!user) {
+      console.log('🆕 Создание нового пользователя:', userData.id);
+      
       // Создаем нового пользователя
       const newReferralCode = await generateUniqueReferralCode();
       
       // Проверяем реферальный код, если был передан
       let referrerId = null;
       if (referralCode) {
+        console.log('🔍 Поиск реферера с кодом:', referralCode);
+        
         const referrerResult = await client.query(
-          'SELECT telegram_id FROM users WHERE referral_code = $1',
-          [referralCode]
+          'SELECT telegram_id, first_name, last_name FROM users WHERE referral_code = $1',
+          [referralCode.toUpperCase()]
         );
+        
         if (referrerResult.rows.length > 0) {
           referrerId = referrerResult.rows[0].telegram_id;
+          console.log('✅ Найден реферер:', {
+            id: referrerId,
+            name: `${referrerResult.rows[0].first_name} ${referrerResult.rows[0].last_name}`
+          });
+        } else {
+          console.log('⚠️ Реферер не найден для кода:', referralCode);
         }
       }
 
@@ -191,6 +231,11 @@ app.post('/api/user/init', async (req, res) => {
       );
 
       user = insertResult.rows[0];
+      console.log('✅ Пользователь создан:', {
+        telegram_id: user.telegram_id,
+        referral_code: user.referral_code,
+        referred_by: user.referred_by
+      });
 
       // Если был реферер, создаем запись в таблице рефералов
       if (referrerId) {
@@ -198,6 +243,39 @@ app.post('/api/user/init', async (req, res) => {
           'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
           [referrerId, userData.id]
         );
+        console.log('✅ Реферальная связь создана:', { referrerId, referredId: userData.id });
+      }
+    } else {
+      console.log('👤 Существующий пользователь:', user.telegram_id);
+      
+      // Если пользователь уже существует, но пришел реферальный код
+      // и у него еще нет реферера - обновляем
+      if (referralCode && !user.referred_by) {
+        console.log('🔄 Попытка обновить реферера для существующего пользователя...');
+        
+        const referrerResult = await client.query(
+          'SELECT telegram_id, first_name, last_name FROM users WHERE referral_code = $1',
+          [referralCode.toUpperCase()]
+        );
+        
+        if (referrerResult.rows.length > 0) {
+          const referrerId = referrerResult.rows[0].telegram_id;
+          
+          // Обновляем referred_by
+          await client.query(
+            'UPDATE users SET referred_by = $1 WHERE telegram_id = $2',
+            [referrerId, user.telegram_id]
+          );
+          
+          // Создаем связь в referrals
+          await client.query(
+            'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [referrerId, user.telegram_id]
+          );
+          
+          user.referred_by = referrerId;
+          console.log('✅ Реферер обновлен для существующего пользователя');
+        }
       }
     }
 
@@ -215,6 +293,11 @@ app.post('/api/user/init', async (req, res) => {
 
     await client.query('COMMIT');
 
+    console.log('✅ Инициализация завершена:', {
+      user_id: user.telegram_id,
+      referrals: referralStats.total_referrals
+    });
+
     res.json({
       user: {
         id: user.telegram_id,
@@ -224,7 +307,8 @@ app.post('/api/user/init', async (req, res) => {
         referralCode: user.referral_code,
         balance: parseFloat(user.balance),
         totalDeals: user.total_deals,
-        rating: parseFloat(user.rating)
+        rating: parseFloat(user.rating),
+        referredBy: user.referred_by
       },
       referralStats: {
         totalReferrals: parseInt(referralStats.total_referrals) || 0,
@@ -234,7 +318,7 @@ app.post('/api/user/init', async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Ошибка при инициализации пользователя:', error);
+    console.error('❌ Ошибка при инициализации пользователя:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   } finally {
     client.release();
@@ -329,6 +413,52 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint - получение всех пользователей (только для разработки)
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const usersResult = await pool.query(`
+      SELECT 
+        u.telegram_id,
+        u.first_name,
+        u.last_name,
+        u.username,
+        u.referral_code,
+        u.referred_by,
+        u.created_at,
+        COUNT(r.id) as referrals_count
+      FROM users u
+      LEFT JOIN referrals r ON u.telegram_id = r.referrer_id
+      GROUP BY u.telegram_id
+      ORDER BY u.created_at DESC
+      LIMIT 20
+    `);
+
+    const referralsResult = await pool.query(`
+      SELECT 
+        r.*,
+        u1.first_name as referrer_name,
+        u2.first_name as referred_name
+      FROM referrals r
+      JOIN users u1 ON r.referrer_id = u1.telegram_id
+      JOIN users u2 ON r.referred_id = u2.telegram_id
+      ORDER BY r.created_at DESC
+      LIMIT 20
+    `);
+
+    res.json({
+      users: usersResult.rows,
+      referrals: referralsResult.rows,
+      counts: {
+        totalUsers: usersResult.rows.length,
+        totalReferrals: referralsResult.rows.length
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка debug endpoint:', error);
+    res.status(500).json({ error: 'Ошибка получения данных' });
+  }
+});
+
 // Обработка завершения работы
 process.on('SIGTERM', async () => {
   console.log('SIGTERM получен, закрываем соединения...');
@@ -336,15 +466,24 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Запуск сервера
+// Запуск сервера с автоматическим выбором порта
 async function startServer() {
   try {
     await initDatabase();
     
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
       console.log(`🗄️  База данных: PostgreSQL`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
+    }).on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`⚠️  Порт ${PORT} занят, пробуем ${PORT + 1}...`);
+        PORT = PORT + 1;
+        setTimeout(startServer, 1000);
+      } else {
+        console.error('❌ Ошибка запуска сервера:', err);
+        process.exit(1);
+      }
     });
   } catch (error) {
     console.error('❌ Ошибка запуска сервера:', error);

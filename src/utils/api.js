@@ -7,6 +7,8 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
  */
 export async function initUser(initData, referralCode = null) {
   try {
+    console.log('🔄 Инициализация пользователя с реф.кодом:', referralCode);
+    
     const response = await fetch(`${API_URL}/api/user/init`, {
       method: 'POST',
       headers: {
@@ -22,7 +24,10 @@ export async function initUser(initData, referralCode = null) {
       throw new Error('Ошибка инициализации пользователя');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('✅ Пользователь инициализирован:', data);
+    
+    return data;
   } catch (error) {
     console.error('Ошибка API initUser:', error);
     throw error;
