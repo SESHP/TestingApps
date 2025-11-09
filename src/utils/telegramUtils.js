@@ -4,21 +4,14 @@ const tg = window.Telegram?.WebApp;
 
 /**
  * Инициализация Telegram Mini App
- * Вызывать один раз при запуске приложения
  */
 export function initTelegramApp() {
   if (tg) {
-    // Сообщаем Telegram что приложение готово
     tg.ready();
-    
-    // Разворачиваем на весь экран
     tg.expand();
-    
-    // Устанавливаем цвета под наш дизайн
     tg.setHeaderColor('#000000');
     tg.setBackgroundColor('#000000');
     
-    // Отключаем вертикальные свайпы (чтобы случайно не закрыть приложение)
     if (tg.disableVerticalSwipes) {
       tg.disableVerticalSwipes();
     }
@@ -30,7 +23,8 @@ export function initTelegramApp() {
       isExpanded: tg.isExpanded,
       viewportHeight: tg.viewportHeight,
       viewportStableHeight: tg.viewportStableHeight,
-      user: tg.initDataUnsafe?.user
+      user: tg.initDataUnsafe?.user,
+      start_param: tg.initDataUnsafe?.start_param // ВАЖНО: логируем start_param
     });
     
     return true;
@@ -38,6 +32,30 @@ export function initTelegramApp() {
     console.warn('⚠️ Telegram WebApp SDK не найден. Режим разработки.');
     return false;
   }
+}
+
+/**
+ * НОВАЯ ФУНКЦИЯ: Получить реферальный код из Telegram или URL
+ */
+export function getReferralCode() {
+  // 1. Сначала пробуем получить из start_param (для Mini App)
+  if (tg && tg.initDataUnsafe?.start_param) {
+    const startParam = tg.initDataUnsafe.start_param;
+    console.log('📌 Реферальный код из Telegram start_param:', startParam);
+    return startParam;
+  }
+  
+  // 2. Если нет, пробуем из URL параметра ?ref= (для браузера/разработки)
+  const urlParams = new URLSearchParams(window.location.search);
+  const refFromUrl = urlParams.get('ref');
+  
+  if (refFromUrl) {
+    console.log('📌 Реферальный код из URL параметра:', refFromUrl);
+    return refFromUrl;
+  }
+  
+  console.log('ℹ️ Реферальный код не найден');
+  return null;
 }
 
 /**
@@ -110,7 +128,7 @@ export function getInitData() {
 export const getTelegramTheme = () => {
   try {
     if (tg) {
-      return tg.colorScheme || 'dark'; // 'light' или 'dark'
+      return tg.colorScheme || 'dark';
     }
   } catch (error) {
     console.error('Ошибка при получении темы:', error);
@@ -201,7 +219,6 @@ export function hideBackButton() {
 export const hapticFeedback = (type = 'medium') => {
   try {
     if (tg?.HapticFeedback) {
-      // Типы: light, medium, heavy, rigid, soft
       tg.HapticFeedback.impactOccurred(type);
     }
   } catch (error) {
@@ -211,7 +228,6 @@ export const hapticFeedback = (type = 'medium') => {
 
 export function notificationHaptic(type = 'success') {
   if (tg?.HapticFeedback) {
-    // Типы: error, success, warning
     tg.HapticFeedback.notificationOccurred(type);
   }
 }
@@ -236,10 +252,8 @@ export function showAlert(message, callback) {
 
 export function showConfirm(message, callback) {
   if (tg) {
-    // Если приложение работает в Telegram - используем встроенное окно
     tg.showConfirm(message, callback);
   } else {
-    // Режим разработки (браузер) - просто логируем и подтверждаем
     console.log('showConfirm:', message);
     callback(true);
   }

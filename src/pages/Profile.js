@@ -1,7 +1,7 @@
 // src/pages/Profile.js
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic } from '../utils/telegramUtils';
+import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic, getReferralCode } from '../utils/telegramUtils';
 import { initUser, getReferralStats } from '../utils/api';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
@@ -29,9 +29,14 @@ function Profile() {
         const telegramUser = getTelegramUser();
         setUser(telegramUser);
 
-        // Получаем referral code из URL если есть
-        const urlParams = new URLSearchParams(window.location.search);
-        const referralCode = urlParams.get('ref');
+        // ИСПРАВЛЕНО: Получаем referral code через новую функцию
+        const referralCode = getReferralCode();
+        
+        if (referralCode) {
+          console.log('✅ Найден реферальный код:', referralCode);
+        } else {
+          console.log('ℹ️ Реферальный код не найден - это первый запуск без реферала');
+        }
 
         // Инициализируем пользователя на бэкенде
         const initData = getInitData();
@@ -54,7 +59,7 @@ function Profile() {
     if (!userData?.referralCode || isDisabled) return;
 
     const botUsername = process.env.REACT_APP_BOT_USERNAME || 'your_bot';
-    const referralLink = `https://t.me/algeds_bot?start=${userData.referralCode}`;
+    const referralLink = `https://t.me/${botUsername}?start=${userData.referralCode}`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(referralLink)
