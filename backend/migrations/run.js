@@ -7,10 +7,10 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
+  user: process.env.DB_USER || 'buzeoff',
   host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'ton_guarantee',
-  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'alged_ref_db',
+  password: process.env.DB_PASSWORD || 'olhseS05!',
   port: process.env.DB_PORT || 5432,
 });
 

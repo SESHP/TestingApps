@@ -15,9 +15,12 @@ function Profile() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [isDisabled, setIsDisabled] = useState(false);
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
+  const cooldownTimerRef = useRef(null);
 
   // Загрузка пользователя и инициализация
   useEffect(() => {
@@ -48,7 +51,7 @@ function Profile() {
 
   // Копирование реферальной ссылки
   const handleCopyReferralLink = () => {
-    if (!userData?.referralCode) return;
+    if (!userData?.referralCode || isDisabled) return;
 
     const botUsername = process.env.REACT_APP_BOT_USERNAME || 'your_bot';
     const referralLink = `https://t.me/${botUsername}?start=${userData.referralCode}`;
@@ -56,15 +59,46 @@ function Profile() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(referralLink)
         .then(() => {
-          setIsCopied(true);
+          // Блокируем кнопку сразу
+          setIsDisabled(true);
           notificationHaptic('success');
-          setTimeout(() => setIsCopied(false), 2000);
+          
+          // Показываем галочку на 1.5 секунды
+          setIsCopied(true);
+          
+          setTimeout(() => {
+            // Убираем галочку и начинаем отсчет
+            setIsCopied(false);
+            setCooldown(5);
+            
+            // Запускаем таймер обратного отсчета
+            cooldownTimerRef.current = setInterval(() => {
+              setCooldown((prev) => {
+                if (prev <= 1) {
+                  clearInterval(cooldownTimerRef.current);
+                  setIsDisabled(false);
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+          }, 1500);
         })
         .catch(err => {
           console.error('Ошибка копирования:', err);
+          setIsDisabled(false);
         });
     }
   };
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, []);
 
   // Анимация canvas
   useEffect(() => {
@@ -79,7 +113,6 @@ function Profile() {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
-    // Функция для установки размеров canvas
     const setCanvasSize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
@@ -92,7 +125,6 @@ function Profile() {
     const particles = [];
     const numParticles = 30;
 
-    // Инициализация частиц
     for (let i = 0; i < numParticles; i++) {
       particles.push({
         x: Math.random() * width,
@@ -110,7 +142,6 @@ function Profile() {
 
     particlesRef.current = particles;
 
-    // Рисование треугольника
     function drawParticle(p) {
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -139,7 +170,6 @@ function Profile() {
       ctx.restore();
     }
 
-    // Проверка столкновений (оптимизированная)
     function checkCollisions() {
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
@@ -176,7 +206,6 @@ function Profile() {
       }
     }
 
-    // Обновление позиций
     function update() {
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -186,7 +215,6 @@ function Profile() {
         p.speedY += 0.0005;
         p.angle += p.angularVelocity;
 
-        // Отскок от краёв (используем актуальные width/height)
         if (p.x - p.size < 0 || p.x + p.size > width) {
           p.speedX *= -0.9;
           p.x = Math.max(p.size, Math.min(width - p.size, p.x));
@@ -204,10 +232,8 @@ function Profile() {
       checkCollisions();
     }
 
-    // Рисование
     function draw() {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-
       ctx.fillRect(0, 0, width, height);
 
       for (let i = 0; i < particles.length; i++) {
@@ -215,7 +241,6 @@ function Profile() {
       }
     }
 
-    // Анимация
     function animate() {
       update();
       draw();
@@ -224,7 +249,6 @@ function Profile() {
 
     animate();
 
-    // Обработчик движения мыши
     const handleMouseMove = (e) => {
       const mouseX = e.clientX;
       const mouseY = e.clientY;
@@ -243,9 +267,8 @@ function Profile() {
       }
     };
 
-    // Обработчик touch (исправлен для мобильных)
     const handleTouchMove = (e) => {
-      e.preventDefault(); // Предотвращаем скролл при касании canvas
+      e.preventDefault();
       
       if (e.touches.length > 0) {
         const touch = e.touches[0];
@@ -260,7 +283,6 @@ function Profile() {
 
           if (dist < 150 && dist > 0) {
             const force = (150 - dist) / 150;
-            // Уменьшили силу с 5 до 2 для более плавного взаимодействия
             p.speedX += (dx / dist) * force * 0.2;
             p.speedY += (dy / dist) * force * 0.2;
           }
@@ -268,14 +290,12 @@ function Profile() {
       }
     };
 
-    // Обработчик resize с debounce
     let resizeTimeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         setCanvasSize();
         
-        // Проверяем, чтобы частицы оставались в новых границах
         for (let i = 0; i < particlesRef.current.length; i++) {
           const p = particlesRef.current[i];
           p.x = Math.max(p.size, Math.min(width - p.size, p.x));
@@ -284,12 +304,10 @@ function Profile() {
       }, 100);
     };
 
-    // Добавляем слушатели
     window.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(animationIdRef.current);
       window.removeEventListener('mousemove', handleMouseMove);
@@ -381,19 +399,17 @@ function Profile() {
           {userData?.referralCode && (
             <div className="referral-code-container">
               <div className="referral-code-label">Ваш реферальный код:</div>
-              <div className="referral-code-box">
+              <div 
+                className={`referral-code-box ${isDisabled ? 'disabled' : ''}`} 
+                onClick={handleCopyReferralLink}
+              >
                 <span className="referral-code">{userData.referralCode}</span>
+                <button className={`copy-icon-btn ${isCopied ? 'copied' : ''} ${isDisabled ? 'disabled' : ''}`}>
+                  {cooldown > 0 ? cooldown : (isCopied ? '✓' : '📋')}
+                </button>
               </div>
             </div>
           )}
-
-          {/* Кнопка копирования */}
-          <button 
-            className={`copy-referral-btn ${isCopied ? 'copied' : ''}`}
-            onClick={handleCopyReferralLink}
-          >
-            {isCopied ? '✓ Скопировано!' : '📋 Копировать реферальную ссылку'}
-          </button>
 
           <p className="referral-description">
             Пригласи друзей и получай 5% TON с каждой их сделки.
