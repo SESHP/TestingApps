@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { initTelegramApp } from './utils/telegramUtils';
 import Profile from './pages/Profile';
+import Inventory from './pages/Inventory';
 import Guarantee from './pages/Guarantee';
 import BottomTabs from './components/BottomTabs';
 import './App.css';
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Profile />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="/guarantee" element={<Guarantee />} />
         </Routes>
         <BottomTabs />
