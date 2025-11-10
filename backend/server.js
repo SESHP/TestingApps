@@ -86,6 +86,92 @@ async function initDatabase() {
   }
 }
 
+/**
+ * Инициализация Telegram клиента
+ */
+let telegramClient;
+async function initTelegramClient() {
+  const session = new StringSession(SESSION_STRING);
+  
+  telegramClient = new TelegramClient(session, API_ID, API_HASH, {
+    connectionRetries: 5,
+  });
+
+  await telegramClient.connect();
+  console.log('✅ Telegram клиент подключен');
+}
+
+/**
+ * Парсинг подарков из аккаунта @FNPK3
+ * 
+ * ВАЖНО: Для получения подарков нужно:
+ * 1. Использовать Telegram Bot API или MTProto
+ * 2. Получить доступ к аккаунту @FNPK3 (через бота или user account)
+ * 3. Извлечь информацию о подарках и отправителях
+ */
+async function parseGiftsFromAccount(targetUsername = 'FNPK3') {
+  try {
+    if (!telegramClient) {
+      throw new Error('Telegram клиент не инициализирован');
+    }
+
+    // Получаем информацию о пользователе @FNPK3
+    const targetUser = await telegramClient.getEntity(targetUsername);
+    
+    // Получаем подарки (gifts) через Telegram API
+    // ВАЖНО: Этот метод зависит от доступных API методов
+    // Может потребоваться использование специальных методов для gifts
+    
+    const gifts = await telegramClient.invoke(
+      new Api.payments.GetStarsGifts({
+        userId: targetUser.id,
+      })
+    );
+
+    // Парсим подарки и группируем по отправителям
+    const parsedGifts = [];
+    
+    for (const gift of gifts) {
+      const senderId = gift.fromId?.userId?.toString();
+      
+      if (senderId) {
+        parsedGifts.push({
+          id: gift.id,
+          name: gift.gift?.title || 'Подарок',
+          image: gift.gift?.sticker || '🎁',
+          date: new Date(gift.date * 1000).toISOString(),
+          sender: senderId,
+          rawData: gift, // Храним оригинальные данные
+        });
+      }
+    }
+
+    // Группируем подарки по отправителям
+    const groupedGifts = new Map();
+    
+    for (const gift of parsedGifts) {
+      const userId = gift.sender;
+      
+      if (!groupedGifts.has(userId)) {
+        groupedGifts.set(userId, []);
+      }
+      
+      groupedGifts.get(userId).push(gift);
+    }
+
+    // Обновляем базу данных
+    groupedGifts.forEach((userGifts, userId) => {
+      giftsDatabase.set(userId, userGifts);
+    });
+
+    return parsedGifts;
+  } catch (error) {
+    console.error('Ошибка парсинга подарков:', error);
+    throw error;
+  }
+}
+
+
 // Генерация уникального реферального кода
 function generateReferralCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -459,6 +545,127 @@ app.get('/api/debug/users', async (req, res) => {
   }
 });
 
+// ============ API ENDPOINTS ============
+
+/**
+ * GET /api/gifts/:telegramUserId
+ * Получить все подарки конкретного пользователя
+ */
+app.get('/api/gifts/:telegramUserId', async (req, res) => {
+  try {
+    const { telegramUserId } = req.params;
+    
+    // Проверяем, есть ли подарки пользователя в базе
+    const userGifts = giftsDatabase.get(telegramUserId) || [];
+    
+    res.json({
+      success: true,
+      gifts: userGifts,
+      count: userGifts.length,
+    });
+  } catch (error) {
+    console.error('Ошибка получения подарков:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка получения подарков',
+    });
+  }
+});
+
+/**
+ * POST /api/gifts/refresh/:telegramUserId
+ * Обновить список подарков (запустить парсинг)
+ */
+app.post('/api/gifts/refresh/:telegramUserId', async (req, res) => {
+  try {
+    const { telegramUserId } = req.params;
+    
+    // Запускаем парсинг подарков
+    await parseGiftsFromAccount();
+    
+    // Получаем обновленный список подарков пользователя
+    const userGifts = giftsDatabase.get(telegramUserId) || [];
+    
+    res.json({
+      success: true,
+      gifts: userGifts,
+      count: userGifts.length,
+      message: 'Подарки обновлены',
+    });
+  } catch (error) {
+    console.error('Ошибка обновления подарков:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка обновления подарков',
+    });
+  }
+});
+
+/**
+ * POST /api/gifts/verify
+ * Проверить владельца подарка
+ */
+app.post('/api/gifts/verify', async (req, res) => {
+  try {
+    const { giftId, telegramUserId } = req.body;
+    
+    const userGifts = giftsDatabase.get(telegramUserId) || [];
+    const isOwner = userGifts.some(gift => gift.id === giftId);
+    
+    res.json({
+      success: true,
+      isOwner,
+    });
+  } catch (error) {
+    console.error('Ошибка проверки владельца:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка проверки владельца',
+    });
+  }
+});
+
+/**
+ * GET /api/gifts/details/:giftId
+ * Получить детали конкретного подарка
+ */
+app.get('/api/gifts/details/:giftId', async (req, res) => {
+  try {
+    const { giftId } = req.params;
+    
+    // Ищем подарок во всей базе
+    let foundGift = null;
+    
+    for (const [userId, gifts] of giftsDatabase.entries()) {
+      const gift = gifts.find(g => g.id === giftId);
+      if (gift) {
+        foundGift = { ...gift, ownerId: userId };
+        break;
+      }
+    }
+    
+    if (!foundGift) {
+      return res.status(404).json({
+        success: false,
+        error: 'Подарок не найден',
+      });
+    }
+    
+    res.json({
+      success: true,
+      gift: foundGift,
+    });
+  } catch (error) {
+    console.error('Ошибка получения деталей подарка:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка получения деталей подарка',
+    });
+  }
+});
+
+
+
 // Обработка завершения работы
 process.on('SIGTERM', async () => {
   console.log('SIGTERM получен, закрываем соединения...');
@@ -466,11 +673,31 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+
+
+
 // Запуск сервера с автоматическим выбором порта
 async function startServer() {
   try {
     await initDatabase();
+    await initTelegramClient();
     
+    console.log('🔄 Запуск первоначального парсинга подарков...');
+    await parseGiftsFromAccount();
+    console.log('✅ Первоначальный парсинг завершен');
+    
+    // Периодическое обновление (каждые 5 минут)
+    setInterval(async () => {
+      console.log('🔄 Периодическое обновление подарков...');
+      try {
+        await parseGiftsFromAccount();
+        console.log('✅ Подарки обновлены');
+      } catch (error) {
+        console.error('❌ Ошибка периодического обновления:', error);
+      }
+    }, 5 * 60 * 1000);
+    
+
     const server = app.listen(PORT, () => {
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
       console.log(`🗄️  База данных: PostgreSQL`);
