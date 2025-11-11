@@ -13,9 +13,9 @@ const app = express();
 let PORT = process.env.PORT || 3001;
 
 // Telegram конфигурация
-const API_ID = parseInt(process.env.API_ID);
-const API_HASH = process.env.API_HASH;
-const SESSION_STRING = process.env.SESSION_STRING || '';
+const API_ID = parseInt(process.env.TELEGRAM_API_ID);
+const API_HASH = process.env.TELEGRAM_API_HASH;
+const SESSION_STRING = process.env.TELEGRAM_SESSION || '';
 
 // Middleware
 app.use(cors());
