@@ -4,9 +4,17 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const { TelegramClient, Api } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const { NewMessage } = require('telegram/events');
 
 const app = express();
 let PORT = process.env.PORT || 3001;
+
+// Telegram конфигурация
+const API_ID = parseInt(process.env.API_ID);
+const API_HASH = process.env.API_HASH;
+const SESSION_STRING = process.env.SESSION_STRING || '';
 
 // Middleware
 app.use(cors());
@@ -21,7 +29,411 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Инициализация базы данных
+// Глобальный Telegram клиент
+let telegramClient = null;
+
+// База данных подарков (в памяти)
+const giftsDatabase = new Map();
+
+// ============ TELEGRAM CLIENT FUNCTIONS ============
+
+/**
+ * Инициализация Telegram клиента
+ */
+async function initTelegramClient() {
+  if (!API_ID || !API_HASH) {
+    throw new Error('API_ID и API_HASH должны быть заданы в .env');
+  }
+
+  const session = new StringSession(SESSION_STRING);
+  
+  telegramClient = new TelegramClient(session, API_ID, API_HASH, {
+    connectionRetries: 5,
+  });
+
+  await telegramClient.connect();
+  
+  const me = await telegramClient.getMe();
+  console.log(`✅ Подключено как: ${me.firstName} ${me.lastName || ''}`);
+  console.log(`📱 ID: ${me.id}\n`);
+  
+  return telegramClient;
+}
+
+/**
+ * Получение информации об отправителе подарка
+ */
+async function getSenderInfo(senderId) {
+  if (!senderId) return null;
+  
+  try {
+    const sender = await telegramClient.getEntity(senderId);
+    return sender;
+  } catch (error) {
+    console.error('Ошибка получения информации об отправителе:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Получение деталей подарка из каталога
+ */
+async function getGiftDetails(giftId) {
+  try {
+    const gifts = await telegramClient.invoke(
+      new Api.payments.GetStarGifts({ hash: 0 })
+    );
+    return gifts.gifts?.find(g => g.id === giftId);
+  } catch (error) {
+    console.error('Ошибка получения деталей подарка:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Получение информации об уникальном подарке
+ */
+async function getUniqueGiftInfo(userId, messageId) {
+  try {
+    const userGifts = await telegramClient.invoke(
+      new Api.payments.GetUserStarGifts({
+        userId: userId,
+        offset: '',
+        limit: 100,
+      })
+    );
+    const giftEntry = userGifts.gifts?.find(g => g.msgId === messageId);
+    return giftEntry?.gift || null;
+  } catch (error) {
+    console.error('Ошибка получения уникального подарка:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Парсинг данных подарка
+ */
+function parseGiftData(message, senderInfo, giftDetails, uniqueGift) {
+  const giftAction = message.action;
+  
+  const baseData = {
+    messageId: message.id,
+    receivedAt: new Date(message.date * 1000).toISOString(),
+    message: message.message || null,
+  };
+  
+  // Информация об отправителе
+  const senderId = message.senderId?.value || message.fromId?.userId?.value;
+  baseData.sender = senderId ? {
+    id: senderId,
+    firstName: senderInfo?.firstName || null,
+    lastName: senderInfo?.lastName || null,
+    username: senderInfo?.username || null,
+    phone: senderInfo?.phone || null,
+  } : {
+    anonymous: true
+  };
+  
+  // Тип подарка
+  if (giftAction.className === 'MessageActionGiftPremium') {
+    baseData.type = 'premium';
+    baseData.gift = {
+      months: giftAction.months,
+      currency: giftAction.currency,
+      amount: giftAction.amount,
+    };
+  } else if (giftAction.className === 'MessageActionStarGift') {
+    baseData.type = 'star_gift';
+    baseData.gift = {
+      id: giftAction.gift?.id || null,
+      stars: giftAction.stars || 0,
+      convertStars: giftAction.convertStars || 0,
+      saved: giftAction.saved || false,
+    };
+    
+    // Детали из каталога
+    if (giftDetails) {
+      baseData.gift.availability = {
+        remains: giftDetails.availabilityRemains,
+        total: giftDetails.availabilityTotal,
+      };
+      baseData.gift.firstSale = new Date(giftDetails.firstSaleDate * 1000).toISOString();
+      baseData.gift.lastSale = new Date(giftDetails.lastSaleDate * 1000).toISOString();
+    }
+    
+    // Уникальный подарок
+    if (giftAction.upgrade && uniqueGift) {
+      baseData.unique = {
+        title: uniqueGift.title || null,
+        number: uniqueGift.num || null,
+        ownerName: uniqueGift.ownerName || null,
+        birthday: uniqueGift.birthday || null,
+        model: {
+          name: uniqueGift.model?.title || null,
+          documentId: uniqueGift.model?.document?.id?.toString() || null,
+        },
+        backdrop: {
+          name: uniqueGift.backdrop?.title || null,
+          colors: {
+            center: uniqueGift.backdrop?.centerColor ? 
+              `#${uniqueGift.backdrop.centerColor.toString(16).padStart(6, '0')}` : null,
+            edge: uniqueGift.backdrop?.edgeColor ? 
+              `#${uniqueGift.backdrop.edgeColor.toString(16).padStart(6, '0')}` : null,
+            pattern: uniqueGift.backdrop?.patternColor ? 
+              `#${uniqueGift.backdrop.patternColor.toString(16).padStart(6, '0')}` : null,
+            text: uniqueGift.backdrop?.textColor ? 
+              `#${uniqueGift.backdrop.textColor.toString(16).padStart(6, '0')}` : null,
+          }
+        },
+        pattern: {
+          name: uniqueGift.pattern?.title || null,
+          documentId: uniqueGift.pattern?.document?.id?.toString() || null,
+        }
+      };
+    }
+  }
+  
+  return baseData;
+}
+
+/**
+ * Форматирование подарка для консоли
+ */
+function formatGiftForConsole(giftData) {
+  let output = '\n' + '═'.repeat(50) + '\n';
+  output += `🎁 ПОДАРОК ПОЛУЧЕН\n`;
+  output += '═'.repeat(50) + '\n\n';
+  
+  // Отправитель
+  if (giftData.sender.anonymous) {
+    output += `👤 Отправитель: Аноним\n`;
+  } else {
+    output += `👤 Отправитель:\n`;
+    output += `   ID: ${giftData.sender.id}\n`;
+    output += `   Имя: ${giftData.sender.firstName} ${giftData.sender.lastName || ''}\n`;
+    if (giftData.sender.username) {
+      output += `   Username: @${giftData.sender.username}\n`;
+    }
+  }
+  
+  // Тип подарка
+  output += `\n📦 Тип: ${giftData.type === 'premium' ? 'Telegram Premium' : 'Star Gift'}\n`;
+  
+  // Детали подарка
+  if (giftData.type === 'premium') {
+    output += `   Месяцев Premium: ${giftData.gift.months}\n`;
+  } else {
+    output += `   Gift ID: ${giftData.gift.id}\n`;
+    output += `   Стоимость: ${giftData.gift.stars} Stars\n`;
+    output += `   Конвертируемо: ${giftData.gift.convertStars} Stars\n`;
+  }
+  
+  // Сообщение
+  if (giftData.message) {
+    output += `\n💬 Сообщение: "${giftData.message}"\n`;
+  }
+  
+  // Уникальный подарок
+  if (giftData.unique) {
+    output += `\n✨ ════ УНИКАЛЬНЫЙ ПОДАРОК ════\n`;
+    output += `   📛 Название: ${giftData.unique.title}\n`;
+    output += `   🔢 Номер: #${giftData.unique.number}\n`;
+    output += `\n   🏗️ Модель: ${giftData.unique.model.name}\n`;
+    output += `   🎨 Фон: ${giftData.unique.backdrop.name}\n`;
+    output += `      Центр: ${giftData.unique.backdrop.colors.center}\n`;
+    output += `      Края: ${giftData.unique.backdrop.colors.edge}\n`;
+    output += `   🔷 Узор: ${giftData.unique.pattern.name}\n`;
+    output += `═`.repeat(50) + '\n';
+  }
+  
+  output += `\n📅 Получено: ${new Date(giftData.receivedAt).toLocaleString('ru-RU')}\n`;
+  output += '═'.repeat(50) + '\n';
+  
+  return output;
+}
+
+/**
+ * Обработчик новых подарков (real-time listener)
+ */
+async function handleNewGift(message) {
+  try {
+    console.log('\n🎁 Получен новый подарок!');
+    
+    const giftAction = message.action;
+    const senderId = message.senderId?.value || message.fromId?.userId?.value;
+    
+    // Получаем дополнительную информацию
+    const senderInfo = await getSenderInfo(senderId);
+    
+    let giftDetails = null;
+    let uniqueGift = null;
+    
+    if (giftAction.className === 'MessageActionStarGift') {
+      giftDetails = await getGiftDetails(giftAction.gift?.id);
+      
+      if (giftAction.upgrade) {
+        const me = await telegramClient.getMe();
+        uniqueGift = await getUniqueGiftInfo(me.id, message.id);
+      }
+    }
+    
+    // Парсим данные подарка
+    const giftData = parseGiftData(message, senderInfo, giftDetails, uniqueGift);
+    
+    // Сохраняем в базу данных
+    const senderIdStr = senderId?.toString();
+    if (senderIdStr) {
+      if (!giftsDatabase.has(senderIdStr)) {
+        giftsDatabase.set(senderIdStr, []);
+      }
+      giftsDatabase.get(senderIdStr).push(giftData);
+    }
+    
+    // Выводим в консоль
+    console.log(formatGiftForConsole(giftData));
+    
+    // Сохраняем в PostgreSQL (опционально)
+    await saveGiftToDatabase(giftData);
+    
+  } catch (error) {
+    console.error('❌ Ошибка обработки подарка:', error);
+  }
+}
+
+/**
+ * Добавление слушателя новых подарков
+ */
+function addGiftListener() {
+  if (!telegramClient) {
+    throw new Error('Telegram клиент не инициализирован');
+  }
+  
+  telegramClient.addEventHandler(async (event) => {
+    const message = event.message;
+    
+    if (!message.action) return;
+    
+    if (message.action.className === 'MessageActionGiftPremium' ||
+        message.action.className === 'MessageActionStarGift') {
+      await handleNewGift(message);
+    }
+  }, new NewMessage({}));
+  
+  console.log('✅ Слушатель подарков активирован');
+}
+
+/**
+ * Парсинг истории подарков из аккаунта
+ */
+async function parseGiftsHistory(targetUsername = 'me') {
+  try {
+    if (!telegramClient) {
+      throw new Error('Telegram клиент не инициализирован');
+    }
+
+    console.log(`🔍 Парсинг истории подарков для: ${targetUsername}`);
+    
+    // Получаем информацию о пользователе
+    const targetUser = await telegramClient.getEntity(targetUsername);
+    console.log(`📱 Найден пользователь: ${targetUser.firstName} (ID: ${targetUser.id})`);
+    
+    // Получаем все подарки пользователя
+    const userGifts = await telegramClient.invoke(
+      new Api.payments.GetUserStarGifts({
+        userId: targetUser.id,
+        offset: '',
+        limit: 100,
+      })
+    );
+
+    console.log(`📦 Найдено подарков: ${userGifts.gifts?.length || 0}`);
+    
+    const parsedGifts = [];
+    
+    if (userGifts.gifts) {
+      for (const giftEntry of userGifts.gifts) {
+        const senderId = giftEntry.fromId?.userId?.toString();
+        
+        if (senderId) {
+          const giftData = {
+            id: giftEntry.msgId,
+            name: giftEntry.gift?.title || 'Star Gift',
+            stars: giftEntry.gift?.stars || 0,
+            date: new Date(giftEntry.date * 1000).toISOString(),
+            sender: senderId,
+            saved: giftEntry.gift?.saved || false,
+            message: giftEntry.message?.message || null,
+          };
+          
+          parsedGifts.push(giftData);
+          
+          // Сохраняем в базу
+          if (!giftsDatabase.has(senderId)) {
+            giftsDatabase.set(senderId, []);
+          }
+          giftsDatabase.get(senderId).push(giftData);
+        }
+      }
+    }
+
+    console.log(`✅ Обработано подарков: ${parsedGifts.length}`);
+    return parsedGifts;
+    
+  } catch (error) {
+    console.error('❌ Ошибка парсинга истории подарков:', error);
+    throw error;
+  }
+}
+
+/**
+ * Сохранение подарка в PostgreSQL
+ */
+async function saveGiftToDatabase(giftData) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Создаем таблицу gifts если её нет
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gifts (
+        id SERIAL PRIMARY KEY,
+        message_id BIGINT,
+        sender_id BIGINT,
+        sender_username VARCHAR(255),
+        gift_type VARCHAR(50),
+        gift_data JSONB,
+        received_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Вставляем подарок
+    await client.query(
+      `INSERT INTO gifts (message_id, sender_id, sender_username, gift_type, gift_data, received_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        giftData.messageId,
+        giftData.sender.id || null,
+        giftData.sender.username || null,
+        giftData.type,
+        JSON.stringify(giftData),
+        giftData.receivedAt
+      ]
+    );
+    
+    await client.query('COMMIT');
+    console.log('💾 Подарок сохранен в базу данных');
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Ошибка сохранения подарка:', error);
+  } finally {
+    client.release();
+  }
+}
+
+// ============ DATABASE INITIALIZATION ============
+
 async function initDatabase() {
   const client = await pool.connect();
   try {
@@ -44,12 +456,10 @@ async function initDatabase() {
       )
     `);
 
-    // Создание индекса для telegram_id
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)
     `);
 
-    // Создание индекса для referral_code
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)
     `);
@@ -68,7 +478,6 @@ async function initDatabase() {
       )
     `);
 
-    // Создание индексов для referrals
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)
     `);
@@ -86,98 +495,12 @@ async function initDatabase() {
   }
 }
 
-/**
- * Инициализация Telegram клиента
- */
-let telegramClient;
-async function initTelegramClient() {
-  const session = new StringSession(SESSION_STRING);
-  
-  telegramClient = new TelegramClient(session, API_ID, API_HASH, {
-    connectionRetries: 5,
-  });
+// ============ UTILITY FUNCTIONS ============
 
-  await telegramClient.connect();
-  console.log('✅ Telegram клиент подключен');
-}
-
-/**
- * Парсинг подарков из аккаунта @FNPK3
- * 
- * ВАЖНО: Для получения подарков нужно:
- * 1. Использовать Telegram Bot API или MTProto
- * 2. Получить доступ к аккаунту @FNPK3 (через бота или user account)
- * 3. Извлечь информацию о подарках и отправителях
- */
-async function parseGiftsFromAccount(targetUsername = 'FNPK3') {
-  try {
-    if (!telegramClient) {
-      throw new Error('Telegram клиент не инициализирован');
-    }
-
-    // Получаем информацию о пользователе @FNPK3
-    const targetUser = await telegramClient.getEntity(targetUsername);
-    
-    // Получаем подарки (gifts) через Telegram API
-    // ВАЖНО: Этот метод зависит от доступных API методов
-    // Может потребоваться использование специальных методов для gifts
-    
-    const gifts = await telegramClient.invoke(
-      new Api.payments.GetStarsGifts({
-        userId: targetUser.id,
-      })
-    );
-
-    // Парсим подарки и группируем по отправителям
-    const parsedGifts = [];
-    
-    for (const gift of gifts) {
-      const senderId = gift.fromId?.userId?.toString();
-      
-      if (senderId) {
-        parsedGifts.push({
-          id: gift.id,
-          name: gift.gift?.title || 'Подарок',
-          image: gift.gift?.sticker || '🎁',
-          date: new Date(gift.date * 1000).toISOString(),
-          sender: senderId,
-          rawData: gift, // Храним оригинальные данные
-        });
-      }
-    }
-
-    // Группируем подарки по отправителям
-    const groupedGifts = new Map();
-    
-    for (const gift of parsedGifts) {
-      const userId = gift.sender;
-      
-      if (!groupedGifts.has(userId)) {
-        groupedGifts.set(userId, []);
-      }
-      
-      groupedGifts.get(userId).push(gift);
-    }
-
-    // Обновляем базу данных
-    groupedGifts.forEach((userGifts, userId) => {
-      giftsDatabase.set(userId, userGifts);
-    });
-
-    return parsedGifts;
-  } catch (error) {
-    console.error('Ошибка парсинга подарков:', error);
-    throw error;
-  }
-}
-
-
-// Генерация уникального реферального кода
 function generateReferralCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
-// Проверка уникальности реферального кода
 async function generateUniqueReferralCode() {
   let code;
   let isUnique = false;
@@ -201,11 +524,7 @@ async function generateUniqueReferralCode() {
   return code;
 }
 
-// Валидация Telegram initData (упрощенная версия)
 function validateTelegramData(initData) {
-  // В реальном приложении здесь должна быть проверка подписи
-  // используя bot token и crypto
-  // Для разработки просто парсим данные
   try {
     const params = new URLSearchParams(initData);
     const userStr = params.get('user');
@@ -218,12 +537,7 @@ function validateTelegramData(initData) {
   return null;
 }
 
-// Генерация стабильного тестового ID на основе времени запуска сессии
-const DEV_SESSION_ID = Math.floor(Date.now() / 10000); // Меняется каждые ~3 часа
-
 function getTestUserData(referralCode = null) {
-  // Для тестирования: если есть реферальный код, создаем нового пользователя
-  // Иначе используем стабильный ID для основного тестового пользователя
   if (referralCode) {
     return {
       id: Math.floor(Math.random() * 1000000000),
@@ -233,7 +547,7 @@ function getTestUserData(referralCode = null) {
     };
   } else {
     return {
-      id: 999999999, // Фиксированный ID для главного тестового пользователя
+      id: 999999999,
       first_name: 'Test',
       last_name: 'User',
       username: 'test_main_user'
@@ -241,7 +555,9 @@ function getTestUserData(referralCode = null) {
   }
 }
 
-// API: Получение или создание пользователя
+// ============ API ENDPOINTS ============
+
+// User initialization
 app.post('/api/user/init', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -252,12 +568,10 @@ app.post('/api/user/init', async (req, res) => {
       referralCode: referralCode || 'none' 
     });
     
-    // Валидация данных (в dev режиме можем использовать тестовые данные)
     let userData;
     if (initData && initData !== 'dev') {
       userData = validateTelegramData(initData);
     } else {
-      // Тестовые данные для разработки
       userData = getTestUserData(referralCode);
     }
 
@@ -265,15 +579,8 @@ app.post('/api/user/init', async (req, res) => {
       return res.status(400).json({ error: 'Неверные данные' });
     }
 
-    console.log('👤 Пользователь для обработки:', {
-      id: userData.id,
-      name: `${userData.first_name} ${userData.last_name}`,
-      hasReferralCode: !!referralCode
-    });
-
     await client.query('BEGIN');
 
-    // Проверяем, существует ли пользователь
     let userResult = await client.query(
       'SELECT * FROM users WHERE telegram_id = $1',
       [userData.id]
@@ -282,33 +589,20 @@ app.post('/api/user/init', async (req, res) => {
     let user = userResult.rows[0];
 
     if (!user) {
-      console.log('🆕 Создание нового пользователя:', userData.id);
-      
-      // Создаем нового пользователя
       const newReferralCode = await generateUniqueReferralCode();
       
-      // Проверяем реферальный код, если был передан
       let referrerId = null;
       if (referralCode) {
-        console.log('🔍 Поиск реферера с кодом:', referralCode);
-        
         const referrerResult = await client.query(
-          'SELECT telegram_id, first_name, last_name FROM users WHERE referral_code = $1',
+          'SELECT telegram_id FROM users WHERE referral_code = $1',
           [referralCode.toUpperCase()]
         );
         
         if (referrerResult.rows.length > 0) {
           referrerId = referrerResult.rows[0].telegram_id;
-          console.log('✅ Найден реферер:', {
-            id: referrerId,
-            name: `${referrerResult.rows[0].first_name} ${referrerResult.rows[0].last_name}`
-          });
-        } else {
-          console.log('⚠️ Реферер не найден для кода:', referralCode);
         }
       }
 
-      // Вставляем пользователя
       const insertResult = await client.query(
         `INSERT INTO users (telegram_id, username, first_name, last_name, referral_code, referred_by)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -317,55 +611,15 @@ app.post('/api/user/init', async (req, res) => {
       );
 
       user = insertResult.rows[0];
-      console.log('✅ Пользователь создан:', {
-        telegram_id: user.telegram_id,
-        referral_code: user.referral_code,
-        referred_by: user.referred_by
-      });
 
-      // Если был реферер, создаем запись в таблице рефералов
       if (referrerId) {
         await client.query(
           'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
           [referrerId, userData.id]
         );
-        console.log('✅ Реферальная связь создана:', { referrerId, referredId: userData.id });
-      }
-    } else {
-      console.log('👤 Существующий пользователь:', user.telegram_id);
-      
-      // Если пользователь уже существует, но пришел реферальный код
-      // и у него еще нет реферера - обновляем
-      if (referralCode && !user.referred_by) {
-        console.log('🔄 Попытка обновить реферера для существующего пользователя...');
-        
-        const referrerResult = await client.query(
-          'SELECT telegram_id, first_name, last_name FROM users WHERE referral_code = $1',
-          [referralCode.toUpperCase()]
-        );
-        
-        if (referrerResult.rows.length > 0) {
-          const referrerId = referrerResult.rows[0].telegram_id;
-          
-          // Обновляем referred_by
-          await client.query(
-            'UPDATE users SET referred_by = $1 WHERE telegram_id = $2',
-            [referrerId, user.telegram_id]
-          );
-          
-          // Создаем связь в referrals
-          await client.query(
-            'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [referrerId, user.telegram_id]
-          );
-          
-          user.referred_by = referrerId;
-          console.log('✅ Реферер обновлен для существующего пользователя');
-        }
       }
     }
 
-    // Получаем статистику рефералов
     const referralStatsResult = await client.query(
       `SELECT 
         COUNT(*) as total_referrals,
@@ -378,11 +632,6 @@ app.post('/api/user/init', async (req, res) => {
     const referralStats = referralStatsResult.rows[0];
 
     await client.query('COMMIT');
-
-    console.log('✅ Инициализация завершена:', {
-      user_id: user.telegram_id,
-      referrals: referralStats.total_referrals
-    });
 
     res.json({
       user: {
@@ -411,7 +660,7 @@ app.post('/api/user/init', async (req, res) => {
   }
 });
 
-// API: Получение статистики рефералов
+// Get user referrals
 app.get('/api/user/:telegramId/referrals', async (req, res) => {
   try {
     const { telegramId } = req.params;
@@ -463,7 +712,7 @@ app.get('/api/user/:telegramId/referrals', async (req, res) => {
   }
 });
 
-// API: Проверка реферального кода
+// Check referral code
 app.get('/api/referral/check/:code', async (req, res) => {
   try {
     const { code } = req.params;
@@ -494,12 +743,122 @@ app.get('/api/referral/check/:code', async (req, res) => {
   }
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+// ============ GIFTS API ENDPOINTS ============
+
+/**
+ * GET /api/gifts/:telegramUserId
+ * Получить все подарки конкретного пользователя
+ */
+app.get('/api/gifts/:telegramUserId', async (req, res) => {
+  try {
+    const { telegramUserId } = req.params;
+    
+    const userGifts = giftsDatabase.get(telegramUserId) || [];
+    
+    res.json({
+      success: true,
+      gifts: userGifts,
+      count: userGifts.length,
+    });
+  } catch (error) {
+    console.error('Ошибка получения подарков:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка получения подарков',
+    });
+  }
 });
 
-// Debug endpoint - получение всех пользователей (только для разработки)
+/**
+ * POST /api/gifts/refresh
+ * Обновить список подарков (запустить парсинг истории)
+ */
+app.post('/api/gifts/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Запуск обновления подарков...');
+    
+    await parseGiftsHistory();
+    
+    res.json({
+      success: true,
+      message: 'Подарки обновлены',
+      totalGifts: Array.from(giftsDatabase.values()).flat().length
+    });
+  } catch (error) {
+    console.error('Ошибка обновления подарков:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка обновления подарков',
+    });
+  }
+});
+
+/**
+ * POST /api/gifts/verify
+ * Проверить владельца подарка
+ */
+app.post('/api/gifts/verify', async (req, res) => {
+  try {
+    const { giftId, telegramUserId } = req.body;
+    
+    const userGifts = giftsDatabase.get(telegramUserId) || [];
+    const isOwner = userGifts.some(gift => gift.id === giftId);
+    
+    res.json({
+      success: true,
+      isOwner,
+    });
+  } catch (error) {
+    console.error('Ошибка проверки владельца:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка проверки владельца',
+    });
+  }
+});
+
+/**
+ * GET /api/gifts/all
+ * Получить все подарки из базы
+ */
+app.get('/api/gifts/all', async (req, res) => {
+  try {
+    const allGifts = [];
+    
+    for (const [userId, gifts] of giftsDatabase.entries()) {
+      gifts.forEach(gift => {
+        allGifts.push({
+          ...gift,
+          ownerId: userId
+        });
+      });
+    }
+    
+    res.json({
+      success: true,
+      gifts: allGifts,
+      count: allGifts.length,
+    });
+  } catch (error) {
+    console.error('Ошибка получения всех подарков:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ошибка получения подарков',
+    });
+  }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    telegramConnected: !!telegramClient,
+    giftsCount: Array.from(giftsDatabase.values()).flat().length
+  });
+});
+
+// Debug endpoint - получение всех пользователей
 app.get('/api/debug/users', async (req, res) => {
   try {
     const usersResult = await pool.query(`
@@ -545,163 +904,89 @@ app.get('/api/debug/users', async (req, res) => {
   }
 });
 
-// ============ API ENDPOINTS ============
-
-/**
- * GET /api/gifts/:telegramUserId
- * Получить все подарки конкретного пользователя
- */
-app.get('/api/gifts/:telegramUserId', async (req, res) => {
+// Debug endpoint - статистика подарков
+app.get('/api/debug/gifts', (req, res) => {
   try {
-    const { telegramUserId } = req.params;
-    
-    // Проверяем, есть ли подарки пользователя в базе
-    const userGifts = giftsDatabase.get(telegramUserId) || [];
-    
-    res.json({
-      success: true,
-      gifts: userGifts,
-      count: userGifts.length,
-    });
-  } catch (error) {
-    console.error('Ошибка получения подарков:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Ошибка получения подарков',
-    });
-  }
-});
-
-/**
- * POST /api/gifts/refresh/:telegramUserId
- * Обновить список подарков (запустить парсинг)
- */
-app.post('/api/gifts/refresh/:telegramUserId', async (req, res) => {
-  try {
-    const { telegramUserId } = req.params;
-    
-    // Запускаем парсинг подарков
-    await parseGiftsFromAccount();
-    
-    // Получаем обновленный список подарков пользователя
-    const userGifts = giftsDatabase.get(telegramUserId) || [];
-    
-    res.json({
-      success: true,
-      gifts: userGifts,
-      count: userGifts.length,
-      message: 'Подарки обновлены',
-    });
-  } catch (error) {
-    console.error('Ошибка обновления подарков:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Ошибка обновления подарков',
-    });
-  }
-});
-
-/**
- * POST /api/gifts/verify
- * Проверить владельца подарка
- */
-app.post('/api/gifts/verify', async (req, res) => {
-  try {
-    const { giftId, telegramUserId } = req.body;
-    
-    const userGifts = giftsDatabase.get(telegramUserId) || [];
-    const isOwner = userGifts.some(gift => gift.id === giftId);
-    
-    res.json({
-      success: true,
-      isOwner,
-    });
-  } catch (error) {
-    console.error('Ошибка проверки владельца:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Ошибка проверки владельца',
-    });
-  }
-});
-
-/**
- * GET /api/gifts/details/:giftId
- * Получить детали конкретного подарка
- */
-app.get('/api/gifts/details/:giftId', async (req, res) => {
-  try {
-    const { giftId } = req.params;
-    
-    // Ищем подарок во всей базе
-    let foundGift = null;
+    const stats = {
+      totalUsers: giftsDatabase.size,
+      totalGifts: Array.from(giftsDatabase.values()).flat().length,
+      giftsByUser: {}
+    };
     
     for (const [userId, gifts] of giftsDatabase.entries()) {
-      const gift = gifts.find(g => g.id === giftId);
-      if (gift) {
-        foundGift = { ...gift, ownerId: userId };
-        break;
-      }
+      stats.giftsByUser[userId] = gifts.length;
     }
     
-    if (!foundGift) {
-      return res.status(404).json({
-        success: false,
-        error: 'Подарок не найден',
-      });
-    }
-    
-    res.json({
-      success: true,
-      gift: foundGift,
-    });
+    res.json(stats);
   } catch (error) {
-    console.error('Ошибка получения деталей подарка:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Ошибка получения деталей подарка',
-    });
+    console.error('Ошибка получения статистики подарков:', error);
+    res.status(500).json({ error: 'Ошибка получения статистики' });
   }
 });
 
-
+// ============ SERVER STARTUP ============
 
 // Обработка завершения работы
 process.on('SIGTERM', async () => {
   console.log('SIGTERM получен, закрываем соединения...');
+  if (telegramClient) {
+    await telegramClient.disconnect();
+  }
   await pool.end();
   process.exit(0);
 });
 
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  SIGINT получен, закрываем соединения...');
+  if (telegramClient) {
+    await telegramClient.disconnect();
+  }
+  await pool.end();
+  process.exit(0);
+});
 
-
-
-// Запуск сервера с автоматическим выбором порта
+// Запуск сервера
 async function startServer() {
   try {
+    console.log('🚀 Запуск сервера...\n');
+    
+    // Инициализация базы данных
+    console.log('📊 Инициализация базы данных...');
     await initDatabase();
+    
+    // Инициализация Telegram клиента
+    console.log('📱 Инициализация Telegram клиента...');
     await initTelegramClient();
     
+    // Добавление слушателя подарков
+    console.log('👂 Добавление слушателя подарков...');
+    addGiftListener();
+    
+    // Парсинг истории подарков
     console.log('🔄 Запуск первоначального парсинга подарков...');
-    await parseGiftsFromAccount();
-    console.log('✅ Первоначальный парсинг завершен');
+    await parseGiftsHistory();
+    console.log('✅ Первоначальный парсинг завершен\n');
     
     // Периодическое обновление (каждые 5 минут)
     setInterval(async () => {
       console.log('🔄 Периодическое обновление подарков...');
       try {
-        await parseGiftsFromAccount();
+        await parseGiftsHistory();
         console.log('✅ Подарки обновлены');
       } catch (error) {
         console.error('❌ Ошибка периодического обновления:', error);
       }
     }, 5 * 60 * 1000);
-    
 
+    // Запуск Express сервера
     const server = app.listen(PORT, () => {
+      console.log('═'.repeat(50));
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
       console.log(`🗄️  База данных: PostgreSQL`);
+      console.log(`📱 Telegram: Подключен`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
+      console.log(`🎁 Подарков в базе: ${Array.from(giftsDatabase.values()).flat().length}`);
+      console.log('═'.repeat(50));
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.log(`⚠️  Порт ${PORT} занят, пробуем ${PORT + 1}...`);
@@ -713,7 +998,7 @@ async function startServer() {
       }
     });
   } catch (error) {
-    console.error('❌ Ошибка запуска сервера:', error);
+    console.error('❌ Критическая ошибка запуска сервера:', error);
     process.exit(1);
   }
 }
