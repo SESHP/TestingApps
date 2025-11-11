@@ -17,6 +17,7 @@
     "input": "^1.0.1",
     "node-fetch": "^3.3.2",
     "pg": "^8.11.3",
+    "tdl": "^8.0.2",
     "telegram": "^2.26.22"
   },
   "devDependencies": {
