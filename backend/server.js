@@ -337,15 +337,19 @@ async function parseGiftsHistory(targetUsername = 'me') {
     // Получаем информацию о пользователе
     const targetUser = await telegramClient.getEntity(targetUsername);
     console.log(`📱 Найден пользователь: ${targetUser.firstName} (ID: ${targetUser.id})`);
-    
+    console.log('Вызов GetUserStarGifts...');
+
+    console.log('Вызов GetUserStarGifts...');
+    try {
     // Получаем все подарки пользователя
-    const userGifts = await telegramClient.invoke(
-      new Api.payments.GetUserStarGifts({
-        userId: targetUser.id,
-        offset: '',
-        limit: 100,
-      })
-    );
+      const userGifts = await telegramClient.invoke(
+        new Api.payments.GetUserStarGifts({
+          userId: targetUser.id,
+          offset: '',
+          limit: 100,
+    })); } catch (err) {
+      console.error('Ошибка invoke:', err);
+    }
 
     console.log(`📦 Найдено подарков: ${userGifts.gifts?.length || 0}`);
     
