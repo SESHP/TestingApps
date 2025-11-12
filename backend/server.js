@@ -104,10 +104,6 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_gifts_received_at ON gifts(received_at DESC)
     `);
 
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_gifts_is_withdrawn ON gifts(is_withdrawn)
-    `);
-
     // Миграция: добавление новых полей если их нет
     try {
       await client.query(`
@@ -120,6 +116,11 @@ async function initDatabase() {
     } catch (migrationError) {
       console.log('⚠️  Поля is_withdrawn уже существуют или ошибка миграции:', migrationError.message);
     }
+
+    // Создание индекса для is_withdrawn после миграции
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_gifts_is_withdrawn ON gifts(is_withdrawn)
+    `);
 
     console.log('✅ База данных PostgreSQL инициализирована');
   } catch (error) {
