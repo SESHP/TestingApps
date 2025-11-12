@@ -234,11 +234,11 @@ function extractGiftInfo(update) {
         }
 
         let fromId = "Неизвестный ID";
-        if (gift.released_by) {
-          if (gift.released_by.className === "PeerUser") {
-            fromId = gift.released_by.userId.toString();
-          } else if (gift.released_by.className === "PeerChannel") {
-            fromId = gift.released_by.channelId.toString();
+        if (action.from_id) {
+          if (action.from_id.className === "PeerUser") {
+            fromId = action.from_id.userId.toString();
+          } else if (action.from_id.className === "PeerChannel") {
+            fromId = action.from_id.channelId.toString();
           }
         }
 
