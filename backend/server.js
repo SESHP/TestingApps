@@ -89,6 +89,9 @@ async function initDatabase() {
         from_id VARCHAR(255) NOT NULL,
         from_user_info JSONB,
         received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_withdrawn BOOLEAN DEFAULT FALSE,
+        withdrawn_at TIMESTAMP,
+        withdrawn_to_id VARCHAR(255),
         raw_data JSONB
       )
     `);
@@ -99,6 +102,10 @@ async function initDatabase() {
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_gifts_received_at ON gifts(received_at DESC)
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_gifts_is_withdrawn ON gifts(is_withdrawn)
     `);
 
     console.log('✅ База данных PostgreSQL инициализирована');
@@ -273,6 +280,74 @@ async function initTelegramClient() {
   }
 }
 
+// Функция для извлечения информации об отправленном подарке
+function extractSentGiftInfo(update) {
+  try {
+    // Ищем исходящие подарки (когда мы отправляем подарок кому-то)
+    if (
+      update.className === "UpdateNewMessage" ||
+      update.className === "UpdateNewChannelMessage"
+    ) {
+      const message = update.message;
+
+      // Проверяем, что это исходящее сообщение с подарком
+      if (
+        message.out === true &&
+        message.action &&
+        message.action.className === "MessageActionStarGiftUnique"
+      ) {
+        const action = message.action;
+        const gift = action.gift;
+
+        // Основные данные
+        let giftTitle = "Подарок";
+        let model = "Неизвестная модель";
+        let background = "Неизвестный фон";
+        let symbol = "Неизвестный символ";
+
+        if (gift.className === "StarGiftUnique" && gift.attributes) {
+          giftTitle = gift.title || "Подарок";
+
+          for (const attr of gift.attributes) {
+            if (attr.className === "StarGiftAttributeModel") {
+              model = attr.name;
+            } else if (attr.className === "StarGiftAttributeBackdrop") {
+              background = attr.name;
+            } else if (attr.className === "StarGiftAttributePattern") {
+              symbol = attr.name;
+            }
+          }
+        } else if (gift.className === "StarGift") {
+          giftTitle = gift.title || "Подарок";
+        }
+
+        // Получатель подарка
+        let toId = "Неизвестный ID";
+        if (message.peerId) {
+          if (message.peerId.className === "PeerUser") {
+            toId = message.peerId.userId.toString();
+          } else if (message.peerId.className === "PeerChannel") {
+            toId = message.peerId.channelId.toString();
+          }
+        }
+
+        return {
+          giftTitle,
+          model,
+          background,
+          symbol,
+          toId,
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Ошибка при обработке отправленного подарка:", error);
+    return null;
+  }
+}
+
 // Функция для сохранения подарка в базу данных
 async function saveGiftToDatabase(giftInfo) {
   try {
@@ -298,6 +373,39 @@ async function saveGiftToDatabase(giftInfo) {
   }
 }
 
+// Функция для пометки подарка как выведенного
+async function markGiftAsWithdrawn(giftTitle, model, background, symbol, toId) {
+  try {
+    // Ищем подарок с такими характеристиками, который еще не выведен
+    const result = await pool.query(
+      `UPDATE gifts
+       SET is_withdrawn = TRUE,
+           withdrawn_at = CURRENT_TIMESTAMP,
+           withdrawn_to_id = $5
+       WHERE gift_title = $1
+         AND model = $2
+         AND background = $3
+         AND symbol = $4
+         AND is_withdrawn = FALSE
+       ORDER BY received_at DESC
+       LIMIT 1
+       RETURNING *`,
+      [giftTitle, model, background, symbol, toId]
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`📤 Подарок выведен: ${giftTitle} (${model} ${background} ${symbol}) отправлен ${toId}`);
+      return result.rows[0];
+    } else {
+      console.log(`⚠️  Подарок для вывода не найден: ${giftTitle} (${model} ${background} ${symbol})`);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Ошибка пометки подарка как выведенного:', error);
+    throw error;
+  }
+}
+
 // Запуск отслеживания подарков
 async function startGiftTracking() {
   const client = await initTelegramClient();
@@ -309,8 +417,8 @@ async function startGiftTracking() {
 
   // Слушаем обновления
   client.addEventHandler(async (update) => {
+    // Проверяем входящие подарки
     const giftInfo = extractGiftInfo(update);
-
     if (giftInfo) {
       try {
         await saveGiftToDatabase(giftInfo);
@@ -318,9 +426,25 @@ async function startGiftTracking() {
         console.error('Ошибка при обработке подарка:', error);
       }
     }
+
+    // Проверяем исходящие подарки (отправленные обратно)
+    const sentGiftInfo = extractSentGiftInfo(update);
+    if (sentGiftInfo) {
+      try {
+        await markGiftAsWithdrawn(
+          sentGiftInfo.giftTitle,
+          sentGiftInfo.model,
+          sentGiftInfo.background,
+          sentGiftInfo.symbol,
+          sentGiftInfo.toId
+        );
+      } catch (error) {
+        console.error('Ошибка при пометке отправленного подарка:', error);
+      }
+    }
   });
 
-  console.log('👂 Слушаю обновления (подарки)...');
+  console.log('👂 Слушаю обновления (входящие и исходящие подарки)...');
 }
 
 // ============ API ENDPOINTS ============
@@ -514,26 +638,43 @@ app.get('/api/referral/check/:code', async (req, res) => {
 // Get all gifts
 app.get('/api/gifts', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, fromId } = req.query;
+    const { limit = 50, offset = 0, fromId, withdrawn } = req.query;
 
-    let query = `
+    // Построение WHERE условий
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (fromId) {
+      conditions.push(`from_id = $${paramIndex}`);
+      params.push(fromId);
+      paramIndex++;
+    }
+
+    // Фильтр по статусу вывода
+    // withdrawn=true - только выведенные
+    // withdrawn=false - только активные (не выведенные)
+    // без параметра - все подарки
+    if (withdrawn === 'true') {
+      conditions.push(`is_withdrawn = TRUE`);
+    } else if (withdrawn === 'false') {
+      conditions.push(`is_withdrawn = FALSE`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const query = `
       SELECT * FROM gifts
-      ${fromId ? 'WHERE from_id = $1' : ''}
+      ${whereClause}
       ORDER BY received_at DESC
-      LIMIT $${fromId ? 2 : 1} OFFSET $${fromId ? 3 : 2}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    const params = fromId
-      ? [fromId, parseInt(limit), parseInt(offset)]
-      : [parseInt(limit), parseInt(offset)];
-
+    params.push(parseInt(limit), parseInt(offset));
     const result = await pool.query(query, params);
 
-    const countQuery = fromId
-      ? 'SELECT COUNT(*) FROM gifts WHERE from_id = $1'
-      : 'SELECT COUNT(*) FROM gifts';
-
-    const countParams = fromId ? [fromId] : [];
+    const countQuery = `SELECT COUNT(*) FROM gifts ${whereClause}`;
+    const countParams = params.slice(0, paramIndex - 1);
     const countResult = await pool.query(countQuery, countParams);
 
     res.json({
@@ -545,6 +686,9 @@ app.get('/api/gifts', async (req, res) => {
         symbol: gift.symbol,
         fromId: gift.from_id,
         receivedAt: gift.received_at,
+        isWithdrawn: gift.is_withdrawn,
+        withdrawnAt: gift.withdrawn_at,
+        withdrawnToId: gift.withdrawn_to_id,
         rawData: gift.raw_data
       })),
       total: parseInt(countResult.rows[0].count),
@@ -562,9 +706,14 @@ app.get('/api/gifts/stats', async (req, res) => {
   try {
     const totalResult = await pool.query('SELECT COUNT(*) as total FROM gifts');
 
+    const activeResult = await pool.query('SELECT COUNT(*) as active FROM gifts WHERE is_withdrawn = FALSE');
+
+    const withdrawnResult = await pool.query('SELECT COUNT(*) as withdrawn FROM gifts WHERE is_withdrawn = TRUE');
+
     const byUserResult = await pool.query(`
       SELECT from_id, COUNT(*) as count
       FROM gifts
+      WHERE is_withdrawn = FALSE
       GROUP BY from_id
       ORDER BY count DESC
       LIMIT 10
@@ -573,19 +722,22 @@ app.get('/api/gifts/stats', async (req, res) => {
     const byModelResult = await pool.query(`
       SELECT model, COUNT(*) as count
       FROM gifts
-      WHERE model IS NOT NULL AND model != 'Неизвестная модель'
+      WHERE model IS NOT NULL AND model != 'Неизвестная модель' AND is_withdrawn = FALSE
       GROUP BY model
       ORDER BY count DESC
     `);
 
     const recentResult = await pool.query(`
       SELECT * FROM gifts
+      WHERE is_withdrawn = FALSE
       ORDER BY received_at DESC
       LIMIT 5
     `);
 
     res.json({
       total: parseInt(totalResult.rows[0].total),
+      active: parseInt(activeResult.rows[0].active),
+      withdrawn: parseInt(withdrawnResult.rows[0].withdrawn),
       byUser: byUserResult.rows.map(row => ({
         fromId: row.from_id,
         count: parseInt(row.count)
@@ -601,7 +753,8 @@ app.get('/api/gifts/stats', async (req, res) => {
         background: gift.background,
         symbol: gift.symbol,
         fromId: gift.from_id,
-        receivedAt: gift.received_at
+        receivedAt: gift.received_at,
+        isWithdrawn: gift.is_withdrawn
       }))
     });
   } catch (error) {
@@ -631,10 +784,92 @@ app.get('/api/gifts/:id', async (req, res) => {
       fromId: gift.from_id,
       fromUserInfo: gift.from_user_info,
       receivedAt: gift.received_at,
+      isWithdrawn: gift.is_withdrawn,
+      withdrawnAt: gift.withdrawn_at,
+      withdrawnToId: gift.withdrawn_to_id,
       rawData: gift.raw_data
     });
   } catch (error) {
     console.error('Ошибка при получении подарка:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Mark gift as withdrawn
+app.post('/api/gifts/:id/withdraw', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { toId } = req.body;
+
+    const result = await pool.query(
+      `UPDATE gifts
+       SET is_withdrawn = TRUE,
+           withdrawn_at = CURRENT_TIMESTAMP,
+           withdrawn_to_id = $2
+       WHERE id = $1 AND is_withdrawn = FALSE
+       RETURNING *`,
+      [id, toId || null]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Подарок не найден или уже выведен' });
+    }
+
+    const gift = result.rows[0];
+    res.json({
+      success: true,
+      gift: {
+        id: gift.id,
+        giftTitle: gift.gift_title,
+        model: gift.model,
+        background: gift.background,
+        symbol: gift.symbol,
+        fromId: gift.from_id,
+        isWithdrawn: gift.is_withdrawn,
+        withdrawnAt: gift.withdrawn_at,
+        withdrawnToId: gift.withdrawn_to_id
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка при пометке подарка как выведенного:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Restore withdrawn gift (отмена вывода)
+app.post('/api/gifts/:id/restore', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `UPDATE gifts
+       SET is_withdrawn = FALSE,
+           withdrawn_at = NULL,
+           withdrawn_to_id = NULL
+       WHERE id = $1 AND is_withdrawn = TRUE
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Подарок не найден или не был выведен' });
+    }
+
+    const gift = result.rows[0];
+    res.json({
+      success: true,
+      gift: {
+        id: gift.id,
+        giftTitle: gift.gift_title,
+        model: gift.model,
+        background: gift.background,
+        symbol: gift.symbol,
+        fromId: gift.from_id,
+        isWithdrawn: gift.is_withdrawn
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка при восстановлении подарка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
