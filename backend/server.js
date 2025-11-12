@@ -391,19 +391,26 @@ async function saveGiftToDatabase(giftInfo) {
 async function markGiftAsWithdrawn(giftTitle, model, background, symbol, toId) {
   try {
     // Ищем подарок с такими характеристиками, который еще не выведен
+    // Используем CTE (Common Table Expression) для обхода ограничения ORDER BY в UPDATE
     const result = await pool.query(
-      `UPDATE gifts
+      `WITH target_gift AS (
+         SELECT id
+         FROM gifts
+         WHERE gift_title = $1
+           AND model = $2
+           AND background = $3
+           AND symbol = $4
+           AND is_withdrawn = FALSE
+         ORDER BY received_at DESC
+         LIMIT 1
+       )
+       UPDATE gifts
        SET is_withdrawn = TRUE,
            withdrawn_at = CURRENT_TIMESTAMP,
            withdrawn_to_id = $5
-       WHERE gift_title = $1
-         AND model = $2
-         AND background = $3
-         AND symbol = $4
-         AND is_withdrawn = FALSE
-       ORDER BY received_at DESC
-       LIMIT 1
-       RETURNING *`,
+       FROM target_gift
+       WHERE gifts.id = target_gift.id
+       RETURNING gifts.*`,
       [giftTitle, model, background, symbol, toId]
     );
 
