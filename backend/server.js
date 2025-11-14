@@ -82,6 +82,7 @@ async function initDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS gifts (
         id SERIAL PRIMARY KEY,
+        gift_id VARCHAR(255),
         gift_title VARCHAR(255) NOT NULL,
         model VARCHAR(255),
         background VARCHAR(255),
@@ -92,6 +93,7 @@ async function initDatabase() {
         is_withdrawn BOOLEAN DEFAULT FALSE,
         withdrawn_at TIMESTAMP,
         withdrawn_to_id VARCHAR(255),
+        lottie_url TEXT,
         raw_data JSONB
       )
     `);
@@ -108,18 +110,24 @@ async function initDatabase() {
     try {
       await client.query(`
         ALTER TABLE gifts
+        ADD COLUMN IF NOT EXISTS gift_id VARCHAR(255),
         ADD COLUMN IF NOT EXISTS is_withdrawn BOOLEAN DEFAULT FALSE,
         ADD COLUMN IF NOT EXISTS withdrawn_at TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS withdrawn_to_id VARCHAR(255)
+        ADD COLUMN IF NOT EXISTS withdrawn_to_id VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS lottie_url TEXT
       `);
-      console.log('✅ Миграция полей is_withdrawn выполнена');
+      console.log('✅ Миграция полей выполнена');
     } catch (migrationError) {
-      console.log('⚠️  Поля is_withdrawn уже существуют или ошибка миграции:', migrationError.message);
+      console.log('⚠️  Поля уже существуют или ошибка миграции:', migrationError.message);
     }
 
-    // Создание индекса для is_withdrawn после миграции
+    // Создание индексов после миграции
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_gifts_is_withdrawn ON gifts(is_withdrawn)
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_gifts_gift_id ON gifts(gift_id)
     `);
 
     console.log('✅ База данных PostgreSQL инициализирована');
@@ -193,7 +201,32 @@ function getTestUserData(referralCode = null) {
 
 // ============ TELEGRAM GIFT TRACKING ============
 
-// Функция для извлечения информации о подарке
+// Функция для извлечения Lottie URL из подарка
+function extractLottieUrl(gift) {
+  try {
+    // Проверяем наличие документа с лоттиками
+    if (gift.document && gift.document.attributes) {
+      for (const attr of gift.document.attributes) {
+        if (attr.className === 'DocumentAttributeFilename' && attr.fileName) {
+          if (attr.fileName.includes('lottie') || attr.fileName.endsWith('.json')) {
+            // Можно попробовать получить URL или сохранить ID документа
+            return `document_id:${gift.document.id}`;
+          }
+        }
+      }
+    }
+    
+    // Альтернативно: если есть прямая ссылка
+    if (gift.document && gift.document.id) {
+      return `document_id:${gift.document.id}`;
+    }
+  } catch (error) {
+    console.error('Ошибка извлечения Lottie URL:', error);
+  }
+  return null;
+}
+
+// Функция для извлечения информации о полученном подарке (ВХОДЯЩИЕ)
 function extractGiftInfo(update) {
   try {
     // Ищем messageService с messageActionStarGiftUnique
@@ -203,51 +236,68 @@ function extractGiftInfo(update) {
     ) {
       const message = update.message;
 
+      // ВАЖНО: Проверяем что это ВХОДЯЩЕЕ сообщение (out !== true)
       if (
+        message.out !== true &&
         message.action &&
         message.action.className === "MessageActionStarGiftUnique"
       ) {
         const action = message.action;
         const gift = action.gift;
 
-        // Основные данные
+        // Основные данные подарка
         let giftTitle = "Подарок";
+        let giftId = null;
         let model = "Неизвестная модель";
         let background = "Неизвестный фон";
         let symbol = "Неизвестный символ";
+        let lottieUrl = null;
 
         // Если это starGiftUnique, извлекаем атрибуты
-        if (gift.className === "StarGiftUnique" && gift.attributes) {
+        if (gift.className === "StarGiftUnique") {
           giftTitle = gift.title || "Подарок";
+          giftId = gift.id ? gift.id.toString() : null;
+          
+          // Извлекаем Lottie URL
+          lottieUrl = extractLottieUrl(gift);
 
-          for (const attr of gift.attributes) {
-            if (attr.className === "StarGiftAttributeModel") {
-              model = attr.name;
-            } else if (attr.className === "StarGiftAttributeBackdrop") {
-              background = attr.name;
-            } else if (attr.className === "StarGiftAttributePattern") {
-              symbol = attr.name;
+          if (gift.attributes) {
+            for (const attr of gift.attributes) {
+              if (attr.className === "StarGiftAttributeModel") {
+                model = attr.name;
+              } else if (attr.className === "StarGiftAttributeBackdrop") {
+                background = attr.name;
+              } else if (attr.className === "StarGiftAttributePattern") {
+                symbol = attr.name;
+              }
             }
           }
         } else if (gift.className === "StarGift") {
           giftTitle = gift.title || "Подарок";
+          giftId = gift.id ? gift.id.toString() : null;
+          lottieUrl = extractLottieUrl(gift);
         }
 
+        // ИСПРАВЛЕНО: Получаем ID отправителя из message.fromId, а НЕ из action.from_id
         let fromId = "Неизвестный ID";
-        if (action.from_id) {
-          if (action.from_id.className === "PeerUser") {
-            fromId = action.from_id.userId.toString();
-          } else if (action.from_id.className === "PeerChannel") {
-            fromId = action.from_id.channelId.toString();
+        if (message.fromId) {
+          if (message.fromId.className === "PeerUser") {
+            fromId = message.fromId.userId.toString();
+          } else if (message.fromId.className === "PeerChannel") {
+            fromId = message.fromId.channelId.toString();
           }
         }
 
+        console.log(`📥 ВХОДЯЩИЙ подарок: ${giftTitle} (ID: ${giftId}) от пользователя ${fromId}`);
+
         return {
+          giftId,
           giftTitle,
           model,
           background,
           symbol,
           fromId,
+          lottieUrl,
           action,
           gift,
         };
@@ -256,7 +306,7 @@ function extractGiftInfo(update) {
 
     return null;
   } catch (error) {
-    console.error("Ошибка при обработке обновления:", error);
+    console.error("Ошибка при обработке входящего подарка:", error);
     return null;
   }
 }
@@ -294,17 +344,17 @@ async function initTelegramClient() {
   }
 }
 
-// Функция для извлечения информации об отправленном подарке
+// Функция для извлечения информации об отправленном подарке (ИСХОДЯЩИЕ)
 function extractSentGiftInfo(update) {
   try {
-    // Ищем исходящие подарки (когда мы отправляем подарок кому-то)
+    // Ищем ИСХОДЯЩИЕ подарки (когда мы отправляем подарок обратно)
     if (
       update.className === "UpdateNewMessage" ||
       update.className === "UpdateNewChannelMessage"
     ) {
       const message = update.message;
 
-      // Проверяем, что это исходящее сообщение с подарком
+      // ВАЖНО: Проверяем, что это ИСХОДЯЩЕЕ сообщение (out === true) с подарком
       if (
         message.out === true &&
         message.action &&
@@ -313,29 +363,34 @@ function extractSentGiftInfo(update) {
         const action = message.action;
         const gift = action.gift;
 
-        // Основные данные
+        // Основные данные подарка
         let giftTitle = "Подарок";
+        let giftId = null;
         let model = "Неизвестная модель";
         let background = "Неизвестный фон";
         let symbol = "Неизвестный символ";
 
-        if (gift.className === "StarGiftUnique" && gift.attributes) {
+        if (gift.className === "StarGiftUnique") {
           giftTitle = gift.title || "Подарок";
+          giftId = gift.id ? gift.id.toString() : null;
 
-          for (const attr of gift.attributes) {
-            if (attr.className === "StarGiftAttributeModel") {
-              model = attr.name;
-            } else if (attr.className === "StarGiftAttributeBackdrop") {
-              background = attr.name;
-            } else if (attr.className === "StarGiftAttributePattern") {
-              symbol = attr.name;
+          if (gift.attributes) {
+            for (const attr of gift.attributes) {
+              if (attr.className === "StarGiftAttributeModel") {
+                model = attr.name;
+              } else if (attr.className === "StarGiftAttributeBackdrop") {
+                background = attr.name;
+              } else if (attr.className === "StarGiftAttributePattern") {
+                symbol = attr.name;
+              }
             }
           }
         } else if (gift.className === "StarGift") {
           giftTitle = gift.title || "Подарок";
+          giftId = gift.id ? gift.id.toString() : null;
         }
 
-        // Получатель подарка
+        // Получатель подарка (куда отправляем)
         let toId = "Неизвестный ID";
         if (message.peerId) {
           if (message.peerId.className === "PeerUser") {
@@ -345,7 +400,10 @@ function extractSentGiftInfo(update) {
           }
         }
 
+        console.log(`📤 ИСХОДЯЩИЙ подарок: ${giftTitle} (ID: ${giftId}) отправлен пользователю ${toId}`);
+
         return {
+          giftId,
           giftTitle,
           model,
           background,
@@ -362,24 +420,26 @@ function extractSentGiftInfo(update) {
   }
 }
 
-// Функция для сохранения подарка в базу данных
+// Функция для сохранения полученного подарка в базу данных
 async function saveGiftToDatabase(giftInfo) {
   try {
     const result = await pool.query(
-      `INSERT INTO gifts (gift_title, model, background, symbol, from_id, raw_data)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO gifts (gift_id, gift_title, model, background, symbol, from_id, lottie_url, raw_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
+        giftInfo.giftId,
         giftInfo.giftTitle,
         giftInfo.model,
         giftInfo.background,
         giftInfo.symbol,
         giftInfo.fromId,
+        giftInfo.lottieUrl,
         JSON.stringify({ action: giftInfo.action, gift: giftInfo.gift })
       ]
     );
 
-    console.log(`🎁 Подарок сохранен: ${giftInfo.giftTitle} (${giftInfo.model} ${giftInfo.background} ${giftInfo.symbol}) от ${giftInfo.fromId}`);
+    console.log(`✅ Подарок сохранен в БД: ${giftInfo.giftTitle} (Gift ID: ${giftInfo.giftId}, Model: ${giftInfo.model}) от ${giftInfo.fromId}`);
     return result.rows[0];
   } catch (error) {
     console.error('❌ Ошибка сохранения подарка в БД:', error);
@@ -387,38 +447,26 @@ async function saveGiftToDatabase(giftInfo) {
   }
 }
 
-// Функция для пометки подарка как выведенного
-async function markGiftAsWithdrawn(giftTitle, model, background, symbol, toId) {
+// ИСПРАВЛЕНО: Функция для пометки подарка как выведенного
+async function markGiftAsWithdrawn(giftId, toId) {
   try {
-    // Ищем подарок с такими характеристиками, который еще не выведен
-    // Используем CTE (Common Table Expression) для обхода ограничения ORDER BY в UPDATE
+    // Ищем подарок по gift_id (уникальный ID от Telegram)
     const result = await pool.query(
-      `WITH target_gift AS (
-         SELECT id
-         FROM gifts
-         WHERE gift_title = $1
-           AND model = $2
-           AND background = $3
-           AND symbol = $4
-           AND is_withdrawn = FALSE
-         ORDER BY received_at DESC
-         LIMIT 1
-       )
-       UPDATE gifts
+      `UPDATE gifts
        SET is_withdrawn = TRUE,
            withdrawn_at = CURRENT_TIMESTAMP,
-           withdrawn_to_id = $5
-       FROM target_gift
-       WHERE gifts.id = target_gift.id
-       RETURNING gifts.*`,
-      [giftTitle, model, background, symbol, toId]
+           withdrawn_to_id = $2
+       WHERE gift_id = $1 AND is_withdrawn = FALSE
+       RETURNING *`,
+      [giftId, toId]
     );
 
     if (result.rows.length > 0) {
-      console.log(`📤 Подарок выведен: ${giftTitle} (${model} ${background} ${symbol}) отправлен ${toId}`);
+      const gift = result.rows[0];
+      console.log(`✅ Подарок помечен как выведенный: ${gift.gift_title} (Gift ID: ${giftId}) отправлен ${toId}`);
       return result.rows[0];
     } else {
-      console.log(`⚠️  Подарок для вывода не найден: ${giftTitle} (${model} ${background} ${symbol})`);
+      console.log(`⚠️  Подарок для вывода не найден или уже выведен: Gift ID ${giftId}`);
       return null;
     }
   } catch (error) {
@@ -438,25 +486,23 @@ async function startGiftTracking() {
 
   // Слушаем обновления
   client.addEventHandler(async (update) => {
-    // Проверяем входящие подарки
+    // ВХОДЯЩИЕ подарки - сохраняем в БД
     const giftInfo = extractGiftInfo(update);
     if (giftInfo) {
       try {
         await saveGiftToDatabase(giftInfo);
       } catch (error) {
-        console.error('Ошибка при обработке подарка:', error);
+        console.error('Ошибка при сохранении подарка:', error);
       }
     }
 
-    // Проверяем исходящие подарки (отправленные обратно)
+    // ИСХОДЯЩИЕ подарки - только помечаем как выведенные
     const sentGiftInfo = extractSentGiftInfo(update);
     if (sentGiftInfo) {
       try {
+        // НЕ создаем новую запись, а только помечаем существующую как выведенную
         await markGiftAsWithdrawn(
-          sentGiftInfo.giftTitle,
-          sentGiftInfo.model,
-          sentGiftInfo.background,
-          sentGiftInfo.symbol,
+          sentGiftInfo.giftId,
           sentGiftInfo.toId
         );
       } catch (error) {
@@ -673,9 +719,6 @@ app.get('/api/gifts', async (req, res) => {
     }
 
     // Фильтр по статусу вывода
-    // withdrawn=true - только выведенные
-    // withdrawn=false - только активные (не выведенные)
-    // без параметра - все подарки
     if (withdrawn === 'true') {
       conditions.push(`is_withdrawn = TRUE`);
     } else if (withdrawn === 'false') {
@@ -701,6 +744,7 @@ app.get('/api/gifts', async (req, res) => {
     res.json({
       gifts: result.rows.map(gift => ({
         id: gift.id,
+        giftId: gift.gift_id,
         giftTitle: gift.gift_title,
         model: gift.model,
         background: gift.background,
@@ -710,6 +754,7 @@ app.get('/api/gifts', async (req, res) => {
         isWithdrawn: gift.is_withdrawn,
         withdrawnAt: gift.withdrawn_at,
         withdrawnToId: gift.withdrawn_to_id,
+        lottieUrl: gift.lottie_url,
         rawData: gift.raw_data
       })),
       total: parseInt(countResult.rows[0].count),
@@ -769,13 +814,15 @@ app.get('/api/gifts/stats', async (req, res) => {
       })),
       recent: recentResult.rows.map(gift => ({
         id: gift.id,
+        giftId: gift.gift_id,
         giftTitle: gift.gift_title,
         model: gift.model,
         background: gift.background,
         symbol: gift.symbol,
         fromId: gift.from_id,
         receivedAt: gift.received_at,
-        isWithdrawn: gift.is_withdrawn
+        isWithdrawn: gift.is_withdrawn,
+        lottieUrl: gift.lottie_url
       }))
     });
   } catch (error) {
@@ -798,6 +845,7 @@ app.get('/api/gifts/:id', async (req, res) => {
     const gift = result.rows[0];
     res.json({
       id: gift.id,
+      giftId: gift.gift_id,
       giftTitle: gift.gift_title,
       model: gift.model,
       background: gift.background,
@@ -808,6 +856,7 @@ app.get('/api/gifts/:id', async (req, res) => {
       isWithdrawn: gift.is_withdrawn,
       withdrawnAt: gift.withdrawn_at,
       withdrawnToId: gift.withdrawn_to_id,
+      lottieUrl: gift.lottie_url,
       rawData: gift.raw_data
     });
   } catch (error) {
@@ -841,6 +890,7 @@ app.post('/api/gifts/:id/withdraw', async (req, res) => {
       success: true,
       gift: {
         id: gift.id,
+        giftId: gift.gift_id,
         giftTitle: gift.gift_title,
         model: gift.model,
         background: gift.background,
@@ -881,6 +931,7 @@ app.post('/api/gifts/:id/restore', async (req, res) => {
       success: true,
       gift: {
         id: gift.id,
+        giftId: gift.gift_id,
         giftTitle: gift.gift_title,
         model: gift.model,
         background: gift.background,
