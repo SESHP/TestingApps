@@ -36,10 +36,17 @@ const Inventory = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/gifts?fromId=${telegramUserId}&withdrawn=false`);
+      // Проверяем, какой URL использовать (dev или prod)
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/gifts?fromId=${telegramUserId}&withdrawn=false`);
       
       if (!response.ok) {
-        throw new Error('Ошибка загрузки подарков');
+        throw new Error(`Ошибка загрузки: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Сервер вернул неверный формат данных');
       }
       
       const data = await response.json();
@@ -47,8 +54,28 @@ const Inventory = () => {
       
     } catch (err) {
       console.error('Ошибка загрузки подарков:', err);
-      setError('Не удалось загрузить подарки');
-      setGifts([]);
+      
+      // В dev режиме показываем тестовые данные
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔧 Dev режим: показываем тестовые данные');
+        setGifts([
+          {
+            id: 1,
+            giftId: 'test_1',
+            giftTitle: 'Delicious Cake',
+            model: 'Classic',
+            background: 'Gradient',
+            symbol: 'Star',
+            fromId: telegramUserId,
+            receivedAt: new Date().toISOString(),
+            isWithdrawn: false
+          }
+        ]);
+        setError('⚠️ Backend недоступен. Показываются тестовые данные.');
+      } else {
+        setError(`Не удалось загрузить подарки: ${err.message}`);
+        setGifts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -205,8 +232,16 @@ const GiftCard = ({ gift, onClick }) => {
 
   const loadGiftDetails = async () => {
     try {
-      const response = await fetch(`/api/gifts/${gift.id}/details`);
-      if (response.ok) {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/gifts/${gift.id}/details`);
+      
+      if (!response.ok) {
+        console.warn(`Детали подарка ${gift.id} недоступны`);
+        return;
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setGiftDetails(data);
       }
@@ -323,8 +358,16 @@ const GiftModal = ({ gift, onClose }) => {
   const loadGiftDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/gifts/${gift.id}/details`);
-      if (response.ok) {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/gifts/${gift.id}/details`);
+      
+      if (!response.ok) {
+        console.warn(`Детали подарка ${gift.id} недоступны`);
+        return;
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setGiftDetails(data);
       }
