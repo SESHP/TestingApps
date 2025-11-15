@@ -202,13 +202,15 @@ const Inventory = () => {
 };
 
 // Компонент карточки подарка
+// Компонент карточки подарка
 const GiftCard = ({ gift, onClick }) => {
   const lottieRef = useRef(null);
   const lottieInstance = useRef(null);
+  const [downloading, setDownloading] = useState(false);
+  const [filesReady, setFilesReady] = useState(false);
 
   useEffect(() => {
-    // Загружаем Lottie анимацию для модели
-    loadModelAnimation();
+    checkAndLoadFiles();
     
     return () => {
       if (lottieInstance.current) {
@@ -217,19 +219,58 @@ const GiftCard = ({ gift, onClick }) => {
     };
   }, [gift.id]);
 
+  // Проверяем наличие файлов и загружаем
+  const checkAndLoadFiles = async () => {
+    if (!gift.rawData?.gift) return;
+
+    const giftData = gift.rawData.gift;
+    const attributes = giftData.attributes || [];
+    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+    
+    if (!modelAttr?.document) return;
+
+    const doc = modelAttr.document;
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    
+    // Проверяем наличие файла
+    if (doc.mimeType === 'application/x-tgsticker') {
+      const jsonUrl = `${apiUrl}/uploads/gifts/${doc.id}.json`;
+      
+      try {
+        const response = await fetch(jsonUrl, { method: 'HEAD' });
+        if (response.ok) {
+          setFilesReady(true);
+          await loadModelAnimation();
+        } else {
+          console.log(`⚠️ Файл не найден: ${doc.id}.json`);
+          setFilesReady(false);
+        }
+      } catch (err) {
+        console.log(`⚠️ Ошибка проверки файла:`, err);
+        setFilesReady(false);
+      }
+    } else {
+      const webpUrl = `${apiUrl}/uploads/gifts/${doc.id}.webp`;
+      try {
+        const response = await fetch(webpUrl, { method: 'HEAD' });
+        setFilesReady(response.ok);
+      } catch (err) {
+        setFilesReady(false);
+      }
+    }
+  };
+
   const loadModelAnimation = async () => {
     if (!gift.rawData?.gift) return;
 
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
-    
-    // Находим модель
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+    
     if (!modelAttr?.document) return;
 
     const doc = modelAttr.document;
     
-    // Загружаем только если это Lottie
     if (doc.mimeType === 'application/x-tgsticker' && lottieRef.current) {
       try {
         const apiUrl = process.env.REACT_APP_API_URL || '';
@@ -257,7 +298,33 @@ const GiftCard = ({ gift, onClick }) => {
     }
   };
 
-  // Функция для форматирования цвета
+  // Принудительная загрузка файлов
+  const handleDownloadFiles = async (e) => {
+    e.stopPropagation(); // Не открываем модалку
+    
+    setDownloading(true);
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/gifts/${gift.id}/download`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        console.log('✅ Файлы загружены');
+        // Перезагружаем после небольшой задержки
+        setTimeout(() => {
+          checkAndLoadFiles();
+        }, 1000);
+      } else {
+        console.error('❌ Ошибка загрузки файлов');
+      }
+    } catch (err) {
+      console.error('❌ Ошибка:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
@@ -276,12 +343,10 @@ const GiftCard = ({ gift, onClick }) => {
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     
-    // Получаем атрибуты (фон, паттерн, модель)
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
-    // Создаем радиальный градиент для фона
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
@@ -292,34 +357,61 @@ const GiftCard = ({ gift, onClick }) => {
 
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн как повторяющийся фон */}
-        {patternAttr?.document && (
+        {/* Паттерн */}
+        {patternAttr?.document && filesReady && (
           <div 
             className="gift-pattern-overlay"
             style={{
               backgroundImage: patternAttr.document.mimeType === 'application/x-tgsticker' 
-                ? 'none' // Для Lottie паттернов пока не показываем
+                ? 'none'
                 : `url(${apiUrl}/uploads/gifts/${patternAttr.document.id}.webp)`,
               opacity: 0.15
             }}
           />
         )}
         
-        {/* Модель - главное изображение */}
+        {/* Модель */}
         {modelAttr?.document && (
           <>
-            {modelAttr.document.mimeType === 'application/x-tgsticker' ? (
-              <div ref={lottieRef} className="gift-lottie-preview" />
+            {filesReady ? (
+              modelAttr.document.mimeType === 'application/x-tgsticker' ? (
+                <div ref={lottieRef} className="gift-lottie-preview" />
+              ) : (
+                <img 
+                  src={`${apiUrl}/uploads/gifts/${modelAttr.document.id}.webp`}
+                  alt={gift.giftTitle}
+                  className="gift-static-img"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )
             ) : (
-              <img 
-                src={`${apiUrl}/uploads/gifts/${modelAttr.document.id}.webp`}
-                alt={gift.giftTitle}
-                className="gift-static-img"
-                onError={(e) => {
-                  // Если файл не найден, скрываем элемент
-                  e.target.style.display = 'none';
-                }}
-              />
+              <div style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                zIndex: 10
+              }}>
+                <button 
+                  onClick={handleDownloadFiles}
+                  disabled={downloading}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#F27D00',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    cursor: downloading ? 'wait' : 'pointer',
+                    opacity: downloading ? 0.6 : 1
+                  }}
+                >
+                  {downloading ? '⏳ Загрузка...' : '📥 Загрузить'}
+                </button>
+              </div>
             )}
           </>
         )}

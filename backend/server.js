@@ -207,16 +207,19 @@ function getTestUserData(referralCode = null) {
 // Функция для извлечения Lottie URL из подарка
 function extractLottieUrl(gift) {
   try {
+    // Проверяем наличие документа с лоттиками
     if (gift.document && gift.document.attributes) {
       for (const attr of gift.document.attributes) {
         if (attr.className === 'DocumentAttributeFilename' && attr.fileName) {
           if (attr.fileName.includes('lottie') || attr.fileName.endsWith('.json')) {
+            // Можно попробовать получить URL или сохранить ID документа
             return `document_id:${gift.document.id}`;
           }
         }
       }
     }
     
+    // Альтернативно: если есть прямая ссылка
     if (gift.document && gift.document.id) {
       return `document_id:${gift.document.id}`;
     }
@@ -229,12 +232,14 @@ function extractLottieUrl(gift) {
 // Функция для извлечения информации о полученном подарке (ВХОДЯЩИЕ)
 function extractGiftInfo(update) {
   try {
+    // Ищем messageService с messageActionStarGiftUnique
     if (
       update.className === "UpdateNewMessage" ||
       update.className === "UpdateNewChannelMessage"
     ) {
       const message = update.message;
 
+      // ВАЖНО: Проверяем что это ВХОДЯЩЕЕ сообщение (out !== true)
       if (
         message.out !== true &&
         message.action &&
@@ -243,6 +248,7 @@ function extractGiftInfo(update) {
         const action = message.action;
         const gift = action.gift;
 
+        // Основные данные подарка
         let giftTitle = "Подарок";
         let giftId = null;
         let model = "Неизвестная модель";
@@ -250,10 +256,12 @@ function extractGiftInfo(update) {
         let symbol = "Неизвестный символ";
         let lottieUrl = null;
 
+        // Если это starGiftUnique, извлекаем атрибуты
         if (gift.className === "StarGiftUnique") {
           giftTitle = gift.title || "Подарок";
           giftId = gift.id ? gift.id.toString() : null;
           
+          // Извлекаем Lottie URL
           lottieUrl = extractLottieUrl(gift);
 
           if (gift.attributes) {
@@ -273,6 +281,7 @@ function extractGiftInfo(update) {
           lottieUrl = extractLottieUrl(gift);
         }
 
+        // ИСПРАВЛЕНО: Получаем ID отправителя из message.fromId, а НЕ из action.from_id
         let fromId = "Неизвестный ID";
         if (message.peer_id) {
           if (message.peer_id.className === "PeerUser") {
@@ -357,12 +366,14 @@ async function initGiftService(client) {
 // Функция для извлечения информации об отправленном подарке (ИСХОДЯЩИЕ)
 function extractSentGiftInfo(update) {
   try {
+    // Ищем ИСХОДЯЩИЕ подарки (когда мы отправляем подарок обратно)
     if (
       update.className === "UpdateNewMessage" ||
       update.className === "UpdateNewChannelMessage"
     ) {
       const message = update.message;
 
+      // ВАЖНО: Проверяем, что это ИСХОДЯЩЕЕ сообщение (out === true) с подарком
       if (
         message.out === true &&
         message.action &&
@@ -371,6 +382,7 @@ function extractSentGiftInfo(update) {
         const action = message.action;
         const gift = action.gift;
 
+        // Основные данные подарка
         let giftTitle = "Подарок";
         let giftId = null;
         let model = "Неизвестная модель";
@@ -397,6 +409,7 @@ function extractSentGiftInfo(update) {
           giftId = gift.id ? gift.id.toString() : null;
         }
 
+        // Получатель подарка (куда отправляем)
         let toId = "Неизвестный ID";
         if (message.peerId) {
           if (message.peerId.className === "PeerUser") {
@@ -427,6 +440,7 @@ function extractSentGiftInfo(update) {
 }
 
 // Функция для сохранения полученного подарка в базу данных
+// Функция для сохранения полученного подарка в базу данных
 async function saveGiftToDatabase(giftInfo) {
   try {
     const result = await pool.query(
@@ -445,7 +459,21 @@ async function saveGiftToDatabase(giftInfo) {
       ]
     );
 
-    console.log(`✅ Подарок сохранен в БД: ${giftInfo.giftTitle} (Gift ID: ${giftInfo.giftId}, Model: ${giftInfo.model}) от ${giftInfo.fromId}`);
+    console.log(`✅ Подарок сохранен в БД: ${giftInfo.giftTitle} (Gift ID: ${giftInfo.giftId})`);
+    
+    // Сразу загружаем файлы
+    if (giftService && giftInfo.gift) {
+      console.log(`🔄 Начинаем загрузку файлов для подарка ${giftInfo.giftId}...`);
+      try {
+        const downloadedFiles = await giftService.processGiftFiles(giftInfo.gift);
+        console.log(`✅ Файлы загружены:`, downloadedFiles);
+      } catch (processError) {
+        console.error('❌ Ошибка загрузки файлов:', processError);
+      }
+    } else {
+      console.log('⚠️  GiftService недоступен или нет данных подарка');
+    }
+    
     return result.rows[0];
   } catch (error) {
     console.error('❌ Ошибка сохранения подарка в БД:', error);
@@ -453,9 +481,10 @@ async function saveGiftToDatabase(giftInfo) {
   }
 }
 
-// Функция для пометки подарка как выведенного
+// ИСПРАВЛЕНО: Функция для пометки подарка как выведенного
 async function markGiftAsWithdrawn(giftId, toId) {
   try {
+    // Ищем подарок по gift_id (уникальный ID от Telegram)
     const result = await pool.query(
       `UPDATE gifts
        SET is_withdrawn = TRUE,
@@ -489,8 +518,10 @@ async function startGiftTracking() {
     return;
   }
 
+  // Инициализируем GiftService
   await initGiftService(client);
 
+  // Слушаем обновления
   client.addEventHandler(async (update) => {
     // ВХОДЯЩИЕ подарки - сохраняем в БД
     const giftInfo = extractGiftInfo(update);
@@ -498,13 +529,21 @@ async function startGiftTracking() {
       try {
         await saveGiftToDatabase(giftInfo);
         
-        // Автоматически загружаем файлы подарка
+        // Автоматически обрабатываем подарок при получении
         if (giftService && giftInfo.gift) {
           try {
-            await giftService.processGiftFiles(giftInfo.gift);
-            console.log(`✅ Файлы подарка загружены: ${giftInfo.giftTitle}`);
+            const processed = await giftService.processGift(giftInfo.gift);
+            console.log(`✅ Подарок автоматически обработан: ${processed.title}`);
+            
+            // Обновляем lottie_url в БД
+            if (processed.mainDocument?.file?.lottieJson?.url) {
+              await pool.query(
+                'UPDATE gifts SET lottie_url = $1 WHERE gift_id = $2',
+                [processed.mainDocument.file.lottieJson.url, giftInfo.giftId]
+              );
+            }
           } catch (processError) {
-            console.error('⚠️  Ошибка загрузки файлов подарка:', processError);
+            console.error('⚠️  Ошибка автоматической обработки подарка:', processError);
           }
         }
       } catch (error) {
@@ -723,6 +762,7 @@ app.get('/api/gifts', async (req, res) => {
   try {
     const { limit = 50, offset = 0, fromId, withdrawn } = req.query;
 
+    // Построение WHERE условий
     const conditions = [];
     const params = [];
     let paramIndex = 1;
@@ -733,6 +773,7 @@ app.get('/api/gifts', async (req, res) => {
       paramIndex++;
     }
 
+    // Фильтр по статусу вывода
     if (withdrawn === 'true') {
       conditions.push(`is_withdrawn = TRUE`);
     } else if (withdrawn === 'false') {
@@ -921,7 +962,7 @@ app.post('/api/gifts/:id/withdraw', async (req, res) => {
   }
 });
 
-// Restore withdrawn gift
+// Restore withdrawn gift (отмена вывода)
 app.post('/api/gifts/:id/restore', async (req, res) => {
   try {
     const { id } = req.params;
@@ -960,11 +1001,81 @@ app.post('/api/gifts/:id/restore', async (req, res) => {
   }
 });
 
-// Static files
 app.use('/uploads/gifts', express.static('./uploads/gifts'));
 
-// Принудительная загрузка файлов подарка
-app.post('/api/gifts/:id/download', async (req, res) => {
+// Получить детальную информацию о подарке с файлами
+app.get('/api/gifts/:id/details', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('SELECT * FROM gifts WHERE id = $1', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Подарок не найден' });
+    }
+
+    const giftData = result.rows[0];
+
+    // Если есть GiftService и raw_data, обрабатываем подарок
+    if (giftService && giftData.raw_data && giftData.raw_data.gift) {
+      try {
+        const processed = await giftService.processGift(giftData.raw_data.gift);
+        
+        res.json({
+          id: giftData.id,
+          giftId: giftData.gift_id,
+          giftTitle: giftData.gift_title,
+          model: giftData.model,
+          background: giftData.background,
+          symbol: giftData.symbol,
+          fromId: giftData.from_id,
+          receivedAt: giftData.received_at,
+          isWithdrawn: giftData.is_withdrawn,
+          processed: {
+            title: processed.title,
+            mainDocument: processed.mainDocument,
+            attributes: processed.attributes,
+            files: processed.files
+          }
+        });
+      } catch (processError) {
+        console.error('Ошибка обработки подарка:', processError);
+        // Возвращаем базовую информацию при ошибке
+        res.json({
+          id: giftData.id,
+          giftId: giftData.gift_id,
+          giftTitle: giftData.gift_title,
+          model: giftData.model,
+          background: giftData.background,
+          symbol: giftData.symbol,
+          fromId: giftData.from_id,
+          receivedAt: giftData.received_at,
+          isWithdrawn: giftData.is_withdrawn,
+          error: 'Не удалось обработать файлы подарка'
+        });
+      }
+    } else {
+      // Возвращаем базовую информацию
+      res.json({
+        id: giftData.id,
+        giftId: giftData.gift_id,
+        giftTitle: giftData.gift_title,
+        model: giftData.model,
+        background: giftData.background,
+        symbol: giftData.symbol,
+        fromId: giftData.from_id,
+        receivedAt: giftData.received_at,
+        isWithdrawn: giftData.is_withdrawn
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка при получении детальной информации о подарке:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Принудительная обработка подарка (загрузка файлов)
+app.post('/api/gifts/:id/process', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -981,23 +1092,37 @@ app.post('/api/gifts/:id/download', async (req, res) => {
     const giftData = result.rows[0];
 
     if (!giftData.raw_data || !giftData.raw_data.gift) {
-      return res.status(400).json({ error: 'Нет данных для загрузки файлов' });
+      return res.status(400).json({ error: 'Нет данных для обработки подарка' });
     }
 
-    const downloadedFiles = await giftService.processGiftFiles(giftData.raw_data.gift);
+    // Обрабатываем подарок
+    const processed = await giftService.processGift(giftData.raw_data.gift);
+
+    // Обновляем lottie_url в БД
+    if (processed.mainDocument?.file?.lottieJson?.url) {
+      await pool.query(
+        'UPDATE gifts SET lottie_url = $1 WHERE id = $2',
+        [processed.mainDocument.file.lottieJson.url, id]
+      );
+    }
 
     res.json({
       success: true,
-      files: downloadedFiles
+      processed: {
+        title: processed.title,
+        mainDocument: processed.mainDocument,
+        attributes: processed.attributes,
+        files: processed.files
+      }
     });
 
   } catch (error) {
-    console.error('Ошибка при загрузке файлов подарка:', error);
+    console.error('Ошибка при обработке подарка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Получить список всех файлов
+// Получить список всех обработанных файлов
 app.get('/api/gifts/files/list', async (req, res) => {
   try {
     const fs = require('fs').promises;
@@ -1040,6 +1165,7 @@ app.get('/api/gifts/files/list', async (req, res) => {
   }
 });
 
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
@@ -1048,7 +1174,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Debug endpoint
+// Debug endpoint - получение всех пользователей
 app.get('/api/debug/users', async (req, res) => {
   try {
     const usersResult = await pool.query(`
@@ -1118,14 +1244,17 @@ async function startServer() {
   try {
     console.log('🚀 Запуск сервера...\n');
 
+    // Инициализация базы данных
     console.log('📊 Инициализация базы данных...');
     await initDatabase();
 
+    // Запуск отслеживания подарков
     console.log('🎁 Запуск отслеживания подарков...');
     startGiftTracking().catch(err => {
       console.error('⚠️  Ошибка запуска отслеживания подарков:', err);
     });
 
+    // Запуск Express сервера
     const server = app.listen(PORT, () => {
       console.log('═'.repeat(50));
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
