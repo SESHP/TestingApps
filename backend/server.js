@@ -1219,42 +1219,34 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
     
     console.log(`📥 Запрос файла: ${docId}`);
     
-    // Проверяем, есть ли уже сохраненный файл
     const fs = require('fs');
     const path = require('path');
     const uploadsDir = './uploads/gifts';
     const jsonPath = path.join(uploadsDir, `${docId}.json`);
     
-    // Если файл уже существует - отдаем его
     if (fs.existsSync(jsonPath)) {
-      console.log(`✅ Файл уже существует, отдаем из кеша`);
+      console.log(`✅ Отдаем из кеша`);
       return res.sendFile(path.resolve(jsonPath));
     }
     
-    // Создаем директорию если нет
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
     const result = await pool.query('SELECT raw_data FROM gifts');
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Подарки не найдены' });
-    }
-    
     let doc = null;
     
     for (const row of result.rows) {
       const giftData = row.raw_data?.gift;
-      if (!giftData || !giftData.attributes) continue;
+      if (!giftData?.attributes) continue;
       
       for (const attr of giftData.attributes) {
-        if (attr.document && attr.document.id === docId) {
+        if (attr.document?.id === docId) {
           doc = attr.document;
           break;
         }
       }
-      
       if (doc) break;
     }
     
@@ -1262,88 +1254,92 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
       return res.status(404).json({ error: 'Документ не найден' });
     }
     
-    console.log(`✅ Документ найден: ${doc.id}`);
+    console.log(`✅ Документ найден`);
     
     if (!telegramClient) {
       return res.status(503).json({ error: 'Telegram client не подключен' });
     }
     
     const { Api } = require('telegram');
-    const zlib = require('zlib');
-    const { promisify } = require('util');
-    const gunzipAsync = promisify(zlib.gunzip);
-    const inflateAsync = promisify(zlib.inflate);
     
-    const inputDoc = new Api.InputDocument({
-      id: BigInt(doc.id),
-      accessHash: BigInt(doc.accessHash),
-      fileReference: Buffer.from(doc.fileReference.data)
-    });
-    
-    console.log(`📥 Загрузка файла...`);
-    
-    const buffer = await telegramClient.downloadMedia(inputDoc, { workers: 1 });
-    
-    if (!buffer) {
-      return res.status(500).json({ error: 'Не удалось загрузить' });
-    }
-    
-    console.log(`✅ Загружено ${buffer.length} байт`);
-    
-    if (doc.mimeType === 'application/x-tgsticker') {
-      try {
-        let jsonBuffer;
+    try {
+      console.log(`📥 Загрузка через upload.getFile...`);
+      
+      // Используем upload.getFile вместо downloadMedia
+      const location = new Api.InputDocumentFileLocation({
+        id: BigInt(doc.id),
+        accessHash: BigInt(doc.accessHash),
+        fileReference: Buffer.from(doc.fileReference.data),
+        thumbSize: ''
+      });
+      
+      // Скачиваем полный файл
+      let chunks = [];
+      let offset = 0;
+      const limit = 1024 * 1024; // 1MB chunks
+      
+      while (true) {
+        const result = await telegramClient.invoke(
+          new Api.upload.GetFile({
+            location: location,
+            offset: BigInt(offset),
+            limit: limit
+          })
+        );
         
-        // Проверяем gzip
-        const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
-        
-        if (isGzip) {
-          console.log(`🔄 Распаковка gzip...`);
-          try {
-            jsonBuffer = await gunzipAsync(buffer);
-          } catch (e) {
-            console.log(`⚠️ gunzip failed, trying inflate...`);
-            jsonBuffer = await inflateAsync(buffer);
-          }
-        } else {
-          console.log(`✅ Уже распакован`);
-          jsonBuffer = buffer;
+        if (!result.bytes || result.bytes.length === 0) {
+          break;
         }
         
-        // Проверяем что это валидный JSON
+        chunks.push(result.bytes);
+        offset += result.bytes.length;
+        
+        console.log(`📦 Загружено: ${offset} байт`);
+        
+        // Если получили меньше чем limit, значит это последний chunk
+        if (result.bytes.length < limit) {
+          break;
+        }
+      }
+      
+      const fullBuffer = Buffer.concat(chunks);
+      console.log(`✅ Всего загружено: ${fullBuffer.length} байт`);
+      
+      if (doc.mimeType === 'application/x-tgsticker') {
+        const zlib = require('zlib');
+        const { promisify } = require('util');
+        const gunzipAsync = promisify(zlib.gunzip);
+        
+        // Распаковываем
+        const jsonBuffer = await gunzipAsync(fullBuffer);
         const jsonString = jsonBuffer.toString('utf8');
-        JSON.parse(jsonString); // Проверка валидности
         
-        console.log(`✅ JSON валиден: ${jsonString.length} символов`);
+        // Проверяем валидность
+        const parsed = JSON.parse(jsonString);
+        console.log(`✅ JSON валиден, размер: ${jsonString.length}`);
         
-        // Сохраняем файл
+        // Сохраняем
         fs.writeFileSync(jsonPath, jsonString);
-        console.log(`💾 Файл сохранен: ${jsonPath}`);
         
-        // Отдаем файл
         res.setHeader('Content-Type', 'application/json');
         res.send(jsonString);
-        
-      } catch (err) {
-        console.error(`❌ Ошибка обработки TGS:`, err.message);
-        return res.status(500).json({ error: `Ошибка: ${err.message}` });
+      } else {
+        const filePath = path.join(uploadsDir, `${docId}.webp`);
+        fs.writeFileSync(filePath, fullBuffer);
+        res.setHeader('Content-Type', doc.mimeType);
+        res.send(fullBuffer);
       }
-    } else if (doc.mimeType === 'image/webp') {
-      const webpPath = path.join(uploadsDir, `${docId}.webp`);
-      fs.writeFileSync(webpPath, buffer);
-      res.setHeader('Content-Type', 'image/webp');
-      res.send(buffer);
-    } else {
-      res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
-      res.send(buffer);
+      
+    } catch (err) {
+      console.error(`❌ Ошибка загрузки:`, err.message);
+      return res.status(500).json({ error: err.message });
     }
     
   } catch (error) {
-    console.error('❌ Критическая ошибка:', error);
+    console.error('❌ Ошибка:', error);
     res.status(500).json({ error: error.message });
   }
 });
-
 
 // Получить список всех обработанных файлов
 app.get('/api/gifts/files/list', async (req, res) => {
