@@ -1,9 +1,9 @@
 // src/pages/Inventory.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
-import { getUserGifts, refreshUserGifts } from '../utils/giftsApi';
 import './Inventory.css';
+import lottie from 'lottie-web';
 
 const Inventory = () => {
   const [gifts, setGifts] = useState([]);
@@ -11,6 +11,7 @@ const Inventory = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedGift, setSelectedGift] = useState(null);
 
   useEffect(() => {
     initializeInventory();
@@ -18,7 +19,6 @@ const Inventory = () => {
 
   const initializeInventory = async () => {
     try {
-      // Получаем ID пользователя из Telegram
       const user = getTelegramUser();
       const telegramUserId = user?.id?.toString() || 'test_user';
       
@@ -36,26 +36,19 @@ const Inventory = () => {
       setLoading(true);
       setError(null);
       
-      // Получаем подарки пользователя через API
-      const userGifts = await getUserGifts(telegramUserId);
-      setGifts(userGifts);
+      const response = await fetch(`/api/gifts?fromId=${telegramUserId}&withdrawn=false`);
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки подарков');
+      }
+      
+      const data = await response.json();
+      setGifts(data.gifts || []);
       
     } catch (err) {
       console.error('Ошибка загрузки подарков:', err);
       setError('Не удалось загрузить подарки');
-      
-      // Если API недоступен, показываем тестовые данные для разработки
-      if (process.env.NODE_ENV === 'development') {
-        setGifts([
-          {
-            id: 'test_1',
-            name: 'Delicious Cake',
-            image: '🎂',
-            date: new Date().toISOString(),
-            sender: telegramUserId
-          }
-        ]);
-      }
+      setGifts([]);
     } finally {
       setLoading(false);
     }
@@ -63,41 +56,17 @@ const Inventory = () => {
 
   const handleRefresh = async () => {
     if (!userId || refreshing) return;
-    
-    try {
-      setRefreshing(true);
-      setError(null);
-      
-      // Запускаем обновление подарков на сервере
-      const result = await refreshUserGifts(userId);
-      
-      if (result.success) {
-        setGifts(result.gifts || []);
-        
-        // Показываем уведомление об успешном обновлении
-        if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(`Обновлено! Найдено подарков: ${result.count || 0}`);
-        }
-      }
-    } catch (err) {
-      console.error('Ошибка обновления подарков:', err);
-      setError('Не удалось обновить подарки');
-      
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showAlert('Ошибка обновления подарков. Попробуйте позже.');
-      }
-    } finally {
-      setRefreshing(false);
-    }
+    setRefreshing(true);
+    await loadUserGifts(userId);
+    setRefreshing(false);
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  const handleGiftClick = (gift) => {
+    setSelectedGift(gift);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedGift(null);
   };
 
   if (loading) {
@@ -143,10 +112,10 @@ const Inventory = () => {
         </button>
       </div>
 
-      <div className="info-card">
-        <div className="info-icon">ℹ️</div>
-        <div className="info-content">
-          <p className="info-text">
+      <div className="info-card-gift">
+        <div className="info-icon-gift">ℹ️</div>
+        <div className="info-content-gift">
+          <p className="info-text-gift">
             Для добавления подарка в инвентарь необходимо отправить его на аккаунт{' '}
             <a 
               href="https://t.me/FNPK3" 
@@ -178,7 +147,7 @@ const Inventory = () => {
         <div className="stat-item">
           <span className="stat-value">
             {gifts.filter(g => {
-              const giftDate = new Date(g.date);
+              const giftDate = new Date(g.receivedAt);
               const today = new Date();
               return giftDate.toDateString() === today.toDateString();
             }).length}
@@ -193,22 +162,315 @@ const Inventory = () => {
             <div className="empty-icon">🎁</div>
             <p className="empty-text">Ваш инвентарь пуст</p>
             <p className="empty-subtext">
-              Отправьте подарок на @FNPK3, чтобы он появился здесь
+              Отправьте подарок на @FNPK3, чтобы он появится здесь
             </p>
           </div>
         ) : (
           <div className="gifts-grid">
             {gifts.map((gift) => (
-              <div key={gift.id} className="gift-card">
-                <div className="gift-image">{gift.image}</div>
-                <div className="gift-info">
-                  <h3 className="gift-name">{gift.name}</h3>
-                  <p className="gift-date">{formatDate(gift.date)}</p>
-                </div>
-              </div>
+              <GiftCard 
+                key={gift.id} 
+                gift={gift} 
+                onClick={() => handleGiftClick(gift)}
+              />
             ))}
           </div>
         )}
+      </div>
+
+      {selectedGift && (
+        <GiftModal 
+          gift={selectedGift} 
+          onClose={handleCloseModal}
+        />
+      )}
+    </div>
+  );
+};
+
+// Компонент карточки подарка
+const GiftCard = ({ gift, onClick }) => {
+  const lottieRef = useRef(null);
+  const lottieInstance = useRef(null);
+  const [giftDetails, setGiftDetails] = useState(null);
+
+  useEffect(() => {
+    loadGiftDetails();
+    return () => {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
+    };
+  }, [gift.id]);
+
+  const loadGiftDetails = async () => {
+    try {
+      const response = await fetch(`/api/gifts/${gift.id}/details`);
+      if (response.ok) {
+        const data = await response.json();
+        setGiftDetails(data);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки деталей подарка:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!giftDetails?.processed?.mainDocument) return;
+
+    const mainDoc = giftDetails.processed.mainDocument;
+    
+    if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
+      fetch(mainDoc.file.lottieJson.url)
+        .then(res => res.json())
+        .then(animationData => {
+          if (lottieInstance.current) {
+            lottieInstance.current.destroy();
+          }
+          lottieInstance.current = lottie.loadAnimation({
+            container: lottieRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        })
+        .catch(err => console.error('Ошибка загрузки Lottie:', err));
+    }
+  }, [giftDetails]);
+
+  const renderGiftPreview = () => {
+    if (!giftDetails?.processed?.mainDocument) {
+      return <div className="gift-placeholder">🎁</div>;
+    }
+
+    const mainDoc = giftDetails.processed.mainDocument;
+    const backdrop = giftDetails.processed.attributes?.backdrop;
+
+    const cardStyle = backdrop ? {
+      background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
+    } : {};
+
+    if (mainDoc.fileType === 'static') {
+      return (
+        <div className="gift-preview" style={cardStyle}>
+          <img src={mainDoc.file.url} alt={gift.giftTitle} className="gift-static-img" />
+        </div>
+      );
+    }
+
+    if (mainDoc.fileType === 'lottie') {
+      return (
+        <div className="gift-preview" style={cardStyle}>
+          <div ref={lottieRef} className="gift-lottie-preview" />
+        </div>
+      );
+    }
+
+    if (mainDoc.fileType === 'video') {
+      return (
+        <div className="gift-preview" style={cardStyle}>
+          <video 
+            src={mainDoc.file.url} 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="gift-video-preview"
+          />
+        </div>
+      );
+    }
+
+    return <div className="gift-placeholder">🎁</div>;
+  };
+
+  return (
+    <div className="gift-card" onClick={onClick}>
+      {renderGiftPreview()}
+      <div className="gift-info">
+        <h3 className="gift-name">{gift.giftTitle}</h3>
+        {gift.model && gift.model !== 'Неизвестная модель' && (
+          <p className="gift-model">{gift.model}</p>
+        )}
+        <p className="gift-date">
+          {new Date(gift.receivedAt).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short'
+          })}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Компонент модального окна
+const GiftModal = ({ gift, onClose }) => {
+  const lottieRef = useRef(null);
+  const lottieInstance = useRef(null);
+  const [giftDetails, setGiftDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadGiftDetails();
+    return () => {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
+    };
+  }, [gift.id]);
+
+  const loadGiftDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/gifts/${gift.id}/details`);
+      if (response.ok) {
+        const data = await response.json();
+        setGiftDetails(data);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки деталей:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!giftDetails?.processed?.mainDocument) return;
+
+    const mainDoc = giftDetails.processed.mainDocument;
+    
+    if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
+      fetch(mainDoc.file.lottieJson.url)
+        .then(res => res.json())
+        .then(animationData => {
+          if (lottieInstance.current) {
+            lottieInstance.current.destroy();
+          }
+          lottieInstance.current = lottie.loadAnimation({
+            container: lottieRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        })
+        .catch(err => console.error('Ошибка загрузки Lottie:', err));
+    }
+  }, [giftDetails]);
+
+  const renderMainContent = () => {
+    if (loading || !giftDetails?.processed?.mainDocument) {
+      return <div className="modal-loading">Загрузка...</div>;
+    }
+
+    const mainDoc = giftDetails.processed.mainDocument;
+    const backdrop = giftDetails.processed.attributes?.backdrop;
+
+    const containerStyle = backdrop ? {
+      background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
+    } : {};
+
+    if (mainDoc.fileType === 'static') {
+      return (
+        <div className="modal-gift-container" style={containerStyle}>
+          <img src={mainDoc.file.url} alt={gift.giftTitle} className="modal-gift-image" />
+        </div>
+      );
+    }
+
+    if (mainDoc.fileType === 'lottie') {
+      return (
+        <div className="modal-gift-container" style={containerStyle}>
+          <div ref={lottieRef} className="modal-gift-lottie" />
+        </div>
+      );
+    }
+
+    if (mainDoc.fileType === 'video') {
+      return (
+        <div className="modal-gift-container" style={containerStyle}>
+          <video 
+            src={mainDoc.file.url} 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="modal-gift-video"
+          />
+        </div>
+      );
+    }
+
+    return <div className="modal-gift-placeholder">🎁</div>;
+  };
+
+  const attrs = giftDetails?.processed?.attributes;
+  const isCollectible = attrs?.model || attrs?.backdrop || attrs?.pattern;
+
+  return (
+    <div className="gift-modal-overlay" onClick={onClose}>
+      <div className="gift-modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>✕</button>
+        
+        {renderMainContent()}
+
+        <div className="modal-info">
+          <h2 className="modal-title">{gift.giftTitle}</h2>
+          
+          {isCollectible && (
+            <div className="modal-badge collectible">Коллекционный</div>
+          )}
+
+          {attrs?.model && (
+            <div className="modal-attr">
+              <span className="modal-attr-label">Модель:</span>
+              <span className="modal-attr-value">{attrs.model.name}</span>
+              {attrs.model.rarityPermille && (
+                <span className="modal-attr-rarity">
+                  {(attrs.model.rarityPermille / 10).toFixed(1)}%
+                </span>
+              )}
+            </div>
+          )}
+
+          {attrs?.backdrop && (
+            <div className="modal-attr">
+              <span className="modal-attr-label">Фон:</span>
+              <span className="modal-attr-value">{attrs.backdrop.name}</span>
+              {attrs.backdrop.rarityPermille && (
+                <span className="modal-attr-rarity">
+                  {(attrs.backdrop.rarityPermille / 10).toFixed(1)}%
+                </span>
+              )}
+            </div>
+          )}
+
+          {attrs?.pattern && (
+            <div className="modal-attr">
+              <span className="modal-attr-label">Паттерн:</span>
+              <span className="modal-attr-value">{attrs.pattern.name}</span>
+              {attrs.pattern.rarityPermille && (
+                <span className="modal-attr-rarity">
+                  {(attrs.pattern.rarityPermille / 10).toFixed(1)}%
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="modal-meta">
+            <div className="modal-meta-item">
+              <span className="modal-meta-label">От:</span>
+              <span className="modal-meta-value">{gift.fromId}</span>
+            </div>
+            <div className="modal-meta-item">
+              <span className="modal-meta-label">Получен:</span>
+              <span className="modal-meta-value">
+                {new Date(gift.receivedAt).toLocaleString('ru-RU')}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

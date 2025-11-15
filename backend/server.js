@@ -1,6 +1,9 @@
 // backend/server.js
 require('dotenv').config();
 
+const GiftService = require('./gift-service');
+let giftService = null;
+
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -280,11 +283,11 @@ function extractGiftInfo(update) {
 
         // ИСПРАВЛЕНО: Получаем ID отправителя из message.fromId, а НЕ из action.from_id
         let fromId = "Неизвестный ID";
-        if (message.fromId) {
-          if (message.fromId.className === "PeerUser") {
-            fromId = message.fromId.userId.toString();
-          } else if (message.fromId.className === "PeerChannel") {
-            fromId = message.fromId.channelId.toString();
+        if (message.peer_id) {
+          if (message.peer_id.className === "PeerUser") {
+            fromId = message.peer_id.userId.toString();
+          } else if (message.peer_id.className === "PeerChannel") {
+            fromId = message.peer_id.channelId.toString();
           }
         }
 
@@ -340,6 +343,22 @@ async function initTelegramClient() {
     return telegramClient;
   } catch (error) {
     console.error('❌ Ошибка инициализации Telegram клиента:', error);
+    return null;
+  }
+}
+
+async function initGiftService(client) {
+  if (!client) {
+    console.log('⚠️  GiftService не инициализирован (нет Telegram клиента)');
+    return null;
+  }
+  
+  try {
+    giftService = new GiftService(client, './uploads/gifts');
+    console.log('✅ GiftService инициализирован');
+    return giftService;
+  } catch (error) {
+    console.error('❌ Ошибка инициализации GiftService:', error);
     return null;
   }
 }
@@ -484,6 +503,9 @@ async function startGiftTracking() {
     return;
   }
 
+  // Инициализируем GiftService
+  await initGiftService(client);
+
   // Слушаем обновления
   client.addEventHandler(async (update) => {
     // ВХОДЯЩИЕ подарки - сохраняем в БД
@@ -491,6 +513,24 @@ async function startGiftTracking() {
     if (giftInfo) {
       try {
         await saveGiftToDatabase(giftInfo);
+        
+        // Автоматически обрабатываем подарок при получении
+        if (giftService && giftInfo.gift) {
+          try {
+            const processed = await giftService.processGift(giftInfo.gift);
+            console.log(`✅ Подарок автоматически обработан: ${processed.title}`);
+            
+            // Обновляем lottie_url в БД
+            if (processed.mainDocument?.file?.lottieJson?.url) {
+              await pool.query(
+                'UPDATE gifts SET lottie_url = $1 WHERE gift_id = $2',
+                [processed.mainDocument.file.lottieJson.url, giftInfo.giftId]
+              );
+            }
+          } catch (processError) {
+            console.error('⚠️  Ошибка автоматической обработки подарка:', processError);
+          }
+        }
       } catch (error) {
         console.error('Ошибка при сохранении подарка:', error);
       }
@@ -500,7 +540,6 @@ async function startGiftTracking() {
     const sentGiftInfo = extractSentGiftInfo(update);
     if (sentGiftInfo) {
       try {
-        // НЕ создаем новую запись, а только помечаем существующую как выведенную
         await markGiftAsWithdrawn(
           sentGiftInfo.giftId,
           sentGiftInfo.toId
@@ -513,6 +552,7 @@ async function startGiftTracking() {
 
   console.log('👂 Слушаю обновления (входящие и исходящие подарки)...');
 }
+
 
 // ============ API ENDPOINTS ============
 
@@ -945,6 +985,171 @@ app.post('/api/gifts/:id/restore', async (req, res) => {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
+
+app.use('/uploads/gifts', express.static('./uploads/gifts'));
+
+// Получить детальную информацию о подарке с файлами
+app.get('/api/gifts/:id/details', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('SELECT * FROM gifts WHERE id = $1', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Подарок не найден' });
+    }
+
+    const giftData = result.rows[0];
+
+    // Если есть GiftService и raw_data, обрабатываем подарок
+    if (giftService && giftData.raw_data && giftData.raw_data.gift) {
+      try {
+        const processed = await giftService.processGift(giftData.raw_data.gift);
+        
+        res.json({
+          id: giftData.id,
+          giftId: giftData.gift_id,
+          giftTitle: giftData.gift_title,
+          model: giftData.model,
+          background: giftData.background,
+          symbol: giftData.symbol,
+          fromId: giftData.from_id,
+          receivedAt: giftData.received_at,
+          isWithdrawn: giftData.is_withdrawn,
+          processed: {
+            title: processed.title,
+            mainDocument: processed.mainDocument,
+            attributes: processed.attributes,
+            files: processed.files
+          }
+        });
+      } catch (processError) {
+        console.error('Ошибка обработки подарка:', processError);
+        // Возвращаем базовую информацию при ошибке
+        res.json({
+          id: giftData.id,
+          giftId: giftData.gift_id,
+          giftTitle: giftData.gift_title,
+          model: giftData.model,
+          background: giftData.background,
+          symbol: giftData.symbol,
+          fromId: giftData.from_id,
+          receivedAt: giftData.received_at,
+          isWithdrawn: giftData.is_withdrawn,
+          error: 'Не удалось обработать файлы подарка'
+        });
+      }
+    } else {
+      // Возвращаем базовую информацию
+      res.json({
+        id: giftData.id,
+        giftId: giftData.gift_id,
+        giftTitle: giftData.gift_title,
+        model: giftData.model,
+        background: giftData.background,
+        symbol: giftData.symbol,
+        fromId: giftData.from_id,
+        receivedAt: giftData.received_at,
+        isWithdrawn: giftData.is_withdrawn
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка при получении детальной информации о подарке:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Принудительная обработка подарка (загрузка файлов)
+app.post('/api/gifts/:id/process', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!giftService) {
+      return res.status(503).json({ error: 'GiftService не инициализирован' });
+    }
+
+    const result = await pool.query('SELECT * FROM gifts WHERE id = $1', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Подарок не найден' });
+    }
+
+    const giftData = result.rows[0];
+
+    if (!giftData.raw_data || !giftData.raw_data.gift) {
+      return res.status(400).json({ error: 'Нет данных для обработки подарка' });
+    }
+
+    // Обрабатываем подарок
+    const processed = await giftService.processGift(giftData.raw_data.gift);
+
+    // Обновляем lottie_url в БД
+    if (processed.mainDocument?.file?.lottieJson?.url) {
+      await pool.query(
+        'UPDATE gifts SET lottie_url = $1 WHERE id = $2',
+        [processed.mainDocument.file.lottieJson.url, id]
+      );
+    }
+
+    res.json({
+      success: true,
+      processed: {
+        title: processed.title,
+        mainDocument: processed.mainDocument,
+        attributes: processed.attributes,
+        files: processed.files
+      }
+    });
+
+  } catch (error) {
+    console.error('Ошибка при обработке подарка:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Получить список всех обработанных файлов
+app.get('/api/gifts/files/list', async (req, res) => {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const uploadsDir = './uploads/gifts';
+    
+    try {
+      const files = await fs.readdir(uploadsDir);
+      const fileStats = await Promise.all(
+        files.map(async (filename) => {
+          const filepath = path.join(uploadsDir, filename);
+          const stats = await fs.stat(filepath);
+          return {
+            filename,
+            size: stats.size,
+            url: `/uploads/gifts/${filename}`,
+            type: filename.endsWith('.webp') ? 'static' :
+                  filename.endsWith('.tgs') ? 'lottie-compressed' :
+                  filename.endsWith('.json') ? 'lottie-json' :
+                  filename.endsWith('.webm') ? 'video' : 'unknown'
+          };
+        })
+      );
+
+      res.json({
+        total: fileStats.length,
+        files: fileStats
+      });
+    } catch (error) {
+      res.json({
+        total: 0,
+        files: [],
+        message: 'Директория пуста или не существует'
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка при получении списка файлов:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 
 // Health check
 app.get('/health', (req, res) => {
