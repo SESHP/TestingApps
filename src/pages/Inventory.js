@@ -1,8 +1,9 @@
 // src/pages/Inventory.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
 import './Inventory.css';
+import lottie from 'lottie-web';
 
 const Inventory = () => {
   const [gifts, setGifts] = useState([]);
@@ -188,82 +189,56 @@ const Inventory = () => {
   );
 };
 
-// Декодер PhotoPathSize в SVG (алгоритм из Telegram Web)
-const decodeSvgPath = (bytes) => {
-  if (!bytes || !bytes.data || bytes.data.length === 0) return '';
-  
-  const commands = [];
-  let x = 0;
-  let y = 0;
-  
-  for (let i = 0; i < bytes.data.length;) {
-    const op = bytes.data[i++];
-    
-    // Определяем тип команды по старшим битам
-    if (op === 0) {
-      // Конец команд
-      break;
-    }
-    
-    // Читаем координаты (используем signed numbers)
-    const readCoord = () => {
-      if (i >= bytes.data.length) return 0;
-      let value = bytes.data[i++];
-      // Если значение > 127, это отрицательное число
-      if (value > 127) value = value - 256;
-      return value;
-    };
-    
-    const dx = readCoord();
-    const dy = readCoord();
-    
-    x += dx;
-    y += dy;
-    
-    if (commands.length === 0) {
-      commands.push(`M${x},${y}`);
-    } else {
-      // Используем кубические кривые Безье для сглаживания
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-        commands.push(`L${x},${y}`);
-      } else {
-        commands.push(`L${x},${y}`);
-      }
-    }
-  }
-  
-  return commands.join(' ');
-};
-
-// Компонент SVG из PhotoPathSize
-const TelegramSvg = ({ thumbs, size = 120, color = 'currentColor', opacity = 1 }) => {
-  if (!thumbs || !Array.isArray(thumbs)) return null;
-  
-  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize');
-  if (!pathThumb?.bytes) return null;
-  
-  const pathData = decodeSvgPath(pathThumb.bytes);
-  if (!pathData) return null;
-  
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 256 256"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ opacity }}
-    >
-      <path
-        d={pathData}
-        fill={color}
-        fillOpacity={opacity}
-      />
-    </svg>
-  );
-};
-
 // Компонент карточки подарка
 const GiftCard = ({ gift, onClick }) => {
+  const lottieRef = useRef(null);
+  const lottieInstance = useRef(null);
+
+  useEffect(() => {
+    loadLottie();
+    return () => {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
+    };
+  }, [gift.id]);
+
+  const loadLottie = async () => {
+    if (!gift.rawData?.gift || !lottieRef.current) return;
+
+    const attributes = gift.rawData.gift.attributes || [];
+    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+    
+    if (!modelAttr?.document) return;
+
+    const doc = modelAttr.document;
+    
+    if (doc.mimeType === 'application/x-tgsticker') {
+      try {
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        const response = await fetch(`${apiUrl}/api/telegram/file/${doc.id}`);
+        
+        if (response.ok) {
+          const animationData = await response.json();
+          
+          if (lottieInstance.current) {
+            lottieInstance.current.destroy();
+          }
+          
+          lottieInstance.current = lottie.loadAnimation({
+            container: lottieRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки Lottie:', err);
+      }
+    }
+  };
+
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
@@ -283,50 +258,16 @@ const GiftCard = ({ gift, onClick }) => {
     const attributes = giftData.attributes || [];
     
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
-    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
-    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
-    // Фон
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
       background: '#1a1a1a'
     };
 
-    const patternColor = backdropAttr ? formatColor(backdropAttr.patternColor) : '#ffffff';
-
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн */}
-        {patternAttr?.document?.thumbs && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            opacity: 0.15,
-            pointerEvents: 'none'
-          }}>
-            <TelegramSvg 
-              thumbs={patternAttr.document.thumbs}
-              size={100}
-              color={patternColor}
-            />
-          </div>
-        )}
-        
-        {/* Модель */}
-        {modelAttr?.document?.thumbs ? (
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <TelegramSvg 
-              thumbs={modelAttr.document.thumbs}
-              size={110}
-              color="#ffffff"
-            />
-          </div>
-        ) : (
-          <div className="gift-placeholder">🎁</div>
-        )}
+        <div ref={lottieRef} className="gift-lottie-preview" />
       </div>
     );
   };
@@ -352,6 +293,54 @@ const GiftCard = ({ gift, onClick }) => {
 
 // Компонент модального окна
 const GiftModal = ({ gift, onClose }) => {
+  const lottieRef = useRef(null);
+  const lottieInstance = useRef(null);
+
+  useEffect(() => {
+    loadLottie();
+    return () => {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
+    };
+  }, [gift.id]);
+
+  const loadLottie = async () => {
+    if (!gift.rawData?.gift || !lottieRef.current) return;
+
+    const attributes = gift.rawData.gift.attributes || [];
+    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+    
+    if (!modelAttr?.document) return;
+
+    const doc = modelAttr.document;
+    
+    if (doc.mimeType === 'application/x-tgsticker') {
+      try {
+        const apiUrl = process.env.REACT_APP_API_URL || '';
+        const response = await fetch(`${apiUrl}/api/telegram/file/${doc.id}`);
+        
+        if (response.ok) {
+          const animationData = await response.json();
+          
+          if (lottieInstance.current) {
+            lottieInstance.current.destroy();
+          }
+          
+          lottieInstance.current = lottie.loadAnimation({
+            container: lottieRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки Lottie:', err);
+      }
+    }
+  };
+
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
@@ -369,10 +358,7 @@ const GiftModal = ({ gift, onClose }) => {
 
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
-    
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
-    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
-    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
@@ -380,40 +366,9 @@ const GiftModal = ({ gift, onClose }) => {
       background: '#1a1a1a'
     };
 
-    const patternColor = backdropAttr ? formatColor(backdropAttr.patternColor) : '#ffffff';
-
     return (
       <div className="modal-gift-container" style={backgroundStyle}>
-        {/* Паттерн */}
-        {patternAttr?.document?.thumbs && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            opacity: 0.12,
-            pointerEvents: 'none'
-          }}>
-            <TelegramSvg 
-              thumbs={patternAttr.document.thumbs}
-              size={200}
-              color={patternColor}
-            />
-          </div>
-        )}
-        
-        {/* Модель */}
-        {modelAttr?.document?.thumbs ? (
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <TelegramSvg 
-              thumbs={modelAttr.document.thumbs}
-              size={250}
-              color="#ffffff"
-            />
-          </div>
-        ) : (
-          <div className="modal-gift-placeholder">🎁</div>
-        )}
+        <div ref={lottieRef} className="modal-gift-lottie" />
       </div>
     );
   };

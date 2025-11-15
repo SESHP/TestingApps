@@ -1102,6 +1102,79 @@ app.post('/api/gifts/:id/process', async (req, res) => {
   }
 });
 
+// Проксирование файлов из Telegram
+app.get('/api/telegram/file/:docId', async (req, res) => {
+  try {
+    const { docId } = req.params;
+    
+    // Ищем документ в gifts по ID
+    const result = await pool.query(
+      `SELECT raw_data FROM gifts WHERE raw_data::text LIKE $1 LIMIT 1`,
+      [`%"id":"${docId}"%`]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Документ не найден' });
+    }
+    
+    const giftData = result.rows[0].raw_data.gift;
+    const attributes = giftData.attributes || [];
+    
+    let doc = null;
+    for (const attr of attributes) {
+      if (attr.document && attr.document.id === docId) {
+        doc = attr.document;
+        break;
+      }
+    }
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'Документ не найден в атрибутах' });
+    }
+    
+    if (!telegramClient) {
+      return res.status(503).json({ error: 'Telegram client не подключен' });
+    }
+    
+    const { Api } = require('telegram');
+    const zlib = require('zlib');
+    
+    const inputDoc = new Api.InputDocument({
+      id: BigInt(doc.id),
+      accessHash: BigInt(doc.accessHash),
+      fileReference: Buffer.from(doc.fileReference.data)
+    });
+    
+    const buffer = await telegramClient.downloadMedia(inputDoc, { workers: 1 });
+    
+    if (!buffer) {
+      return res.status(500).json({ error: 'Не удалось загрузить файл' });
+    }
+    
+    // Если это TGS - распаковываем
+    if (doc.mimeType === 'application/x-tgsticker') {
+      zlib.gunzip(buffer, (err, jsonBuffer) => {
+        if (err) {
+          return res.status(500).json({ error: 'Ошибка распаковки' });
+        }
+        res.setHeader('Content-Type', 'application/json');
+        res.send(jsonBuffer);
+      });
+    } else if (doc.mimeType === 'image/webp') {
+      res.setHeader('Content-Type', 'image/webp');
+      res.send(buffer);
+    } else {
+      res.setHeader('Content-Type', doc.mimeType);
+      res.send(buffer);
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка проксирования файла:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // Получить список всех обработанных файлов
 app.get('/api/gifts/files/list', async (req, res) => {
   try {
