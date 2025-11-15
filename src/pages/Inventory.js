@@ -1,9 +1,8 @@
 // src/pages/Inventory.js
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
 import './Inventory.css';
-import lottie from 'lottie-web';
 
 const Inventory = () => {
   const [gifts, setGifts] = useState([]);
@@ -57,7 +56,7 @@ const Inventory = () => {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔧 Dev режим: показываем тестовые данные');
         setGifts([]);
-        setError('⚠️ Backend недоступен. Показываются тестовые данные.');
+        setError('⚠️ Backend недоступен.');
       } else {
         setError(`Не удалось загрузить подарки: ${err.message}`);
         setGifts([]);
@@ -202,133 +201,24 @@ const Inventory = () => {
 };
 
 // Компонент карточки подарка
-// Компонент карточки подарка
 const GiftCard = ({ gift, onClick }) => {
-  const lottieRef = useRef(null);
-  const lottieInstance = useRef(null);
-  const [downloading, setDownloading] = useState(false);
-  const [filesReady, setFilesReady] = useState(false);
-
-  useEffect(() => {
-    checkAndLoadFiles();
-    
-    return () => {
-      if (lottieInstance.current) {
-        lottieInstance.current.destroy();
-      }
-    };
-  }, [gift.id]);
-
-  // Проверяем наличие файлов и загружаем
-  const checkAndLoadFiles = async () => {
-    if (!gift.rawData?.gift) return;
-
-    const giftData = gift.rawData.gift;
-    const attributes = giftData.attributes || [];
-    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    
-    if (!modelAttr?.document) return;
-
-    const doc = modelAttr.document;
-    const apiUrl = process.env.REACT_APP_API_URL || '';
-    
-    // Проверяем наличие файла
-    if (doc.mimeType === 'application/x-tgsticker') {
-      const jsonUrl = `${apiUrl}/uploads/gifts/${doc.id}.json`;
-      
-      try {
-        const response = await fetch(jsonUrl, { method: 'HEAD' });
-        if (response.ok) {
-          setFilesReady(true);
-          await loadModelAnimation();
-        } else {
-          console.log(`⚠️ Файл не найден: ${doc.id}.json`);
-          setFilesReady(false);
-        }
-      } catch (err) {
-        console.log(`⚠️ Ошибка проверки файла:`, err);
-        setFilesReady(false);
-      }
-    } else {
-      const webpUrl = `${apiUrl}/uploads/gifts/${doc.id}.webp`;
-      try {
-        const response = await fetch(webpUrl, { method: 'HEAD' });
-        setFilesReady(response.ok);
-      } catch (err) {
-        setFilesReady(false);
-      }
-    }
-  };
-
-  const loadModelAnimation = async () => {
-    if (!gift.rawData?.gift) return;
-
-    const giftData = gift.rawData.gift;
-    const attributes = giftData.attributes || [];
-    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    
-    if (!modelAttr?.document) return;
-
-    const doc = modelAttr.document;
-    
-    if (doc.mimeType === 'application/x-tgsticker' && lottieRef.current) {
-      try {
-        const apiUrl = process.env.REACT_APP_API_URL || '';
-        const jsonUrl = `${apiUrl}/uploads/gifts/${doc.id}.json`;
-        
-        const response = await fetch(jsonUrl);
-        if (response.ok) {
-          const animationData = await response.json();
-          
-          if (lottieInstance.current) {
-            lottieInstance.current.destroy();
-          }
-          
-          lottieInstance.current = lottie.loadAnimation({
-            container: lottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки Lottie:', err);
-      }
-    }
-  };
-
-  // Принудительная загрузка файлов
-  const handleDownloadFiles = async (e) => {
-    e.stopPropagation(); // Не открываем модалку
-    
-    setDownloading(true);
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/gifts/${gift.id}/download`, {
-        method: 'POST'
-      });
-      
-      if (response.ok) {
-        console.log('✅ Файлы загружены');
-        // Перезагружаем после небольшой задержки
-        setTimeout(() => {
-          checkAndLoadFiles();
-        }, 1000);
-      } else {
-        console.error('❌ Ошибка загрузки файлов');
-      }
-    } catch (err) {
-      console.error('❌ Ошибка:', err);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
+  // Функция для форматирования цвета
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
     return `#${hex}`;
+  };
+
+  // Функция для получения SVG path из thumbs
+  const getThumbSvgPath = (thumbs) => {
+    if (!thumbs || !Array.isArray(thumbs)) return null;
+    
+    const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize');
+    if (!pathThumb || !pathThumb.bytes || !pathThumb.bytes.data) return null;
+    
+    // Конвертируем байты в SVG path (это упрощенная версия)
+    // Telegram использует специальный формат, но для превью можем показать placeholder
+    return pathThumb;
   };
 
   const renderGiftPreview = () => {
@@ -343,77 +233,50 @@ const GiftCard = ({ gift, onClick }) => {
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     
+    // Получаем атрибуты
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
+    // Фон - используем цвета из backdrop
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
       background: '#1a1a1a'
     };
 
-    const apiUrl = process.env.REACT_APP_API_URL || '';
-
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн */}
-        {patternAttr?.document && filesReady && (
+        {/* Паттерн - пока используем эмодзи из alt */}
+        {patternAttr?.document?.attributes && (
           <div 
             className="gift-pattern-overlay"
             style={{
-              backgroundImage: patternAttr.document.mimeType === 'application/x-tgsticker' 
-                ? 'none'
-                : `url(${apiUrl}/uploads/gifts/${patternAttr.document.id}.webp)`,
-              opacity: 0.15
+              fontSize: '80px',
+              opacity: 0.1,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none'
             }}
-          />
+          >
+            {patternAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '⭐'}
+          </div>
         )}
         
-        {/* Модель */}
-        {modelAttr?.document && (
-          <>
-            {filesReady ? (
-              modelAttr.document.mimeType === 'application/x-tgsticker' ? (
-                <div ref={lottieRef} className="gift-lottie-preview" />
-              ) : (
-                <img 
-                  src={`${apiUrl}/uploads/gifts/${modelAttr.document.id}.webp`}
-                  alt={gift.giftTitle}
-                  className="gift-static-img"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
-              )
-            ) : (
-              <div style={{ 
-                position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
-                transform: 'translate(-50%, -50%)',
-                textAlign: 'center',
-                zIndex: 10
-              }}>
-                <button 
-                  onClick={handleDownloadFiles}
-                  disabled={downloading}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#F27D00',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    cursor: downloading ? 'wait' : 'pointer',
-                    opacity: downloading ? 0.6 : 1
-                  }}
-                >
-                  {downloading ? '⏳ Загрузка...' : '📥 Загрузить'}
-                </button>
-              </div>
-            )}
-          </>
+        {/* Модель - используем эмодзи из alt */}
+        {modelAttr?.document?.attributes && (
+          <div 
+            style={{
+              fontSize: '64px',
+              position: 'relative',
+              zIndex: 2,
+              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))'
+            }}
+          >
+            {modelAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '🎁'}
+          </div>
         )}
       </div>
     );
@@ -440,58 +303,6 @@ const GiftCard = ({ gift, onClick }) => {
 
 // Компонент модального окна
 const GiftModal = ({ gift, onClose }) => {
-  const lottieRef = useRef(null);
-  const lottieInstance = useRef(null);
-
-  useEffect(() => {
-    // Загружаем Lottie анимацию для модального окна
-    loadModelAnimation();
-    
-    return () => {
-      if (lottieInstance.current) {
-        lottieInstance.current.destroy();
-      }
-    };
-  }, [gift.id]);
-
-  const loadModelAnimation = async () => {
-    if (!gift.rawData?.gift) return;
-
-    const giftData = gift.rawData.gift;
-    const attributes = giftData.attributes || [];
-    
-    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    if (!modelAttr?.document) return;
-
-    const doc = modelAttr.document;
-    
-    if (doc.mimeType === 'application/x-tgsticker' && lottieRef.current) {
-      try {
-        const apiUrl = process.env.REACT_APP_API_URL || '';
-        const jsonUrl = `${apiUrl}/uploads/gifts/${doc.id}.json`;
-        
-        const response = await fetch(jsonUrl);
-        if (response.ok) {
-          const animationData = await response.json();
-          
-          if (lottieInstance.current) {
-            lottieInstance.current.destroy();
-          }
-          
-          lottieInstance.current = lottie.loadAnimation({
-            container: lottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки Lottie:', err);
-      }
-    }
-  };
-
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
@@ -520,39 +331,38 @@ const GiftModal = ({ gift, onClose }) => {
       background: '#1a1a1a'
     };
 
-    const apiUrl = process.env.REACT_APP_API_URL || '';
-
     return (
       <div className="modal-gift-container" style={backgroundStyle}>
         {/* Паттерн */}
-        {patternAttr?.document && (
+        {patternAttr?.document?.attributes && (
           <div 
             className="modal-pattern-overlay"
             style={{
-              backgroundImage: patternAttr.document.mimeType === 'application/x-tgsticker' 
-                ? 'none'
-                : `url(${apiUrl}/uploads/gifts/${patternAttr.document.id}.webp)`,
-              opacity: 0.15
+              fontSize: '120px',
+              opacity: 0.12,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none'
             }}
-          />
+          >
+            {patternAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '⭐'}
+          </div>
         )}
         
         {/* Модель */}
-        {modelAttr?.document && (
-          <>
-            {modelAttr.document.mimeType === 'application/x-tgsticker' ? (
-              <div ref={lottieRef} className="modal-gift-lottie" />
-            ) : (
-              <img 
-                src={`${apiUrl}/uploads/gifts/${modelAttr.document.id}.webp`}
-                alt={gift.giftTitle}
-                className="modal-gift-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            )}
-          </>
+        {modelAttr?.document?.attributes && (
+          <div 
+            style={{
+              fontSize: '120px',
+              position: 'relative',
+              zIndex: 2,
+              filter: 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3))'
+            }}
+          >
+            {modelAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '🎁'}
+          </div>
         )}
       </div>
     );

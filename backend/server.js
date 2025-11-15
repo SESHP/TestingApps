@@ -1,9 +1,6 @@
 // backend/server.js
 require('dotenv').config();
 
-const GiftService = require('./gift-service');
-let giftService = null;
-
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -347,21 +344,6 @@ async function initTelegramClient() {
   }
 }
 
-async function initGiftService(client) {
-  if (!client) {
-    console.log('⚠️  GiftService не инициализирован (нет Telegram клиента)');
-    return null;
-  }
-  
-  try {
-    giftService = new GiftService(client, './uploads/gifts');
-    console.log('✅ GiftService инициализирован');
-    return giftService;
-  } catch (error) {
-    console.error('❌ Ошибка инициализации GiftService:', error);
-    return null;
-  }
-}
 
 // Функция для извлечения информации об отправленном подарке (ИСХОДЯЩИЕ)
 function extractSentGiftInfo(update) {
@@ -518,8 +500,6 @@ async function startGiftTracking() {
     return;
   }
 
-  // Инициализируем GiftService
-  await initGiftService(client);
 
   // Слушаем обновления
   client.addEventHandler(async (update) => {
