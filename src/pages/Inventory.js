@@ -815,7 +815,7 @@ const Inventory = () => {
 
 
 // Компонент для паттерна по кругу
-// Компонент для паттерна по кругу
+// Компонент для паттерна в шахматном порядке
 const PatternGrid = ({ patternAttr, size = 'small' }) => {
   const patternRefs = useRef([]);
   const instances = useRef([]);
@@ -863,33 +863,45 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
 
   const isModal = size === 'large';
   
-  // Создаем паттерны по кругу
-  // В центре модель, вокруг неё паттерны
+  // Создаем сетку в шахматном порядке
   const patterns = [];
-  const circles = isModal ? [
-    { count: 6, radius: 45 },   // Близко к модели
-    { count: 10, radius: 65 },  // Средний круг
-    { count: 14, radius: 85 }   // Внешний круг
-  ] : [
-    { count: 6, radius: 50 },   // Близко к модели
-    { count: 8, radius: 75 },   // Средний круг  
-    { count: 10, radius: 95 }   // Внешний круг (почти у края)
-  ];
-
+  const gridSize = isModal ? 7 : 5; // Количество клеток по вертикали/горизонтали
+  const step = 100 / (gridSize + 1); // Шаг между паттернами
+  const centerRadius = isModal ? 35 : 30; // Радиус зоны модели (в процентах)
+  const maxSize = isModal ? 25 : 20; // Максимальный размер у модели
+  const minSize = isModal ? 12 : 10; // Минимальный размер у края
+  
   let patternIndex = 0;
-  circles.forEach(circle => {
-    for (let i = 0; i < circle.count; i++) {
-      const angle = (i / circle.count) * Math.PI * 2;
-      const x = 50 + Math.cos(angle) * circle.radius / 2; // Делим на 2 чтобы перевести в проценты
-      const y = 50 + Math.sin(angle) * circle.radius / 2;
+  
+  for (let row = 0; row <= gridSize; row++) {
+    for (let col = 0; col <= gridSize; col++) {
+      // Шахматный порядок: пропускаем каждую вторую клетку
+      if ((row + col) % 2 !== 0) continue;
+      
+      const x = step * (col + 1);
+      const y = step * (row + 1);
+      
+      // Расстояние от центра
+      const dx = x - 50;
+      const dy = y - 50;
+      const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+      
+      // Пропускаем если слишком близко к центру (где модель)
+      if (distanceFromCenter < centerRadius) continue;
+      
+      // Вычисляем размер: чем дальше от центра, тем меньше
+      const maxDistance = Math.sqrt(50 * 50 + 50 * 50); // Максимальное расстояние (до угла)
+      const normalizedDistance = (distanceFromCenter - centerRadius) / (maxDistance - centerRadius);
+      const patternSize = maxSize - (maxSize - minSize) * normalizedDistance;
       
       patterns.push({
         id: patternIndex++,
         x: x,
-        y: y
+        y: y,
+        size: Math.max(minSize, Math.min(maxSize, patternSize))
       });
     }
-  });
+  }
 
   return (
     <div className={isModal ? 'modal-pattern-grid' : 'gift-pattern-grid'}>
@@ -901,6 +913,8 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
           style={{
             left: `${pattern.x}%`,
             top: `${pattern.y}%`,
+            width: `${pattern.size}px`,
+            height: `${pattern.size}px`,
             transform: 'translate(-50%, -50%)'
           }}
         />
