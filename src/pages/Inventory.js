@@ -450,34 +450,484 @@ const Inventory = () => {
 //   );
 // };
 
-// Компонент карточки подарка
-const GiftCard = ({ gift, onClick }) => {
-  const modelLottieRef = useRef(null);
-  const patternLottieRef = useRef(null);
-  const modelInstance = useRef(null);
-  const patternInstance = useRef(null);
+// // Компонент карточки подарка
+// const GiftCard = ({ gift, onClick }) => {
+//   const modelLottieRef = useRef(null);
+//   const patternLottieRef = useRef(null);
+//   const modelInstance = useRef(null);
+//   const patternInstance = useRef(null);
+
+//   useEffect(() => {
+//     loadLotties();
+//     return () => {
+//       if (modelInstance.current) {
+//         modelInstance.current.destroy();
+//       }
+//       if (patternInstance.current) {
+//         patternInstance.current.destroy();
+//       }
+//     };
+//   }, [gift.id]);
+
+//   const loadLotties = async () => {
+//     if (!gift.rawData?.gift) return;
+
+//     const attributes = gift.rawData.gift.attributes || [];
+//     const apiUrl = process.env.REACT_APP_API_URL || '';
+    
+//     // Загружаем МОДЕЛЬ
+//     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+//     if (modelAttr?.document?.mimeType === 'application/x-tgsticker' && modelLottieRef.current) {
+//       try {
+//         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
+//         if (response.ok) {
+//           const animationData = await response.json();
+          
+//           if (modelInstance.current) {
+//             modelInstance.current.destroy();
+//           }
+          
+//           modelInstance.current = lottie.loadAnimation({
+//             container: modelLottieRef.current,
+//             renderer: 'svg',
+//             loop: true,
+//             autoplay: true,
+//             animationData: animationData
+//           });
+//         }
+//       } catch (err) {
+//         console.error('Ошибка загрузки модели:', err);
+//       }
+//     }
+    
+//     // Загружаем ПАТТЕРН (символ)
+//     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
+//     if (patternAttr?.document?.mimeType === 'application/x-tgsticker' && patternLottieRef.current) {
+//       try {
+//         const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
+//         if (response.ok) {
+//           const animationData = await response.json();
+          
+//           if (patternInstance.current) {
+//             patternInstance.current.destroy();
+//           }
+          
+//           patternInstance.current = lottie.loadAnimation({
+//             container: patternLottieRef.current,
+//             renderer: 'svg',
+//             loop: true,
+//             autoplay: true,
+//             animationData: animationData
+//           });
+//         }
+//       } catch (err) {
+//         console.error('Ошибка загрузки паттерна:', err);
+//       }
+//     }
+//   };
+
+//   const formatColor = (colorInt) => {
+//     if (!colorInt && colorInt !== 0) return '#000000';
+//     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
+//     return `#${hex}`;
+//   };
+
+//   const renderGiftPreview = () => {
+//     if (!gift.rawData?.gift) {
+//       return (
+//         <div className="gift-preview">
+//           <div className="gift-placeholder">🎁</div>
+//         </div>
+//       );
+//     }
+
+//     const giftData = gift.rawData.gift;
+//     const attributes = giftData.attributes || [];
+//     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+
+//     const backgroundStyle = backdropAttr ? {
+//       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
+//     } : {
+//       background: '#1a1a1a'
+//     };
+
+//     return (
+//       <div className="gift-preview" style={backgroundStyle}>
+//         {/* Паттерн (символ) на фоне */}
+//         <div 
+//           ref={patternLottieRef} 
+//           className="gift-pattern-overlay"
+//           style={{
+//             position: 'absolute',
+//             top: '50%',
+//             left: '50%',
+//             transform: 'translate(-50%, -50%)',
+//             width: '80%',
+//             height: '80%',
+//             opacity: 0.2,
+//             pointerEvents: 'none',
+//             zIndex: 1
+//           }}
+//         />
+        
+//         {/* Модель поверх */}
+//         <div 
+//           ref={modelLottieRef} 
+//           className="gift-lottie-preview"
+//           style={{
+//             position: 'relative',
+//             zIndex: 2,
+//             width: '100%',
+//             height: '100%'
+//           }}
+//         />
+//       </div>
+//     );
+//   };
+
+//   return (
+//     <div className="gift-card" onClick={onClick}>
+//       {renderGiftPreview()}
+//       <div className="gift-info">
+//         <h3 className="gift-name">{gift.giftTitle}</h3>
+//         {gift.model && gift.model !== 'Неизвестная модель' && (
+//           <p className="gift-model">{gift.model}</p>
+//         )}
+//         <p className="gift-date">
+//           {new Date(gift.receivedAt).toLocaleDateString('ru-RU', {
+//             day: 'numeric',
+//             month: 'short'
+//           })}
+//         </p>
+//       </div>
+//     </div>
+//   );
+// };
+
+// // Компонент модального окна
+// const GiftModal = ({ gift, onClose }) => {
+//   const modelLottieRef = useRef(null);
+//   const patternLottieRef = useRef(null);
+//   const modelInstance = useRef(null);
+//   const patternInstance = useRef(null);
+
+//   useEffect(() => {
+//     loadLotties();
+//     return () => {
+//       if (modelInstance.current) {
+//         modelInstance.current.destroy();
+//       }
+//       if (patternInstance.current) {
+//         patternInstance.current.destroy();
+//       }
+//     };
+//   }, [gift.id]);
+
+//   const loadLotties = async () => {
+//     if (!gift.rawData?.gift) return;
+
+//     const attributes = gift.rawData.gift.attributes || [];
+//     const apiUrl = process.env.REACT_APP_API_URL || '';
+    
+//     // Загружаем МОДЕЛЬ
+//     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+//     if (modelAttr?.document?.mimeType === 'application/x-tgsticker' && modelLottieRef.current) {
+//       try {
+//         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
+//         if (response.ok) {
+//           const animationData = await response.json();
+          
+//           if (modelInstance.current) {
+//             modelInstance.current.destroy();
+//           }
+          
+//           modelInstance.current = lottie.loadAnimation({
+//             container: modelLottieRef.current,
+//             renderer: 'svg',
+//             loop: true,
+//             autoplay: true,
+//             animationData: animationData
+//           });
+//         }
+//       } catch (err) {
+//         console.error('Ошибка загрузки модели:', err);
+//       }
+//     }
+    
+//     // Загружаем ПАТТЕРН (символ)
+//     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
+//     if (patternAttr?.document?.mimeType === 'application/x-tgsticker' && patternLottieRef.current) {
+//       try {
+//         const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
+//         if (response.ok) {
+//           const animationData = await response.json();
+          
+//           if (patternInstance.current) {
+//             patternInstance.current.destroy();
+//           }
+          
+//           patternInstance.current = lottie.loadAnimation({
+//             container: patternLottieRef.current,
+//             renderer: 'svg',
+//             loop: true,
+//             autoplay: true,
+//             animationData: animationData
+//           });
+//         }
+//       } catch (err) {
+//         console.error('Ошибка загрузки паттерна:', err);
+//       }
+//     }
+//   };
+
+//   const formatColor = (colorInt) => {
+//     if (!colorInt && colorInt !== 0) return '#000000';
+//     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
+//     return `#${hex}`;
+//   };
+
+//   const renderMainContent = () => {
+//     if (!gift.rawData?.gift) {
+//       return (
+//         <div className="modal-gift-container">
+//           <div className="modal-gift-placeholder">🎁</div>
+//         </div>
+//       );
+//     }
+
+//     const giftData = gift.rawData.gift;
+//     const attributes = giftData.attributes || [];
+//     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+
+//     const backgroundStyle = backdropAttr ? {
+//       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
+//     } : {
+//       background: '#1a1a1a'
+//     };
+
+//     return (
+//       <div className="modal-gift-container" style={backgroundStyle}>
+//         {/* Паттерн на фоне */}
+//         <div 
+//           ref={patternLottieRef}
+//           style={{
+//             position: 'absolute',
+//             top: '50%',
+//             left: '50%',
+//             transform: 'translate(-50%, -50%)',
+//             width: '70%',
+//             height: '70%',
+//             opacity: 0.15,
+//             pointerEvents: 'none',
+//             zIndex: 1
+//           }}
+//         />
+        
+//         {/* Модель поверх */}
+//         <div 
+//           ref={modelLottieRef} 
+//           className="modal-gift-lottie"
+//           style={{
+//             position: 'relative',
+//             zIndex: 2,
+//             width: '80%',
+//             height: '80%'
+//           }}
+//         />
+//       </div>
+//     );
+//   };
+
+//   const attributes = gift.rawData?.gift?.attributes || [];
+//   const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+//   const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+//   const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
+
+//   const isCollectible = modelAttr || backdropAttr || patternAttr;
+
+//   return (
+//     <div className="gift-modal-overlay" onClick={onClose}>
+//       <div className="gift-modal-content" onClick={(e) => e.stopPropagation()}>
+//         <button className="modal-close" onClick={onClose}>✕</button>
+        
+//         {renderMainContent()}
+
+//         <div className="modal-info">
+//           <h2 className="modal-title">{gift.giftTitle}</h2>
+          
+//           {isCollectible && (
+//             <div className="modal-badge collectible">Коллекционный</div>
+//           )}
+
+//           {modelAttr && (
+//             <div className="modal-attr">
+//               <span className="modal-attr-label">Модель:</span>
+//               <span className="modal-attr-value">{modelAttr.name}</span>
+//               {modelAttr.rarityPermille && (
+//                 <span className="modal-attr-rarity">
+//                   {(modelAttr.rarityPermille / 10).toFixed(1)}%
+//                 </span>
+//               )}
+//             </div>
+//           )}
+
+//           {backdropAttr && (
+//             <div className="modal-attr">
+//               <span className="modal-attr-label">Фон:</span>
+//               <span className="modal-attr-value">{backdropAttr.name}</span>
+//               {backdropAttr.rarityPermille && (
+//                 <span className="modal-attr-rarity">
+//                   {(backdropAttr.rarityPermille / 10).toFixed(1)}%
+//                 </span>
+//               )}
+//             </div>
+//           )}
+
+//           {patternAttr && (
+//             <div className="modal-attr">
+//               <span className="modal-attr-label">Паттерн:</span>
+//               <span className="modal-attr-value">{patternAttr.name}</span>
+//               {patternAttr.rarityPermille && (
+//                 <span className="modal-attr-rarity">
+//                   {(patternAttr.rarityPermille / 10).toFixed(1)}%
+//                 </span>
+//               )}
+//             </div>
+//           )}
+
+//           <div className="modal-meta">
+//             <div className="modal-meta-item">
+//               <span className="modal-meta-label">От:</span>
+//               <span className="modal-meta-value">{gift.fromId}</span>
+//             </div>
+//             <div className="modal-meta-item">
+//               <span className="modal-meta-label">Получен:</span>
+//               <span className="modal-meta-value">
+//                 {new Date(gift.receivedAt).toLocaleString('ru-RU')}
+//               </span>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+
+// Компонент для паттерна по кругу
+const PatternGrid = ({ patternAttr, size = 'small' }) => {
+  const patternRefs = useRef([]);
+  const instances = useRef([]);
+  const apiUrl = process.env.REACT_APP_API_URL || '';
 
   useEffect(() => {
-    loadLotties();
+    loadPatterns();
+    return () => {
+      instances.current.forEach(inst => {
+        if (inst) inst.destroy();
+      });
+    };
+  }, [patternAttr]);
+
+  const loadPatterns = async () => {
+    if (!patternAttr?.document?.mimeType === 'application/x-tgsticker') return;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
+      if (!response.ok) return;
+      
+      const animationData = await response.json();
+
+      // Загружаем анимацию для каждого паттерна
+      patternRefs.current.forEach((ref, index) => {
+        if (!ref) return;
+        
+        if (instances.current[index]) {
+          instances.current[index].destroy();
+        }
+
+        instances.current[index] = lottie.loadAnimation({
+          container: ref,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          animationData: animationData
+        });
+      });
+    } catch (err) {
+      console.error('Ошибка загрузки паттерна:', err);
+    }
+  };
+
+  if (!patternAttr) return null;
+
+  const isModal = size === 'large';
+  const patternSize = isModal ? 60 : 40;
+  const containerSize = isModal ? 320 : 140;
+  
+  // Создаем паттерны по кругу (3 круга)
+  const patterns = [];
+  const circles = [
+    { count: 8, radius: 0.35 },   // Внутренний круг
+    { count: 12, radius: 0.6 },   // Средний круг
+    { count: 16, radius: 0.85 }   // Внешний круг
+  ];
+
+  let patternIndex = 0;
+  circles.forEach(circle => {
+    for (let i = 0; i < circle.count; i++) {
+      const angle = (i / circle.count) * Math.PI * 2;
+      const x = 50 + Math.cos(angle) * circle.radius * 50;
+      const y = 50 + Math.sin(angle) * circle.radius * 50;
+      
+      patterns.push({
+        id: patternIndex++,
+        x: x,
+        y: y
+      });
+    }
+  });
+
+  return (
+    <div className={isModal ? 'modal-pattern-grid' : 'gift-pattern-grid'}>
+      {patterns.map((pattern) => (
+        <div
+          key={pattern.id}
+          ref={el => patternRefs.current[pattern.id] = el}
+          className={isModal ? 'modal-pattern-item' : 'pattern-item'}
+          style={{
+            left: `${pattern.x}%`,
+            top: `${pattern.y}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Компонент карточки подарка (ОБНОВЛЕННЫЙ)
+const GiftCard = ({ gift, onClick }) => {
+  const modelLottieRef = useRef(null);
+  const modelInstance = useRef(null);
+
+  useEffect(() => {
+    loadModel();
     return () => {
       if (modelInstance.current) {
         modelInstance.current.destroy();
       }
-      if (patternInstance.current) {
-        patternInstance.current.destroy();
-      }
     };
   }, [gift.id]);
 
-  const loadLotties = async () => {
-    if (!gift.rawData?.gift) return;
+  const loadModel = async () => {
+    if (!gift.rawData?.gift || !modelLottieRef.current) return;
 
     const attributes = gift.rawData.gift.attributes || [];
     const apiUrl = process.env.REACT_APP_API_URL || '';
     
-    // Загружаем МОДЕЛЬ
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    if (modelAttr?.document?.mimeType === 'application/x-tgsticker' && modelLottieRef.current) {
+    if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
       try {
         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
         if (response.ok) {
@@ -497,31 +947,6 @@ const GiftCard = ({ gift, onClick }) => {
         }
       } catch (err) {
         console.error('Ошибка загрузки модели:', err);
-      }
-    }
-    
-    // Загружаем ПАТТЕРН (символ)
-    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
-    if (patternAttr?.document?.mimeType === 'application/x-tgsticker' && patternLottieRef.current) {
-      try {
-        const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
-        if (response.ok) {
-          const animationData = await response.json();
-          
-          if (patternInstance.current) {
-            patternInstance.current.destroy();
-          }
-          
-          patternInstance.current = lottie.loadAnimation({
-            container: patternLottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки паттерна:', err);
       }
     }
   };
@@ -544,6 +969,7 @@ const GiftCard = ({ gift, onClick }) => {
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
 
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
@@ -553,22 +979,8 @@ const GiftCard = ({ gift, onClick }) => {
 
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн (символ) на фоне */}
-        <div 
-          ref={patternLottieRef} 
-          className="gift-pattern-overlay"
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '80%',
-            height: '80%',
-            opacity: 0.2,
-            pointerEvents: 'none',
-            zIndex: 1
-          }}
-        />
+        {/* Паттерн по кругу */}
+        <PatternGrid patternAttr={patternAttr} size="small" />
         
         {/* Модель поверх */}
         <div 
@@ -604,34 +1016,28 @@ const GiftCard = ({ gift, onClick }) => {
   );
 };
 
-// Компонент модального окна
+// Компонент модального окна (ОБНОВЛЕННЫЙ)
 const GiftModal = ({ gift, onClose }) => {
   const modelLottieRef = useRef(null);
-  const patternLottieRef = useRef(null);
   const modelInstance = useRef(null);
-  const patternInstance = useRef(null);
 
   useEffect(() => {
-    loadLotties();
+    loadModel();
     return () => {
       if (modelInstance.current) {
         modelInstance.current.destroy();
       }
-      if (patternInstance.current) {
-        patternInstance.current.destroy();
-      }
     };
   }, [gift.id]);
 
-  const loadLotties = async () => {
-    if (!gift.rawData?.gift) return;
+  const loadModel = async () => {
+    if (!gift.rawData?.gift || !modelLottieRef.current) return;
 
     const attributes = gift.rawData.gift.attributes || [];
     const apiUrl = process.env.REACT_APP_API_URL || '';
     
-    // Загружаем МОДЕЛЬ
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    if (modelAttr?.document?.mimeType === 'application/x-tgsticker' && modelLottieRef.current) {
+    if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
       try {
         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
         if (response.ok) {
@@ -651,31 +1057,6 @@ const GiftModal = ({ gift, onClose }) => {
         }
       } catch (err) {
         console.error('Ошибка загрузки модели:', err);
-      }
-    }
-    
-    // Загружаем ПАТТЕРН (символ)
-    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
-    if (patternAttr?.document?.mimeType === 'application/x-tgsticker' && patternLottieRef.current) {
-      try {
-        const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
-        if (response.ok) {
-          const animationData = await response.json();
-          
-          if (patternInstance.current) {
-            patternInstance.current.destroy();
-          }
-          
-          patternInstance.current = lottie.loadAnimation({
-            container: patternLottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки паттерна:', err);
       }
     }
   };
@@ -698,6 +1079,7 @@ const GiftModal = ({ gift, onClose }) => {
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+    const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
 
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
@@ -707,21 +1089,8 @@ const GiftModal = ({ gift, onClose }) => {
 
     return (
       <div className="modal-gift-container" style={backgroundStyle}>
-        {/* Паттерн на фоне */}
-        <div 
-          ref={patternLottieRef}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '70%',
-            height: '70%',
-            opacity: 0.15,
-            pointerEvents: 'none',
-            zIndex: 1
-          }}
-        />
+        {/* Паттерн по кругу */}
+        <PatternGrid patternAttr={patternAttr} size="large" />
         
         {/* Модель поверх */}
         <div 

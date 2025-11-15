@@ -621,6 +621,43 @@
   }
 }
 
+
+/* Добавьте в конец файла */
+
+.gift-pattern-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.2;
+}
+
+.pattern-item {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+}
+
+.modal-pattern-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.15;
+}
+
+.modal-pattern-item {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+}
+
 @media (max-width: 480px) {
   .gifts-grid {
     grid-template-columns: repeat(2, 1fr);
