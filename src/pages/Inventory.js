@@ -220,6 +220,7 @@ const GiftCard = ({ gift, onClick }) => {
   const lottieRef = useRef(null);
   const lottieInstance = useRef(null);
   const [giftDetails, setGiftDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadGiftDetails();
@@ -232,11 +233,13 @@ const GiftCard = ({ gift, onClick }) => {
 
   const loadGiftDetails = async () => {
     try {
+      setLoading(true);
       const apiUrl = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${apiUrl}/api/gifts/${gift.id}/details`);
       
       if (!response.ok) {
         console.warn(`Детали подарка ${gift.id} недоступны`);
+        setLoading(false);
         return;
       }
       
@@ -247,66 +250,107 @@ const GiftCard = ({ gift, onClick }) => {
       }
     } catch (err) {
       console.error('Ошибка загрузки деталей подарка:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!giftDetails?.processed?.mainDocument) return;
+    if (!giftDetails?.processed?.mainDocument || loading) return;
 
     const mainDoc = giftDetails.processed.mainDocument;
     
     if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
-      fetch(mainDoc.file.lottieJson.url)
-        .then(res => res.json())
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      fetch(`${apiUrl}${mainDoc.file.lottieJson.url}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load Lottie');
+          return res.json();
+        })
         .then(animationData => {
           if (lottieInstance.current) {
             lottieInstance.current.destroy();
           }
-          lottieInstance.current = lottie.loadAnimation({
-            container: lottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
+          if (lottieRef.current) {
+            lottieInstance.current = lottie.loadAnimation({
+              container: lottieRef.current,
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+          }
         })
         .catch(err => console.error('Ошибка загрузки Lottie:', err));
     }
-  }, [giftDetails]);
+  }, [giftDetails, loading]);
 
   const renderGiftPreview = () => {
-    if (!giftDetails?.processed?.mainDocument) {
-      return <div className="gift-placeholder">🎁</div>;
-    }
+    const backdrop = giftDetails?.processed?.attributes?.backdrop;
+    const model = giftDetails?.processed?.attributes?.model;
+    const mainDoc = giftDetails?.processed?.mainDocument;
 
-    const mainDoc = giftDetails.processed.mainDocument;
-    const backdrop = giftDetails.processed.attributes?.backdrop;
-
-    const cardStyle = backdrop ? {
+    // Создаем стиль фона
+    const backgroundStyle = backdrop ? {
       background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
-    } : {};
+    } : {
+      background: 'linear-gradient(135deg, rgba(242, 125, 0, 0.15) 0%, rgba(242, 125, 0, 0.05) 100%)'
+    };
 
-    if (mainDoc.fileType === 'static') {
+    if (loading) {
       return (
-        <div className="gift-preview" style={cardStyle}>
-          <img src={mainDoc.file.url} alt={gift.giftTitle} className="gift-static-img" />
+        <div className="gift-preview" style={backgroundStyle}>
+          <div className="gift-loading-mini">
+            <div className="mini-spinner"></div>
+          </div>
         </div>
       );
     }
 
-    if (mainDoc.fileType === 'lottie') {
+    if (!mainDoc && !model) {
       return (
-        <div className="gift-preview" style={cardStyle}>
+        <div className="gift-preview" style={backgroundStyle}>
+          <div className="gift-placeholder">🎁</div>
+        </div>
+      );
+    }
+
+    // Приоритет: модель > основной документ
+    const displayDoc = model?.document || mainDoc;
+
+    if (!displayDoc) {
+      return (
+        <div className="gift-preview" style={backgroundStyle}>
+          <div className="gift-placeholder">🎁</div>
+        </div>
+      );
+    }
+
+    if (displayDoc.fileType === 'static') {
+      return (
+        <div className="gift-preview" style={backgroundStyle}>
+          <img 
+            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`} 
+            alt={gift.giftTitle} 
+            className="gift-static-img" 
+          />
+        </div>
+      );
+    }
+
+    if (displayDoc.fileType === 'lottie') {
+      return (
+        <div className="gift-preview" style={backgroundStyle}>
           <div ref={lottieRef} className="gift-lottie-preview" />
         </div>
       );
     }
 
-    if (mainDoc.fileType === 'video') {
+    if (displayDoc.fileType === 'video') {
       return (
-        <div className="gift-preview" style={cardStyle}>
+        <div className="gift-preview" style={backgroundStyle}>
           <video 
-            src={mainDoc.file.url} 
+            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`}
             autoPlay 
             loop 
             muted 
@@ -317,7 +361,11 @@ const GiftCard = ({ gift, onClick }) => {
       );
     }
 
-    return <div className="gift-placeholder">🎁</div>;
+    return (
+      <div className="gift-preview" style={backgroundStyle}>
+        <div className="gift-placeholder">🎁</div>
+      </div>
+    );
   };
 
   return (
@@ -345,6 +393,7 @@ const GiftModal = ({ gift, onClose }) => {
   const lottieInstance = useRef(null);
   const [giftDetails, setGiftDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lottieError, setLottieError] = useState(false);
 
   useEffect(() => {
     loadGiftDetails();
@@ -363,6 +412,7 @@ const GiftModal = ({ gift, onClose }) => {
       
       if (!response.ok) {
         console.warn(`Детали подарка ${gift.id} недоступны`);
+        setLoading(false);
         return;
       }
       
@@ -379,50 +429,97 @@ const GiftModal = ({ gift, onClose }) => {
   };
 
   useEffect(() => {
-    if (!giftDetails?.processed?.mainDocument) return;
+    if (!giftDetails?.processed?.mainDocument || loading) return;
 
     const mainDoc = giftDetails.processed.mainDocument;
     
     if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
-      fetch(mainDoc.file.lottieJson.url)
-        .then(res => res.json())
+      setLottieError(false);
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      
+      fetch(`${apiUrl}${mainDoc.file.lottieJson.url}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load Lottie');
+          return res.json();
+        })
         .then(animationData => {
           if (lottieInstance.current) {
             lottieInstance.current.destroy();
           }
-          lottieInstance.current = lottie.loadAnimation({
-            container: lottieRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
+          if (lottieRef.current) {
+            lottieInstance.current = lottie.loadAnimation({
+              container: lottieRef.current,
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+          }
         })
-        .catch(err => console.error('Ошибка загрузки Lottie:', err));
+        .catch(err => {
+          console.error('Ошибка загрузки Lottie:', err);
+          setLottieError(true);
+        });
     }
-  }, [giftDetails]);
+  }, [giftDetails, loading]);
 
   const renderMainContent = () => {
-    if (loading || !giftDetails?.processed?.mainDocument) {
-      return <div className="modal-loading">Загрузка...</div>;
-    }
-
-    const mainDoc = giftDetails.processed.mainDocument;
-    const backdrop = giftDetails.processed.attributes?.backdrop;
-
-    const containerStyle = backdrop ? {
-      background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
-    } : {};
-
-    if (mainDoc.fileType === 'static') {
+    if (loading) {
       return (
-        <div className="modal-gift-container" style={containerStyle}>
-          <img src={mainDoc.file.url} alt={gift.giftTitle} className="modal-gift-image" />
+        <div className="modal-loading">
+          <div className="loading-spinner"></div>
+          <p>Загрузка...</p>
         </div>
       );
     }
 
-    if (mainDoc.fileType === 'lottie') {
+    if (!giftDetails?.processed?.mainDocument) {
+      return (
+        <div className="modal-gift-container">
+          <div className="modal-gift-placeholder">🎁</div>
+        </div>
+      );
+    }
+
+    const mainDoc = giftDetails.processed.mainDocument;
+    const backdrop = giftDetails.processed.attributes?.backdrop;
+    const model = giftDetails.processed.attributes?.model;
+
+    const containerStyle = backdrop ? {
+      background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
+    } : {
+      background: 'linear-gradient(135deg, rgba(242, 125, 0, 0.2) 0%, rgba(242, 125, 0, 0.1) 100%)'
+    };
+
+    // Приоритет: модель > основной документ
+    const displayDoc = model?.document || mainDoc;
+
+    if (displayDoc.fileType === 'static') {
+      return (
+        <div className="modal-gift-container" style={containerStyle}>
+          <img 
+            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`} 
+            alt={gift.giftTitle} 
+            className="modal-gift-image" 
+          />
+        </div>
+      );
+    }
+
+    if (displayDoc.fileType === 'lottie') {
+      if (lottieError) {
+        return (
+          <div className="modal-gift-container" style={containerStyle}>
+            <div className="modal-gift-placeholder">
+              🎁
+              <p style={{ fontSize: '14px', marginTop: '10px', opacity: 0.6 }}>
+                Не удалось загрузить анимацию
+              </p>
+            </div>
+          </div>
+        );
+      }
+      
       return (
         <div className="modal-gift-container" style={containerStyle}>
           <div ref={lottieRef} className="modal-gift-lottie" />
@@ -430,11 +527,11 @@ const GiftModal = ({ gift, onClose }) => {
       );
     }
 
-    if (mainDoc.fileType === 'video') {
+    if (displayDoc.fileType === 'video') {
       return (
         <div className="modal-gift-container" style={containerStyle}>
           <video 
-            src={mainDoc.file.url} 
+            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`}
             autoPlay 
             loop 
             muted 
@@ -445,7 +542,11 @@ const GiftModal = ({ gift, onClose }) => {
       );
     }
 
-    return <div className="modal-gift-placeholder">🎁</div>;
+    return (
+      <div className="modal-gift-container" style={containerStyle}>
+        <div className="modal-gift-placeholder">🎁</div>
+      </div>
+    );
   };
 
   const attrs = giftDetails?.processed?.attributes;

@@ -237,7 +237,7 @@
 /* Превью подарка в карточке */
 .gift-preview {
   width: 100%;
-  height: 120px;
+  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,28 +248,52 @@
   position: relative;
 }
 
+.gift-loading-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.mini-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #F27D00;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .gift-placeholder {
   font-size: 48px;
   opacity: 0.6;
 }
 
 .gift-static-img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
 }
 
 .gift-lottie-preview {
-  width: 100%;
-  height: 100%;
+  width: 90%;
+  height: 90%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.gift-lottie-preview svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .gift-video-preview {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
 }
 
@@ -371,7 +395,7 @@
 
 .modal-gift-container {
   width: 100%;
-  height: 300px;
+  height: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -383,31 +407,43 @@
 
 .modal-gift-image,
 .modal-gift-video {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3));
 }
 
 .modal-gift-lottie {
-  width: 100%;
-  height: 100%;
+  width: 80%;
+  height: 80%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.modal-gift-lottie svg {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .modal-gift-placeholder {
   font-size: 80px;
   opacity: 0.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-loading {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  height: 320px;
   color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
+  gap: 16px;
 }
 
 .modal-info {
