@@ -1104,11 +1104,137 @@ app.post('/api/gifts/:id/process', async (req, res) => {
 
 // Проксирование файлов из Telegram
 // Проксирование файлов из Telegram
+// app.get('/api/telegram/file/:docId', async (req, res) => {
+//   try {
+//     const { docId } = req.params;
+    
+//     console.log(`📥 Запрос файла: ${docId}`);
+    
+//     const result = await pool.query('SELECT raw_data FROM gifts');
+    
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Подарки не найдены' });
+//     }
+    
+//     let doc = null;
+    
+//     for (const row of result.rows) {
+//       const giftData = row.raw_data?.gift;
+//       if (!giftData || !giftData.attributes) continue;
+      
+//       for (const attr of giftData.attributes) {
+//         if (attr.document && attr.document.id === docId) {
+//           doc = attr.document;
+//           break;
+//         }
+//       }
+      
+//       if (doc) break;
+//     }
+    
+//     if (!doc) {
+//       console.log(`❌ Документ ${docId} не найден`);
+//       return res.status(404).json({ error: 'Документ не найден' });
+//     }
+    
+//     console.log(`✅ Документ найден: ${doc.id}, MIME: ${doc.mimeType}`);
+    
+//     if (!telegramClient) {
+//       return res.status(503).json({ error: 'Telegram client не подключен' });
+//     }
+    
+//     const { Api } = require('telegram');
+//     const zlib = require('zlib');
+    
+//     const inputDoc = new Api.InputDocument({
+//       id: BigInt(doc.id),
+//       accessHash: BigInt(doc.accessHash),
+//       fileReference: Buffer.from(doc.fileReference.data)
+//     });
+    
+//     console.log(`📥 Загрузка через MTProto...`);
+    
+//     const buffer = await telegramClient.downloadMedia(inputDoc, { workers: 1 });
+    
+//     if (!buffer) {
+//       console.log(`❌ downloadMedia вернул null`);
+//       return res.status(500).json({ error: 'Не удалось загрузить' });
+//     }
+    
+//     console.log(`✅ Загружено ${buffer.length} байт`);
+//     console.log(`📝 Первые байты: ${buffer.slice(0, 10).toString('hex')}`);
+    
+//     // Если это TGS
+//     if (doc.mimeType === 'application/x-tgsticker') {
+//       // Проверяем, это gzip или уже JSON
+//       const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
+      
+//       console.log(`🔍 Это gzip? ${isGzip}`);
+      
+//       if (isGzip) {
+//         // Распаковываем gzip
+//         zlib.gunzip(buffer, (err, jsonBuffer) => {
+//           if (err) {
+//             console.error(`❌ Ошибка gunzip:`, err.message);
+//             // Пробуем inflate
+//             zlib.inflate(buffer, (err2, jsonBuffer2) => {
+//               if (err2) {
+//                 console.error(`❌ Ошибка inflate:`, err2.message);
+//                 return res.status(500).json({ error: 'Ошибка распаковки' });
+//               }
+//               console.log(`✅ Распаковано через inflate: ${jsonBuffer2.length} байт`);
+//               res.setHeader('Content-Type', 'application/json');
+//               res.send(jsonBuffer2);
+//             });
+//           } else {
+//             console.log(`✅ Распаковано через gunzip: ${jsonBuffer.length} байт`);
+//             res.setHeader('Content-Type', 'application/json');
+//             res.send(jsonBuffer);
+//           }
+//         });
+//       } else {
+//         // Уже JSON
+//         console.log(`✅ Уже JSON, отправляем как есть`);
+//         res.setHeader('Content-Type', 'application/json');
+//         res.send(buffer);
+//       }
+//     } else if (doc.mimeType === 'image/webp') {
+//       res.setHeader('Content-Type', 'image/webp');
+//       res.send(buffer);
+//     } else {
+//       res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
+//       res.send(buffer);
+//     }
+    
+//   } catch (error) {
+//     console.error('❌ Критическая ошибка:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// Проксирование файлов из Telegram
 app.get('/api/telegram/file/:docId', async (req, res) => {
   try {
     const { docId } = req.params;
     
     console.log(`📥 Запрос файла: ${docId}`);
+    
+    // Проверяем, есть ли уже сохраненный файл
+    const fs = require('fs');
+    const path = require('path');
+    const uploadsDir = './uploads/gifts';
+    const jsonPath = path.join(uploadsDir, `${docId}.json`);
+    
+    // Если файл уже существует - отдаем его
+    if (fs.existsSync(jsonPath)) {
+      console.log(`✅ Файл уже существует, отдаем из кеша`);
+      return res.sendFile(path.resolve(jsonPath));
+    }
+    
+    // Создаем директорию если нет
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
     
     const result = await pool.query('SELECT raw_data FROM gifts');
     
@@ -1133,11 +1259,10 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
     }
     
     if (!doc) {
-      console.log(`❌ Документ ${docId} не найден`);
       return res.status(404).json({ error: 'Документ не найден' });
     }
     
-    console.log(`✅ Документ найден: ${doc.id}, MIME: ${doc.mimeType}`);
+    console.log(`✅ Документ найден: ${doc.id}`);
     
     if (!telegramClient) {
       return res.status(503).json({ error: 'Telegram client не подключен' });
@@ -1145,6 +1270,9 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
     
     const { Api } = require('telegram');
     const zlib = require('zlib');
+    const { promisify } = require('util');
+    const gunzipAsync = promisify(zlib.gunzip);
+    const inflateAsync = promisify(zlib.inflate);
     
     const inputDoc = new Api.InputDocument({
       id: BigInt(doc.id),
@@ -1152,53 +1280,57 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
       fileReference: Buffer.from(doc.fileReference.data)
     });
     
-    console.log(`📥 Загрузка через MTProto...`);
+    console.log(`📥 Загрузка файла...`);
     
     const buffer = await telegramClient.downloadMedia(inputDoc, { workers: 1 });
     
     if (!buffer) {
-      console.log(`❌ downloadMedia вернул null`);
       return res.status(500).json({ error: 'Не удалось загрузить' });
     }
     
     console.log(`✅ Загружено ${buffer.length} байт`);
-    console.log(`📝 Первые байты: ${buffer.slice(0, 10).toString('hex')}`);
     
-    // Если это TGS
     if (doc.mimeType === 'application/x-tgsticker') {
-      // Проверяем, это gzip или уже JSON
-      const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
-      
-      console.log(`🔍 Это gzip? ${isGzip}`);
-      
-      if (isGzip) {
-        // Распаковываем gzip
-        zlib.gunzip(buffer, (err, jsonBuffer) => {
-          if (err) {
-            console.error(`❌ Ошибка gunzip:`, err.message);
-            // Пробуем inflate
-            zlib.inflate(buffer, (err2, jsonBuffer2) => {
-              if (err2) {
-                console.error(`❌ Ошибка inflate:`, err2.message);
-                return res.status(500).json({ error: 'Ошибка распаковки' });
-              }
-              console.log(`✅ Распаковано через inflate: ${jsonBuffer2.length} байт`);
-              res.setHeader('Content-Type', 'application/json');
-              res.send(jsonBuffer2);
-            });
-          } else {
-            console.log(`✅ Распаковано через gunzip: ${jsonBuffer.length} байт`);
-            res.setHeader('Content-Type', 'application/json');
-            res.send(jsonBuffer);
+      try {
+        let jsonBuffer;
+        
+        // Проверяем gzip
+        const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
+        
+        if (isGzip) {
+          console.log(`🔄 Распаковка gzip...`);
+          try {
+            jsonBuffer = await gunzipAsync(buffer);
+          } catch (e) {
+            console.log(`⚠️ gunzip failed, trying inflate...`);
+            jsonBuffer = await inflateAsync(buffer);
           }
-        });
-      } else {
-        // Уже JSON
-        console.log(`✅ Уже JSON, отправляем как есть`);
+        } else {
+          console.log(`✅ Уже распакован`);
+          jsonBuffer = buffer;
+        }
+        
+        // Проверяем что это валидный JSON
+        const jsonString = jsonBuffer.toString('utf8');
+        JSON.parse(jsonString); // Проверка валидности
+        
+        console.log(`✅ JSON валиден: ${jsonString.length} символов`);
+        
+        // Сохраняем файл
+        fs.writeFileSync(jsonPath, jsonString);
+        console.log(`💾 Файл сохранен: ${jsonPath}`);
+        
+        // Отдаем файл
         res.setHeader('Content-Type', 'application/json');
-        res.send(buffer);
+        res.send(jsonString);
+        
+      } catch (err) {
+        console.error(`❌ Ошибка обработки TGS:`, err.message);
+        return res.status(500).json({ error: `Ошибка: ${err.message}` });
       }
     } else if (doc.mimeType === 'image/webp') {
+      const webpPath = path.join(uploadsDir, `${docId}.webp`);
+      fs.writeFileSync(webpPath, buffer);
       res.setHeader('Content-Type', 'image/webp');
       res.send(buffer);
     } else {
