@@ -223,6 +223,33 @@ const convertPhotoPathToSvg = (bytes) => {
   return commands.join('');
 };
 
+const PhotoPathSvg = ({ thumbs, size = 512, opacity = 1, className = '' }) => {
+  if (!thumbs || !Array.isArray(thumbs)) return null;
+  
+  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize' && t.bytes);
+  if (!pathThumb) return null;
+  
+  const pathData = convertPhotoPathToSvg(pathThumb.bytes);
+  if (!pathData) return null;
+  
+  return (
+    <svg 
+      className={className}
+      viewBox="0 0 256 256" 
+      width={size} 
+      height={size}
+      style={{ opacity }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path 
+        fillOpacity={opacity} 
+        d={pathData}
+        fill="currentColor"
+      />
+    </svg>
+  );
+};
+
 // Компонент карточки подарка
 const GiftCard = ({ gift, onClick }) => {
   const formatColor = (colorInt) => {
