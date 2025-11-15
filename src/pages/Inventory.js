@@ -194,71 +194,33 @@ const Inventory = () => {
 };
 
 // Утилита для конвертации PhotoPathSize в SVG path
+// Правильная конвертация PhotoPathSize в SVG path (на основе Telegram Web)
 const convertPhotoPathToSvg = (bytes) => {
   if (!bytes || !bytes.data) return null;
   
   const data = bytes.data;
-  let path = '';
+  const commands = [];
   let x = 0, y = 0;
   
   for (let i = 0; i < data.length;) {
     const cmd = data[i++];
     
-    if (cmd === 0) { // MoveTo
-      x = data[i++];
-      y = data[i++];
-      path += `M${x},${y}`;
-    } else if (cmd === 1) { // LineTo
-      x = data[i++];
-      y = data[i++];
-      path += `L${x},${y}`;
-    } else if (cmd === 2) { // CurveTo
-      const x1 = data[i++];
-      const y1 = data[i++];
-      const x2 = data[i++];
-      const y2 = data[i++];
-      x = data[i++];
-      y = data[i++];
-      path += `C${x1},${y1} ${x2},${y2} ${x},${y}`;
+    if (i >= data.length) break;
+    
+    const dx = data[i++];
+    const dy = i < data.length ? data[i++] : 0;
+    
+    x += dx;
+    y += dy;
+    
+    if (commands.length === 0) {
+      commands.push(`M${x},${y}`);
     } else {
-      // Относительные команды
-      const dx = data[i++];
-      const dy = data[i++];
-      x += dx;
-      y += dy;
-      path += `l${dx},${dy}`;
+      commands.push(`L${x},${y}`);
     }
   }
   
-  return path;
-};
-
-// Компонент для рендеринга SVG из PhotoPathSize
-const PhotoPathSvg = ({ thumbs, size = 512, opacity = 1, className = '' }) => {
-  if (!thumbs || !Array.isArray(thumbs)) return null;
-  
-  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize' && t.bytes);
-  if (!pathThumb) return null;
-  
-  const path = convertPhotoPathToSvg(pathThumb.bytes);
-  if (!path) return null;
-  
-  return (
-    <svg 
-      className={className}
-      viewBox="0 0 256 256" 
-      width={size} 
-      height={size}
-      style={{ opacity }}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        fillOpacity={opacity} 
-        d={path}
-        fill="currentColor"
-      />
-    </svg>
-  );
+  return commands.join('');
 };
 
 // Компонент карточки подарка
