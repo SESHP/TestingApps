@@ -1107,30 +1107,40 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
   try {
     const { docId } = req.params;
     
-    // Ищем документ в gifts по ID
-    const result = await pool.query(
-      `SELECT raw_data FROM gifts WHERE raw_data::text LIKE $1 LIMIT 1`,
-      [`%"id":"${docId}"%`]
-    );
+    console.log(`📥 Запрос файла: ${docId}`);
+    
+    // Ищем подарок с этим документом
+    const result = await pool.query('SELECT raw_data FROM gifts');
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Документ не найден' });
+      return res.status(404).json({ error: 'Подарки не найдены' });
     }
     
-    const giftData = result.rows[0].raw_data.gift;
-    const attributes = giftData.attributes || [];
-    
     let doc = null;
-    for (const attr of attributes) {
-      if (attr.document && attr.document.id === docId) {
-        doc = attr.document;
-        break;
+    let foundGift = null;
+    
+    // Ищем документ во всех подарках
+    for (const row of result.rows) {
+      const giftData = row.raw_data?.gift;
+      if (!giftData || !giftData.attributes) continue;
+      
+      for (const attr of giftData.attributes) {
+        if (attr.document && attr.document.id === docId) {
+          doc = attr.document;
+          foundGift = giftData;
+          break;
+        }
       }
+      
+      if (doc) break;
     }
     
     if (!doc) {
-      return res.status(404).json({ error: 'Документ не найден в атрибутах' });
+      console.log(`❌ Документ ${docId} не найден в базе`);
+      return res.status(404).json({ error: 'Документ не найден в подарках' });
     }
+    
+    console.log(`✅ Документ найден: ${doc.id}, тип: ${doc.mimeType}`);
     
     if (!telegramClient) {
       return res.status(503).json({ error: 'Telegram client не подключен' });
@@ -1139,24 +1149,33 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
     const { Api } = require('telegram');
     const zlib = require('zlib');
     
+    // Создаем InputDocument
     const inputDoc = new Api.InputDocument({
       id: BigInt(doc.id),
       accessHash: BigInt(doc.accessHash),
       fileReference: Buffer.from(doc.fileReference.data)
     });
     
+    console.log(`📥 Загрузка через Telegram API...`);
+    
+    // Загружаем файл
     const buffer = await telegramClient.downloadMedia(inputDoc, { workers: 1 });
     
     if (!buffer) {
+      console.log(`❌ Не удалось загрузить файл`);
       return res.status(500).json({ error: 'Не удалось загрузить файл' });
     }
     
-    // Если это TGS - распаковываем
+    console.log(`✅ Загружено ${buffer.length} байт`);
+    
+    // Если это TGS (Lottie) - распаковываем gzip
     if (doc.mimeType === 'application/x-tgsticker') {
       zlib.gunzip(buffer, (err, jsonBuffer) => {
         if (err) {
+          console.log(`❌ Ошибка распаковки:`, err);
           return res.status(500).json({ error: 'Ошибка распаковки' });
         }
+        console.log(`✅ JSON распакован: ${jsonBuffer.length} байт`);
         res.setHeader('Content-Type', 'application/json');
         res.send(jsonBuffer);
       });
@@ -1164,7 +1183,7 @@ app.get('/api/telegram/file/:docId', async (req, res) => {
       res.setHeader('Content-Type', 'image/webp');
       res.send(buffer);
     } else {
-      res.setHeader('Content-Type', doc.mimeType);
+      res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
       res.send(buffer);
     }
     
