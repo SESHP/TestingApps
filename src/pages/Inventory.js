@@ -815,6 +815,7 @@ const Inventory = () => {
 
 
 // Компонент для паттерна по кругу
+// Компонент для паттерна по кругу
 const PatternGrid = ({ patternAttr, size = 'small' }) => {
   const patternRefs = useRef([]);
   const instances = useRef([]);
@@ -838,7 +839,6 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
       
       const animationData = await response.json();
 
-      // Загружаем анимацию для каждого паттерна
       patternRefs.current.forEach((ref, index) => {
         if (!ref) return;
         
@@ -862,23 +862,26 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
   if (!patternAttr) return null;
 
   const isModal = size === 'large';
-  const patternSize = isModal ? 60 : 40;
-  const containerSize = isModal ? 320 : 140;
   
-  // Создаем паттерны по кругу (3 круга)
+  // Создаем паттерны по кругу
+  // В центре модель, вокруг неё паттерны
   const patterns = [];
-  const circles = [
-    { count: 8, radius: 0.35 },   // Внутренний круг
-    { count: 12, radius: 0.6 },   // Средний круг
-    { count: 16, radius: 0.85 }   // Внешний круг
+  const circles = isModal ? [
+    { count: 6, radius: 45 },   // Близко к модели
+    { count: 10, radius: 65 },  // Средний круг
+    { count: 14, radius: 85 }   // Внешний круг
+  ] : [
+    { count: 6, radius: 50 },   // Близко к модели
+    { count: 8, radius: 75 },   // Средний круг  
+    { count: 10, radius: 95 }   // Внешний круг (почти у края)
   ];
 
   let patternIndex = 0;
   circles.forEach(circle => {
     for (let i = 0; i < circle.count; i++) {
       const angle = (i / circle.count) * Math.PI * 2;
-      const x = 50 + Math.cos(angle) * circle.radius * 50;
-      const y = 50 + Math.sin(angle) * circle.radius * 50;
+      const x = 50 + Math.cos(angle) * circle.radius / 2; // Делим на 2 чтобы перевести в проценты
+      const y = 50 + Math.sin(angle) * circle.radius / 2;
       
       patterns.push({
         id: patternIndex++,
