@@ -221,6 +221,7 @@ const GiftCard = ({ gift, onClick }) => {
   const lottieInstance = useRef(null);
   const [giftDetails, setGiftDetails] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [processedLottie, setProcessedLottie] = useState(null);
 
   useEffect(() => {
     loadGiftDetails();
@@ -247,6 +248,19 @@ const GiftCard = ({ gift, onClick }) => {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setGiftDetails(data);
+        
+        // Обрабатываем модель из атрибутов
+        if (data.processed?.attributes?.model?.file?.lottieJson?.url) {
+          const lottieUrl = data.processed.attributes.model.file.lottieJson.url;
+          const lottieResponse = await fetch(`${apiUrl}${lottieUrl}`);
+          const animationData = await lottieResponse.json();
+          setProcessedLottie(animationData);
+        } else if (data.processed?.mainDocument?.file?.lottieJson?.url) {
+          const lottieUrl = data.processed.mainDocument.file.lottieJson.url;
+          const lottieResponse = await fetch(`${apiUrl}${lottieUrl}`);
+          const animationData = await lottieResponse.json();
+          setProcessedLottie(animationData);
+        }
       }
     } catch (err) {
       console.error('Ошибка загрузки деталей подарка:', err);
@@ -256,41 +270,27 @@ const GiftCard = ({ gift, onClick }) => {
   };
 
   useEffect(() => {
-    if (!giftDetails?.processed?.mainDocument || loading) return;
-
-    const mainDoc = giftDetails.processed.mainDocument;
-    
-    if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
-      const apiUrl = process.env.REACT_APP_API_URL || '';
-      fetch(`${apiUrl}${mainDoc.file.lottieJson.url}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to load Lottie');
-          return res.json();
-        })
-        .then(animationData => {
-          if (lottieInstance.current) {
-            lottieInstance.current.destroy();
-          }
-          if (lottieRef.current) {
-            lottieInstance.current = lottie.loadAnimation({
-              container: lottieRef.current,
-              renderer: 'svg',
-              loop: true,
-              autoplay: true,
-              animationData: animationData
-            });
-          }
-        })
-        .catch(err => console.error('Ошибка загрузки Lottie:', err));
+    if (processedLottie && lottieRef.current) {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
+      
+      lottieInstance.current = lottie.loadAnimation({
+        container: lottieRef.current,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        animationData: processedLottie
+      });
     }
-  }, [giftDetails, loading]);
+  }, [processedLottie]);
 
   const renderGiftPreview = () => {
     const backdrop = giftDetails?.processed?.attributes?.backdrop;
     const model = giftDetails?.processed?.attributes?.model;
-    const mainDoc = giftDetails?.processed?.mainDocument;
+    const pattern = giftDetails?.processed?.attributes?.pattern;
 
-    // Создаем стиль фона
+    // Создаем стиль фона из backdrop
     const backgroundStyle = backdrop ? {
       background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
     } : {
@@ -307,63 +307,105 @@ const GiftCard = ({ gift, onClick }) => {
       );
     }
 
-    if (!mainDoc && !model) {
-      return (
-        <div className="gift-preview" style={backgroundStyle}>
-          <div className="gift-placeholder">🎁</div>
-        </div>
-      );
+    // Если есть модель - отображаем её
+    if (model?.file) {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      
+      if (model.document?.fileType === 'lottie' && processedLottie) {
+        return (
+          <div className="gift-preview gift-card-full" style={backgroundStyle}>
+            {pattern?.file?.url && (
+              <div 
+                className="gift-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.1
+                }}
+              />
+            )}
+            <div ref={lottieRef} className="gift-lottie-preview" />
+          </div>
+        );
+      }
+      
+      if (model.document?.fileType === 'static' && model.file?.url) {
+        return (
+          <div className="gift-preview gift-card-full" style={backgroundStyle}>
+            {pattern?.file?.url && (
+              <div 
+                className="gift-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.1
+                }}
+              />
+            )}
+            <img 
+              src={`${apiUrl}${model.file.url}`} 
+              alt={gift.giftTitle} 
+              className="gift-static-img" 
+            />
+          </div>
+        );
+      }
+      
+      if (model.document?.fileType === 'video' && model.file?.url) {
+        return (
+          <div className="gift-preview gift-card-full" style={backgroundStyle}>
+            {pattern?.file?.url && (
+              <div 
+                className="gift-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.1
+                }}
+              />
+            )}
+            <video 
+              src={`${apiUrl}${model.file.url}`}
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="gift-video-preview"
+            />
+          </div>
+        );
+      }
     }
 
-    // Приоритет: модель > основной документ
-    const displayDoc = model?.document || mainDoc;
-
-    if (!displayDoc) {
-      return (
-        <div className="gift-preview" style={backgroundStyle}>
-          <div className="gift-placeholder">🎁</div>
-        </div>
-      );
+    // Fallback на основной документ
+    const mainDoc = giftDetails?.processed?.mainDocument;
+    if (mainDoc?.file) {
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      
+      if (mainDoc.fileType === 'lottie' && processedLottie) {
+        return (
+          <div className="gift-preview gift-card-full" style={backgroundStyle}>
+            <div ref={lottieRef} className="gift-lottie-preview" />
+          </div>
+        );
+      }
+      
+      if (mainDoc.fileType === 'static' && mainDoc.file?.url) {
+        return (
+          <div className="gift-preview gift-card-full" style={backgroundStyle}>
+            <img 
+              src={`${apiUrl}${mainDoc.file.url}`} 
+              alt={gift.giftTitle} 
+              className="gift-static-img" 
+            />
+          </div>
+        );
+      }
     }
 
-    if (displayDoc.fileType === 'static') {
-      return (
-        <div className="gift-preview" style={backgroundStyle}>
-          <img 
-            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`} 
-            alt={gift.giftTitle} 
-            className="gift-static-img" 
-          />
-        </div>
-      );
-    }
-
-    if (displayDoc.fileType === 'lottie') {
-      return (
-        <div className="gift-preview" style={backgroundStyle}>
-          <div ref={lottieRef} className="gift-lottie-preview" />
-        </div>
-      );
-    }
-
-    if (displayDoc.fileType === 'video') {
-      return (
-        <div className="gift-preview" style={backgroundStyle}>
-          <video 
-            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`}
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="gift-video-preview"
-          />
-        </div>
-      );
-    }
-
+    // Последний fallback
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        <div className="gift-placeholder">🎁</div>
+        <div className="gift-placeholder">
+          {gift.giftTitle?.[0] || '🎁'}
+        </div>
       </div>
     );
   };
@@ -394,6 +436,7 @@ const GiftModal = ({ gift, onClose }) => {
   const [giftDetails, setGiftDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lottieError, setLottieError] = useState(false);
+  const [processedLottie, setProcessedLottie] = useState(null);
 
   useEffect(() => {
     loadGiftDetails();
@@ -420,48 +463,49 @@ const GiftModal = ({ gift, onClose }) => {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         setGiftDetails(data);
+        
+        // Загружаем Lottie из модели или основного документа
+        if (data.processed?.attributes?.model?.file?.lottieJson?.url) {
+          const lottieUrl = data.processed.attributes.model.file.lottieJson.url;
+          const lottieResponse = await fetch(`${apiUrl}${lottieUrl}`);
+          const animationData = await lottieResponse.json();
+          setProcessedLottie(animationData);
+        } else if (data.processed?.mainDocument?.file?.lottieJson?.url) {
+          const lottieUrl = data.processed.mainDocument.file.lottieJson.url;
+          const lottieResponse = await fetch(`${apiUrl}${lottieUrl}`);
+          const animationData = await lottieResponse.json();
+          setProcessedLottie(animationData);
+        }
       }
     } catch (err) {
       console.error('Ошибка загрузки деталей:', err);
+      setLottieError(true);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!giftDetails?.processed?.mainDocument || loading) return;
-
-    const mainDoc = giftDetails.processed.mainDocument;
-    
-    if (mainDoc.fileType === 'lottie' && mainDoc.file?.lottieJson?.url && lottieRef.current) {
-      setLottieError(false);
-      const apiUrl = process.env.REACT_APP_API_URL || '';
+    if (processedLottie && lottieRef.current && !loading) {
+      if (lottieInstance.current) {
+        lottieInstance.current.destroy();
+      }
       
-      fetch(`${apiUrl}${mainDoc.file.lottieJson.url}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to load Lottie');
-          return res.json();
-        })
-        .then(animationData => {
-          if (lottieInstance.current) {
-            lottieInstance.current.destroy();
-          }
-          if (lottieRef.current) {
-            lottieInstance.current = lottie.loadAnimation({
-              container: lottieRef.current,
-              renderer: 'svg',
-              loop: true,
-              autoplay: true,
-              animationData: animationData
-            });
-          }
-        })
-        .catch(err => {
-          console.error('Ошибка загрузки Lottie:', err);
-          setLottieError(true);
+      try {
+        lottieInstance.current = lottie.loadAnimation({
+          container: lottieRef.current,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          animationData: processedLottie
         });
+        setLottieError(false);
+      } catch (err) {
+        console.error('Ошибка инициализации Lottie:', err);
+        setLottieError(true);
+      }
     }
-  }, [giftDetails, loading]);
+  }, [processedLottie, loading]);
 
   const renderMainContent = () => {
     if (loading) {
@@ -473,17 +517,10 @@ const GiftModal = ({ gift, onClose }) => {
       );
     }
 
-    if (!giftDetails?.processed?.mainDocument) {
-      return (
-        <div className="modal-gift-container">
-          <div className="modal-gift-placeholder">🎁</div>
-        </div>
-      );
-    }
-
-    const mainDoc = giftDetails.processed.mainDocument;
-    const backdrop = giftDetails.processed.attributes?.backdrop;
-    const model = giftDetails.processed.attributes?.model;
+    const backdrop = giftDetails?.processed?.attributes?.backdrop;
+    const model = giftDetails?.processed?.attributes?.model;
+    const pattern = giftDetails?.processed?.attributes?.pattern;
+    const mainDoc = giftDetails?.processed?.mainDocument;
 
     const containerStyle = backdrop ? {
       background: `radial-gradient(circle at center, ${backdrop.centerColor} 0%, ${backdrop.edgeColor} 100%)`
@@ -491,60 +528,114 @@ const GiftModal = ({ gift, onClose }) => {
       background: 'linear-gradient(135deg, rgba(242, 125, 0, 0.2) 0%, rgba(242, 125, 0, 0.1) 100%)'
     };
 
-    // Приоритет: модель > основной документ
-    const displayDoc = model?.document || mainDoc;
+    const apiUrl = process.env.REACT_APP_API_URL || '';
 
-    if (displayDoc.fileType === 'static') {
-      return (
-        <div className="modal-gift-container" style={containerStyle}>
-          <img 
-            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`} 
-            alt={gift.giftTitle} 
-            className="modal-gift-image" 
-          />
-        </div>
-      );
-    }
-
-    if (displayDoc.fileType === 'lottie') {
-      if (lottieError) {
+    // Приоритет: модель из атрибутов
+    if (model?.file) {
+      if (model.document?.fileType === 'lottie') {
+        if (lottieError) {
+          return (
+            <div className="modal-gift-container" style={containerStyle}>
+              <div className="modal-gift-placeholder">
+                {gift.giftTitle?.[0] || '🎁'}
+                <p style={{ fontSize: '14px', marginTop: '10px', opacity: 0.6 }}>
+                  Не удалось загрузить анимацию
+                </p>
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <div className="modal-gift-container" style={containerStyle}>
-            <div className="modal-gift-placeholder">
-              🎁
-              <p style={{ fontSize: '14px', marginTop: '10px', opacity: 0.6 }}>
-                Не удалось загрузить анимацию
-              </p>
-            </div>
+            {pattern?.file?.url && (
+              <div 
+                className="modal-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.12
+                }}
+              />
+            )}
+            <div ref={lottieRef} className="modal-gift-lottie" />
           </div>
         );
       }
       
-      return (
-        <div className="modal-gift-container" style={containerStyle}>
-          <div ref={lottieRef} className="modal-gift-lottie" />
-        </div>
-      );
+      if (model.document?.fileType === 'static' && model.file?.url) {
+        return (
+          <div className="modal-gift-container" style={containerStyle}>
+            {pattern?.file?.url && (
+              <div 
+                className="modal-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.12
+                }}
+              />
+            )}
+            <img 
+              src={`${apiUrl}${model.file.url}`} 
+              alt={gift.giftTitle} 
+              className="modal-gift-image" 
+            />
+          </div>
+        );
+      }
+      
+      if (model.document?.fileType === 'video' && model.file?.url) {
+        return (
+          <div className="modal-gift-container" style={containerStyle}>
+            {pattern?.file?.url && (
+              <div 
+                className="modal-pattern-overlay"
+                style={{
+                  backgroundImage: `url(${apiUrl}${pattern.file.url})`,
+                  opacity: 0.12
+                }}
+              />
+            )}
+            <video 
+              src={`${apiUrl}${model.file.url}`}
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="modal-gift-video"
+            />
+          </div>
+        );
+      }
     }
 
-    if (displayDoc.fileType === 'video') {
-      return (
-        <div className="modal-gift-container" style={containerStyle}>
-          <video 
-            src={`${process.env.REACT_APP_API_URL || ''}${model?.file?.url || displayDoc.file.url}`}
-            autoPlay 
-            loop 
-            muted 
-            playsInline
-            className="modal-gift-video"
-          />
-        </div>
-      );
+    // Fallback на основной документ
+    if (mainDoc?.file) {
+      if (mainDoc.fileType === 'lottie' && processedLottie && !lottieError) {
+        return (
+          <div className="modal-gift-container" style={containerStyle}>
+            <div ref={lottieRef} className="modal-gift-lottie" />
+          </div>
+        );
+      }
+      
+      if (mainDoc.fileType === 'static' && mainDoc.file?.url) {
+        return (
+          <div className="modal-gift-container" style={containerStyle}>
+            <img 
+              src={`${apiUrl}${mainDoc.file.url}`} 
+              alt={gift.giftTitle} 
+              className="modal-gift-image" 
+            />
+          </div>
+        );
+      }
     }
 
     return (
       <div className="modal-gift-container" style={containerStyle}>
-        <div className="modal-gift-placeholder">🎁</div>
+        <div className="modal-gift-placeholder">
+          {gift.giftTitle?.[0] || '🎁'}
+        </div>
       </div>
     );
   };
