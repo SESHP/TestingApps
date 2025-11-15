@@ -42,11 +42,6 @@ const Inventory = () => {
         throw new Error(`Ошибка загрузки: ${response.status}`);
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Сервер вернул неверный формат данных');
-      }
-      
       const data = await response.json();
       setGifts(data.gifts || []);
       
@@ -193,22 +188,34 @@ const Inventory = () => {
   );
 };
 
-// Утилита для конвертации PhotoPathSize в SVG path
-// Правильная конвертация PhotoPathSize в SVG path (на основе Telegram Web)
-const convertPhotoPathToSvg = (bytes) => {
-  if (!bytes || !bytes.data) return null;
+// Декодер PhotoPathSize в SVG (алгоритм из Telegram Web)
+const decodeSvgPath = (bytes) => {
+  if (!bytes || !bytes.data || bytes.data.length === 0) return '';
   
-  const data = bytes.data;
   const commands = [];
-  let x = 0, y = 0;
+  let x = 0;
+  let y = 0;
   
-  for (let i = 0; i < data.length;) {
-    const cmd = data[i++];
+  for (let i = 0; i < bytes.data.length;) {
+    const op = bytes.data[i++];
     
-    if (i >= data.length) break;
+    // Определяем тип команды по старшим битам
+    if (op === 0) {
+      // Конец команд
+      break;
+    }
     
-    const dx = data[i++];
-    const dy = i < data.length ? data[i++] : 0;
+    // Читаем координаты (используем signed numbers)
+    const readCoord = () => {
+      if (i >= bytes.data.length) return 0;
+      let value = bytes.data[i++];
+      // Если значение > 127, это отрицательное число
+      if (value > 127) value = value - 256;
+      return value;
+    };
+    
+    const dx = readCoord();
+    const dy = readCoord();
     
     x += dx;
     y += dy;
@@ -216,35 +223,40 @@ const convertPhotoPathToSvg = (bytes) => {
     if (commands.length === 0) {
       commands.push(`M${x},${y}`);
     } else {
-      commands.push(`L${x},${y}`);
+      // Используем кубические кривые Безье для сглаживания
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        commands.push(`L${x},${y}`);
+      } else {
+        commands.push(`L${x},${y}`);
+      }
     }
   }
   
-  return commands.join('');
+  return commands.join(' ');
 };
 
-const PhotoPathSvg = ({ thumbs, size = 512, opacity = 1, className = '' }) => {
+// Компонент SVG из PhotoPathSize
+const TelegramSvg = ({ thumbs, size = 120, color = 'currentColor', opacity = 1 }) => {
   if (!thumbs || !Array.isArray(thumbs)) return null;
   
-  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize' && t.bytes);
-  if (!pathThumb) return null;
+  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize');
+  if (!pathThumb?.bytes) return null;
   
-  const pathData = convertPhotoPathToSvg(pathThumb.bytes);
+  const pathData = decodeSvgPath(pathThumb.bytes);
   if (!pathData) return null;
   
   return (
-    <svg 
-      className={className}
-      viewBox="0 0 256 256" 
-      width={size} 
+    <svg
+      width={size}
       height={size}
-      style={{ opacity }}
+      viewBox="0 0 256 256"
       xmlns="http://www.w3.org/2000/svg"
+      style={{ opacity }}
     >
-      <path 
-        fillOpacity={opacity} 
+      <path
         d={pathData}
-        fill="currentColor"
+        fill={color}
+        fillOpacity={opacity}
       />
     </svg>
   );
@@ -281,43 +293,35 @@ const GiftCard = ({ gift, onClick }) => {
       background: '#1a1a1a'
     };
 
-    // Цвет паттерна
     const patternColor = backdropAttr ? formatColor(backdropAttr.patternColor) : '#ffffff';
 
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн как SVG overlay */}
+        {/* Паттерн */}
         {patternAttr?.document?.thumbs && (
-          <div 
-            className="gift-pattern-overlay"
-            style={{ 
-              color: patternColor,
-              opacity: 0.15,
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <PhotoPathSvg 
-              thumbs={patternAttr.document.thumbs} 
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            opacity: 0.15,
+            pointerEvents: 'none'
+          }}>
+            <TelegramSvg 
+              thumbs={patternAttr.document.thumbs}
               size={100}
-              opacity={1}
+              color={patternColor}
             />
           </div>
         )}
         
-        {/* Модель как главное SVG */}
+        {/* Модель */}
         {modelAttr?.document?.thumbs ? (
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <PhotoPathSvg 
-              thumbs={modelAttr.document.thumbs} 
-              size={120}
-              className="gift-static-img"
+            <TelegramSvg 
+              thumbs={modelAttr.document.thumbs}
+              size={110}
+              color="#ffffff"
             />
           </div>
         ) : (
@@ -382,25 +386,18 @@ const GiftModal = ({ gift, onClose }) => {
       <div className="modal-gift-container" style={backgroundStyle}>
         {/* Паттерн */}
         {patternAttr?.document?.thumbs && (
-          <div 
-            className="modal-pattern-overlay"
-            style={{ 
-              color: patternColor,
-              opacity: 0.12,
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <PhotoPathSvg 
-              thumbs={patternAttr.document.thumbs} 
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            opacity: 0.12,
+            pointerEvents: 'none'
+          }}>
+            <TelegramSvg 
+              thumbs={patternAttr.document.thumbs}
               size={200}
-              opacity={1}
+              color={patternColor}
             />
           </div>
         )}
@@ -408,10 +405,10 @@ const GiftModal = ({ gift, onClose }) => {
         {/* Модель */}
         {modelAttr?.document?.thumbs ? (
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <PhotoPathSvg 
-              thumbs={modelAttr.document.thumbs} 
-              size={280}
-              className="modal-gift-image"
+            <TelegramSvg 
+              thumbs={modelAttr.document.thumbs}
+              size={250}
+              color="#ffffff"
             />
           </div>
         ) : (
