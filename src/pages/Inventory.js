@@ -52,15 +52,8 @@ const Inventory = () => {
       
     } catch (err) {
       console.error('Ошибка загрузки подарков:', err);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔧 Dev режим: показываем тестовые данные');
-        setGifts([]);
-        setError('⚠️ Backend недоступен.');
-      } else {
-        setError(`Не удалось загрузить подарки: ${err.message}`);
-        setGifts([]);
-      }
+      setError(`Не удалось загрузить подарки: ${err.message}`);
+      setGifts([]);
     } finally {
       setLoading(false);
     }
@@ -200,25 +193,80 @@ const Inventory = () => {
   );
 };
 
+// Утилита для конвертации PhotoPathSize в SVG path
+const convertPhotoPathToSvg = (bytes) => {
+  if (!bytes || !bytes.data) return null;
+  
+  const data = bytes.data;
+  let path = '';
+  let x = 0, y = 0;
+  
+  for (let i = 0; i < data.length;) {
+    const cmd = data[i++];
+    
+    if (cmd === 0) { // MoveTo
+      x = data[i++];
+      y = data[i++];
+      path += `M${x},${y}`;
+    } else if (cmd === 1) { // LineTo
+      x = data[i++];
+      y = data[i++];
+      path += `L${x},${y}`;
+    } else if (cmd === 2) { // CurveTo
+      const x1 = data[i++];
+      const y1 = data[i++];
+      const x2 = data[i++];
+      const y2 = data[i++];
+      x = data[i++];
+      y = data[i++];
+      path += `C${x1},${y1} ${x2},${y2} ${x},${y}`;
+    } else {
+      // Относительные команды
+      const dx = data[i++];
+      const dy = data[i++];
+      x += dx;
+      y += dy;
+      path += `l${dx},${dy}`;
+    }
+  }
+  
+  return path;
+};
+
+// Компонент для рендеринга SVG из PhotoPathSize
+const PhotoPathSvg = ({ thumbs, size = 512, opacity = 1, className = '' }) => {
+  if (!thumbs || !Array.isArray(thumbs)) return null;
+  
+  const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize' && t.bytes);
+  if (!pathThumb) return null;
+  
+  const path = convertPhotoPathToSvg(pathThumb.bytes);
+  if (!path) return null;
+  
+  return (
+    <svg 
+      className={className}
+      viewBox="0 0 256 256" 
+      width={size} 
+      height={size}
+      style={{ opacity }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path 
+        fillOpacity={opacity} 
+        d={path}
+        fill="currentColor"
+      />
+    </svg>
+  );
+};
+
 // Компонент карточки подарка
 const GiftCard = ({ gift, onClick }) => {
-  // Функция для форматирования цвета
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
     return `#${hex}`;
-  };
-
-  // Функция для получения SVG path из thumbs
-  const getThumbSvgPath = (thumbs) => {
-    if (!thumbs || !Array.isArray(thumbs)) return null;
-    
-    const pathThumb = thumbs.find(t => t.className === 'PhotoPathSize');
-    if (!pathThumb || !pathThumb.bytes || !pathThumb.bytes.data) return null;
-    
-    // Конвертируем байты в SVG path (это упрощенная версия)
-    // Telegram использует специальный формат, но для превью можем показать placeholder
-    return pathThumb;
   };
 
   const renderGiftPreview = () => {
@@ -233,50 +281,58 @@ const GiftCard = ({ gift, onClick }) => {
     const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     
-    // Получаем атрибуты
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
-    // Фон - используем цвета из backdrop
+    // Фон
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
       background: '#1a1a1a'
     };
 
+    // Цвет паттерна
+    const patternColor = backdropAttr ? formatColor(backdropAttr.patternColor) : '#ffffff';
+
     return (
       <div className="gift-preview" style={backgroundStyle}>
-        {/* Паттерн - пока используем эмодзи из alt */}
-        {patternAttr?.document?.attributes && (
+        {/* Паттерн как SVG overlay */}
+        {patternAttr?.document?.thumbs && (
           <div 
             className="gift-pattern-overlay"
-            style={{
-              fontSize: '80px',
-              opacity: 0.1,
+            style={{ 
+              color: patternColor,
+              opacity: 0.15,
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none'
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            {patternAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '⭐'}
+            <PhotoPathSvg 
+              thumbs={patternAttr.document.thumbs} 
+              size={100}
+              opacity={1}
+            />
           </div>
         )}
         
-        {/* Модель - используем эмодзи из alt */}
-        {modelAttr?.document?.attributes && (
-          <div 
-            style={{
-              fontSize: '64px',
-              position: 'relative',
-              zIndex: 2,
-              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))'
-            }}
-          >
-            {modelAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '🎁'}
+        {/* Модель как главное SVG */}
+        {modelAttr?.document?.thumbs ? (
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <PhotoPathSvg 
+              thumbs={modelAttr.document.thumbs} 
+              size={120}
+              className="gift-static-img"
+            />
           </div>
+        ) : (
+          <div className="gift-placeholder">🎁</div>
         )}
       </div>
     );
@@ -331,38 +387,46 @@ const GiftModal = ({ gift, onClose }) => {
       background: '#1a1a1a'
     };
 
+    const patternColor = backdropAttr ? formatColor(backdropAttr.patternColor) : '#ffffff';
+
     return (
       <div className="modal-gift-container" style={backgroundStyle}>
         {/* Паттерн */}
-        {patternAttr?.document?.attributes && (
+        {patternAttr?.document?.thumbs && (
           <div 
             className="modal-pattern-overlay"
-            style={{
-              fontSize: '120px',
+            style={{ 
+              color: patternColor,
               opacity: 0.12,
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none'
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            {patternAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '⭐'}
+            <PhotoPathSvg 
+              thumbs={patternAttr.document.thumbs} 
+              size={200}
+              opacity={1}
+            />
           </div>
         )}
         
         {/* Модель */}
-        {modelAttr?.document?.attributes && (
-          <div 
-            style={{
-              fontSize: '120px',
-              position: 'relative',
-              zIndex: 2,
-              filter: 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3))'
-            }}
-          >
-            {modelAttr.document.attributes.find(a => a.className === 'DocumentAttributeCustomEmoji')?.alt || '🎁'}
+        {modelAttr?.document?.thumbs ? (
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <PhotoPathSvg 
+              thumbs={modelAttr.document.thumbs} 
+              size={280}
+              className="modal-gift-image"
+            />
           </div>
+        ) : (
+          <div className="modal-gift-placeholder">🎁</div>
         )}
       </div>
     );
