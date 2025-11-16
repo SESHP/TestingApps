@@ -40,48 +40,52 @@ const Inventory = () => {
     const container = containerRef.current;
     if (!container) return;
 
+    let touchStartY = 0;
+    let isTouching = false;
+
     const handleTouchStart = (e) => {
-      if (container.scrollTop === 0) {
-        startY.current = e.touches[0].pageY;
+      if (window.scrollY === 0 && container.scrollTop === 0) {
+        touchStartY = e.touches[0].clientY;
+        isTouching = true;
+        startY.current = touchStartY;
         setIsPulling(false);
       }
     };
 
     const handleTouchMove = (e) => {
-      if (container.scrollTop === 0) {
-        currentY.current = e.touches[0].pageY;
-        const distance = currentY.current - startY.current;
+      if (!isTouching) return;
+      
+      const touchY = e.touches[0].clientY;
+      const distance = touchY - touchStartY;
+      
+      if (distance > 0 && window.scrollY === 0) {
+        setIsPulling(true);
+        setPullDistance(Math.min(distance, 100));
         
-        if (distance > 0) {
-          setIsPulling(true);
-          setPullDistance(Math.min(distance, 100));
-          
-          // Предотвращаем стандартное поведение только при pull-to-refresh
-          if (distance > 10) {
-            e.preventDefault();
-          }
+        if (distance > 10) {
+          e.preventDefault();
         }
       }
     };
 
     const handleTouchEnd = () => {
-      if (pullDistance > 60 && !refreshing) {
+      if (isTouching && pullDistance > 60 && !refreshing) {
         handleRefresh();
       }
+      isTouching = false;
       setIsPulling(false);
       setPullDistance(0);
       startY.current = 0;
-      currentY.current = 0;
     };
 
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [pullDistance, refreshing]);
 
@@ -363,6 +367,7 @@ const GiftCard = ({ gift, onClick }) => {
     const attributes = giftData.attributes || [];
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
+    const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
 
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
@@ -394,7 +399,7 @@ const GiftCard = ({ gift, onClick }) => {
       <div className="gift-info">
         <h3 className="gift-name">{gift.giftTitle}</h3>
         {gift.model && gift.model !== 'Неизвестная модель' && (
-          <p className="gift-model">{gift.model}</p>
+          <p className="gift-model">{modelAttr.name}</p>
         )}
       </div>
     </div>
