@@ -140,7 +140,7 @@
   margin-bottom: 20px;
 }
 
-.stat-item {
+.stat-item-profile {
   flex: 1;
   background: rgba(255, 255, 255, 0.03);
   padding: 16px 12px;
@@ -339,7 +339,7 @@
     gap: 12px;
   }
 
-  .stat-item {
+  .stat-item-profile {
     padding: 12px 8px;
   }
 

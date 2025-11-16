@@ -139,41 +139,8 @@ const Inventory = () => {
 
   return (
     <div className="inventory-container" ref={containerRef}>
-      {/* Pull to refresh индикатор */}
-      {(isPulling || refreshing) && (
-        <div 
-          className={`pull-to-refresh ${isPulling ? 'pulling' : ''} ${refreshing ? 'refreshing' : ''}`}
-          style={{
-            opacity: refreshing ? 1 : Math.min(pullDistance / 60, 1),
-            transform: `translateX(-50%) scale(${Math.min(pullDistance / 60, 1)})`
-          }}
-        >
-          <div className="refresh-indicator"></div>
-        </div>
-      )}
-
-      {/* <div className="inventory-header">
-        <h1>Инвентарь</h1>
-      </div> */}
-
-      <div className="info-card-gift">
-        <div className="info-icon-gift">ℹ️</div>
-        <div className="info-content-gift">
-          <p className="info-text-gift">
-            Для добавления подарка в инвентарь необходимо отправить его на аккаунт{' '}
-            <a 
-              href="https://t.me/FNPK3" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="username-link"
-            >
-              @FNPK3
-            </a>
-          </p>
-          <p className="info-subtext">
-            Потяните экран вниз для обновления инвентаря
-          </p>
-        </div>
+      <div className="inventory-header">
+        <div className="gift-counter">{gifts.length} подарков</div>
       </div>
 
       {error && (
@@ -182,18 +149,6 @@ const Inventory = () => {
           <p className="error-text">{error}</p>
         </div>
       )}
-
-      <div className="inventory-stats">
-        <div className="stat-item">
-          <div className="stat-left">
-            <div className="stat-icon">🎁</div>
-            <div className="stat-info">
-              <span className="stat-label">Всего подарков</span>
-              <span className="stat-value">{gifts.length}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="inventory-content">
         {gifts.length === 0 ? (

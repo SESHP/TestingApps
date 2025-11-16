@@ -376,11 +376,11 @@ function Profile() {
 
         {/* Статистика */}
         <div className="profile-stats">
-          <div className="stat-item">
+          <div className="stat-item-profile">
             <span className="stat-label">Сделок</span>
             <span className="stat-value">{userData?.totalDeals || 0}</span>
           </div>
-          <div className="stat-item">
+          <div className="stat-item-profile">
             <span className="stat-label">Рейтинг</span>
             <span className="stat-value">{userData?.rating?.toFixed(1) || '0.0'}</span>
           </div>
