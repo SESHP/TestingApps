@@ -157,7 +157,7 @@
   margin-bottom: 8px;
 }
 
-.stat-value {
+.stat-value-profile {
   font-size: 20px;
   font-weight: 600;
   color: #fff;
@@ -343,7 +343,7 @@
     padding: 12px 8px;
   }
 
-  .stat-value {
+  .stat-value-profile {
     font-size: 18px;
   }
 
@@ -382,7 +382,7 @@
     font-size: 11px;
   }
 
-  .stat-value {
+  .stat-value-profile {
     font-size: 16px;
   }
 

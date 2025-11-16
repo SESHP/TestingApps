@@ -8,7 +8,7 @@ import lottie from 'lottie-web';
 // Функция для склонения слова "подарок"
 const getPluralForm = (count) => {
   const cases = [2, 0, 1, 1, 1, 2];
-  const titles = ['подарок', 'подарка', 'подарков'];
+  const titles = ['Подарок', 'Подарка', 'Подарков'];
   
   return titles[
     (count % 100 > 4 && count % 100 < 20) 
