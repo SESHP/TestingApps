@@ -73,9 +73,9 @@ const Inventory = () => {
   if (loading) {
     return (
       <div className="inventory-container">
-        <div className="inventory-header">
+        {/* <div className="inventory-header">
           <h1>Инвентарь</h1>
-        </div>
+        </div> */}
         <div className="loading-container">
           <div className="loading-spinner"></div>
           <p>Загрузка подарков...</p>
@@ -1181,7 +1181,7 @@ const GiftModal = ({ gift, onClose }) => {
             </div>
           )}
 
-          <div className="modal-meta">
+          {/* <div className="modal-meta">
             <div className="modal-meta-item">
               <span className="modal-meta-label">От:</span>
               <span className="modal-meta-value">{gift.fromId}</span>
@@ -1192,7 +1192,7 @@ const GiftModal = ({ gift, onClose }) => {
                 {new Date(gift.receivedAt).toLocaleString('ru-RU')}
               </span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
