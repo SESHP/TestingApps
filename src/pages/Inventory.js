@@ -368,7 +368,7 @@ const GiftCard = ({ gift, onClick }) => {
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-
+    
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
@@ -399,7 +399,7 @@ const GiftCard = ({ gift, onClick }) => {
       <div className="gift-info">
         <h3 className="gift-name">{gift.giftTitle}</h3>
         {gift.model && gift.model !== 'Неизвестная модель' && (
-          <p className="gift-model">{modelAttr.name}</p>
+          <p className="gift-model">{gift.model}</p>
         )}
       </div>
     </div>
