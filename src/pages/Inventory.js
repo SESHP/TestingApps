@@ -5,6 +5,18 @@ import { getTelegramUser } from '../utils/telegramUtils';
 import './Inventory.css';
 import lottie from 'lottie-web';
 
+// Функция для склонения слова "подарок"
+const getPluralForm = (count) => {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const titles = ['подарок', 'подарка', 'подарков'];
+  
+  return titles[
+    (count % 100 > 4 && count % 100 < 20) 
+      ? 2 
+      : cases[Math.min(count % 10, 5)]
+  ];
+};
+
 const Inventory = () => {
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +151,9 @@ const Inventory = () => {
 
   return (
     <div className="inventory-container" ref={containerRef}>
-      <div className="inventory-header">
-        <div className="gift-counter">{gifts.length} подарков</div>
+      {/* Liquid Glass плашка с счетчиком */}
+      <div className="gift-counter">
+        {gifts.length} {getPluralForm(gifts.length)}
       </div>
 
       {error && (
