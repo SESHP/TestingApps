@@ -1411,13 +1411,14 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     const bigInt = require('big-integer');
     
     try {
-      const giftData = gift.raw_data?.gift;
+      const actionData = gift.raw_data?.action;
       
-      if (!giftData) {
-        return res.status(400).json({ error: 'Данные подарка не найдены' });
+      if (!actionData || !actionData.savedStarGift) {
+        return res.status(400).json({ error: 'Данные savedStarGift не найдены' });
       }
 
       console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
+      console.log(`🔍 savedStarGift:`, actionData.savedStarGift);
 
       // Получаем диалоги
       const dialogs = await telegramClient.invoke(
@@ -1451,13 +1452,13 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         accessHash: targetUser.accessHash
       });
 
-      // Создаем Long объект для stargift
-      const starGiftLong = bigInt(giftData.id);
+      // Используем savedStarGift напрямую
+      const savedGift = actionData.savedStarGift;
       
-      console.log(`🎁 ID подарка (Long):`, starGiftLong);
+      console.log(`🎁 Используем savedStarGift для передачи`);
 
       const invoice = new Api.InputInvoiceStarGiftTransfer({
-        stargift: starGiftLong,
+        stargift: savedGift,
         toId: toPeer
       });
 
