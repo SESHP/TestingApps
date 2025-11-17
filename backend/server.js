@@ -1458,6 +1458,8 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       });
     }
 
+
+    
   } catch (error) {
     console.error('Ошибка вывода подарка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
