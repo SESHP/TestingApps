@@ -1441,6 +1441,8 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         [toId, giftId]
       );
 
+      
+
       console.log(`✅ Подарок ${giftId} успешно выведен пользователю ${toId}`);
 
       res.json({
