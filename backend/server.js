@@ -1514,7 +1514,10 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       new Api.payments.SendPaymentForm({
         formId: paymentForm.formId,
         invoice: invoice,
-        credentials: new Api.InputPaymentCredentialsStars()
+        credentials: new Api.InputPaymentCredentials({
+          save: false,
+          data: new Api.DataJSON({ data: '{}' })
+        })
       })
     );
 
