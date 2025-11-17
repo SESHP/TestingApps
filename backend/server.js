@@ -1418,34 +1418,47 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
       console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
 
-      // Получаем информацию о пользователе через users.getUsers
-      const users = await telegramClient.invoke(
-        new Api.users.GetUsers({
-          id: [new Api.InputUser({
-            userId: BigInt(toId),
-            accessHash: BigInt(0)
-          })]
+      // Получаем диалоги для поиска получателя
+      const dialogs = await telegramClient.invoke(
+        new Api.messages.GetDialogs({
+          offsetDate: 0,
+          offsetId: 0,
+          offsetPeer: new Api.InputPeerEmpty(),
+          limit: 100,
+          hash: BigInt(0)
         })
       );
 
-      if (!users || users.length === 0) {
-        throw new Error('Пользователь не найден');
+      // Ищем получателя в чатах
+      let targetUser = null;
+      for (const user of dialogs.users) {
+        if (user.id.toString() === toId.toString()) {
+          targetUser = user;
+          break;
+        }
       }
 
-      const user = users[0];
-      console.log(`👤 Пользователь найден: ${user.firstName} (${user.id}), accessHash: ${user.accessHash}`);
+      if (!targetUser) {
+        return res.status(404).json({ 
+          error: 'Получатель не найден в диалогах. Напишите ему сначала в Telegram' 
+        });
+      }
 
-      // Создаем правильный InputPeer
+      console.log(`👤 Получатель найден: ${targetUser.firstName}`);
+
+      // Создаем InputPeer получателя
       const toPeer = new Api.InputPeerUser({
-        userId: BigInt(toId),
-        accessHash: user.accessHash
+        userId: targetUser.id,
+        accessHash: targetUser.accessHash
       });
 
-      // Создаем инвойс
+      // Создаем инвойс (платит ТВОЙ аккаунт, получает toId)
       const invoice = new Api.InputInvoiceStarGiftTransfer({
         stargift: BigInt(giftData.id),
         toId: toPeer
       });
+
+      console.log(`💳 Получаем форму оплаты...`);
 
       // Получаем форму оплаты
       const paymentForm = await telegramClient.invoke(
@@ -1454,9 +1467,9 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         })
       );
 
-      console.log(`💳 Форма оплаты получена, formId: ${paymentForm.formId}`);
+      console.log(`💳 Форма получена, стоимость: ${paymentForm.invoice?.totalAmount || 0} stars`);
 
-      // Отправляем платеж
+      // Отправляем платеж (оплата идет с ТВОЕГО аккаунта)
       const result = await telegramClient.invoke(
         new Api.payments.SendPaymentForm({
           formId: paymentForm.formId,
@@ -1464,7 +1477,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         })
       );
 
-      console.log(`✅ Платеж отправлен:`, result);
+      console.log(`✅ Платеж выполнен, подарок передан`);
 
       // Обновляем БД
       await pool.query(
