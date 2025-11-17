@@ -483,7 +483,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
         },
         body: JSON.stringify({
           giftId: gift.giftId,
-          fromId: gift.fromId,
+          // fromId: gift.fromId,
           toId: userId
         })
       });
