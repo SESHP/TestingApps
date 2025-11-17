@@ -1386,7 +1386,6 @@ app.get('/api/gifts/files/list', async (req, res) => {
 
 
 // Вывод подарка через Telegram API
-// Вывод подарка через Telegram API
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
@@ -1415,21 +1414,30 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     try {
       const giftData = gift.raw_data?.gift;
       
-      console.log('📦 Gift data:', {
-        hasGift: !!giftData,
-        giftId: giftData?.id,
-        giftClass: giftData?.className
-      });
-      
       if (!giftData || !giftData.id) {
-        return res.status(400).json({ error: 'Данные подарка не найдены или ID отсутствует' });
+        return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      const inputUser = await telegramClient.getInputEntity(parseInt(toId));
-      
-      console.log('👤 Input user:', inputUser);
+      // Получаем пользователя через API
+      const users = await telegramClient.invoke(
+        new Api.users.GetUsers({
+          id: [BigInt(toId)]
+        })
+      );
 
-      const result = await telegramClient.invoke(
+      if (!users || users.length === 0) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const user = users[0];
+
+      // Создаем InputUser вручную
+      const inputUser = new Api.InputUser({
+        userId: BigInt(toId),
+        accessHash: user.accessHash
+      });
+
+      await telegramClient.invoke(
         new Api.payments.TransferStarGift({
           stargift: new Api.InputStarGift({
             id: BigInt(giftData.id)
@@ -1437,8 +1445,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
           userId: inputUser
         })
       );
-      
-      console.log('✅ Transfer result:', result);
 
       await pool.query(
         `UPDATE gifts
@@ -1448,8 +1454,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
          WHERE gift_id = $2`,
         [toId, giftId]
       );
-
-      
 
       console.log(`✅ Подарок ${giftId} успешно выведен пользователю ${toId}`);
 
