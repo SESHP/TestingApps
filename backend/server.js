@@ -1412,6 +1412,8 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     console.log(`📤 Вывод подарка ${giftId} → ${toId}`);
 
+    const MY_ID = '6387280083';
+
     // Получаем диалоги
     const dialogs = await telegramClient.invoke(
       new Api.messages.GetDialogs({
@@ -1429,21 +1431,56 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       return res.status(404).json({ error: 'Получатель не найден' });
     }
 
-    // Отправитель (тот кто ПРИСЛАЛ подарок тебе)
-    const sender = dialogs.users.find(u => u.id.toString() === gift.from_id);
-    if (!sender) {
-      return res.status(404).json({ error: 'Отправитель не найден' });
+    // От кого пришел подарок
+    const fromUser = dialogs.users.find(u => u.id.toString() === gift.from_id);
+    if (!fromUser) {
+      return res.status(404).json({ error: `Пользователь ${gift.from_id} не найден` });
     }
 
-    console.log(`✅ Получатель: ${recipient.id}, Отправитель: ${sender.id}`);
+    console.log(`✅ Получатель: ${recipient.id}, От кого подарок: ${fromUser.id}`);
 
-    // Создаем InputSavedStarGiftUser
+    // Получаем историю с fromUser чтобы найти сообщение с подарком
+    const history = await telegramClient.invoke(
+      new Api.messages.GetHistory({
+        peer: new Api.InputPeerUser({
+          userId: fromUser.id,
+          accessHash: fromUser.accessHash
+        }),
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        limit: 50,
+        maxId: 0,
+        minId: 0,
+        hash: BigInt(0)
+      })
+    );
+
+    console.log(`📜 Получено ${history.messages.length} сообщений`);
+
+    // Ищем сообщение с подарком
+    let msgId = null;
+    for (const msg of history.messages) {
+      if (msg.action && 
+          msg.action.className === 'MessageActionStarGiftUnique' &&
+          msg.action.gift?.id?.toString() === giftId) {
+        msgId = msg.id;
+        console.log(`✅ Найден msgId: ${msgId}`);
+        break;
+      }
+    }
+
+    if (!msgId) {
+      return res.status(400).json({ error: 'msgId не найден в истории сообщений' });
+    }
+
+    // InputSavedStarGiftUser
     const inputSavedGift = new Api.InputSavedStarGiftUser({
       userId: new Api.InputUser({
-        userId: sender.id,
-        accessHash: sender.accessHash
+        userId: fromUser.id,
+        accessHash: fromUser.accessHash
       }),
-      msgId: bigInt(gift.raw_data?.action?.savedStarGift?.msgId || 0)
+      msgId: msgId
     });
 
     // Peer получателя
