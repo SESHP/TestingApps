@@ -1386,6 +1386,7 @@ app.get('/api/gifts/files/list', async (req, res) => {
 
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
+    
     const { giftId, toId } = req.body;
 
     if (!giftId || !toId) {
