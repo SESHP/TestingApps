@@ -287,7 +287,7 @@ function extractGiftInfo(update) {
           console.log('Зашел в цикл')
           console.log(`PeerID ${message.peerId}`)
           console.log(`PeerID.ClassName ${message.peerId.className}`)
-          console.log(`PeerID.User ${message.peerId.className.userId}`)
+          console.log(`PeerID.User ${message.peerId.userId}`)
           if (message.peerId.className === "PeerUser") {
             fromId = message.peerId.userId.toString();
           } else if (message.peerId.className === "PeerChannel") {
