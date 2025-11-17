@@ -1414,11 +1414,13 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       const actionData = gift.raw_data?.action;
       
       if (!actionData || !actionData.savedStarGift) {
-        return res.status(400).json({ error: 'Данные savedStarGift не найдены' });
+        return res.status(400).json({ error: 'Данные savedStarGift не найдены в action' });
       }
 
+      const savedStarGift = actionData.savedStarGift;
+
       console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
-      console.log(`🔍 savedStarGift:`, actionData.savedStarGift);
+      console.log(`🔍 savedStarGift:`, savedStarGift);
 
       // Получаем диалоги
       const dialogs = await telegramClient.invoke(
@@ -1452,13 +1454,19 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         accessHash: targetUser.accessHash
       });
 
-      // Используем savedStarGift напрямую
-      const savedGift = actionData.savedStarGift;
-      
-      console.log(`🎁 Используем savedStarGift для передачи`);
+      // Создаем InputSavedStarGift используя msgId из savedStarGift
+      const inputSavedGift = new Api.InputSavedStarGift({
+        userId: new Api.InputUser({
+          userId: bigInt(savedStarGift.fromId || gift.fromId),
+          accessHash: BigInt(0)
+        }),
+        msgId: savedStarGift.msgId
+      });
+
+      console.log(`🎁 InputSavedStarGift:`, inputSavedGift);
 
       const invoice = new Api.InputInvoiceStarGiftTransfer({
-        stargift: savedGift,
+        stargift: inputSavedGift,
         toId: toPeer
       });
 
