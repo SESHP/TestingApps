@@ -1388,127 +1388,136 @@ app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
 
+    // Проверяем параметры
     if (!giftId || !toId) {
-      return res.status(400).json({ error: 'Недостаточно параметров' });
+      return res.status(400).json({ error: 'Нет giftId или toId' });
     }
 
-    const giftCheck = await pool.query(
+    // Получаем подарок из БД
+    const result = await pool.query(
       'SELECT * FROM gifts WHERE gift_id = $1 AND is_withdrawn = FALSE',
       [giftId]
     );
 
-    if (giftCheck.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Подарок не найден или уже выведен' });
     }
 
-    const gift = giftCheck.rows[0];
+    const gift = result.rows[0];
 
+    // Проверяем Telegram клиент
     if (!telegramClient) {
       return res.status(503).json({ error: 'Telegram клиент не подключен' });
     }
 
     const { Api } = require('telegram');
     const bigInt = require('big-integer');
+
+    console.log(`📤 Начинаем вывод подарка ${giftId} пользователю ${toId}`);
+
+    // 1. Получаем информацию о получателе через диалоги
+    const dialogs = await telegramClient.invoke(
+      new Api.messages.GetDialogs({
+        offsetDate: 0,
+        offsetId: 0,
+        offsetPeer: new Api.InputPeerEmpty(),
+        limit: 100,
+        hash: BigInt(0)
+      })
+    );
+
+    const recipient = dialogs.users.find(u => u.id.toString() === toId);
     
-    try {
-      console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
-
-      // Получаем диалоги
-      const dialogs = await telegramClient.invoke(
-        new Api.messages.GetDialogs({
-          offsetDate: 0,
-          offsetId: 0,
-          offsetPeer: new Api.InputPeerEmpty(),
-          limit: 100,
-          hash: BigInt(0)
-        })
-      );
-
-      let targetUser = null;
-      for (const user of dialogs.users) {
-        if (user.id.toString() === toId.toString()) {
-          targetUser = user;
-          break;
-        }
-      }
-
-      if (!targetUser) {
-        return res.status(404).json({ 
-          error: 'Получатель не найден в диалогах' 
-        });
-      }
-
-      const toPeer = new Api.InputPeerUser({
-        userId: targetUser.id,
-        accessHash: targetUser.accessHash
-      });
-
-      // Получаем peer отправителя
-      let fromUser = null;
-      for (const user of dialogs.users) {
-        if (user.id.toString() === gift.from_id) {
-          fromUser = user;
-          break;
-        }
-      }
-
-      if (!fromUser) {
-        return res.status(404).json({ error: 'Отправитель не найден' });
-      }
-
-      // msgId из action.savedStarGift.msgId
-      const messageId = gift.raw_data?.action?.savedStarGift?.msgId;
-      
-      if (!messageId) {
-        return res.status(400).json({ error: 'msgId не найден в savedStarGift' });
-      }
-
-      console.log(`📨 msgId: ${messageId}`);
-
-      const inputSavedGift = new Api.InputSavedStarGift({
-        userId: new Api.InputUser({
-          userId: fromUser.id,
-          accessHash: fromUser.accessHash
-        }),
-        msgId: bigInt(messageId)
-      });
-
-      const invoice = new Api.InputInvoiceStarGiftTransfer({
-        stargift: inputSavedGift,
-        toId: toPeer
-      });
-
-      const paymentForm = await telegramClient.invoke(
-        new Api.payments.GetPaymentForm({
-          invoice: invoice
-        })
-      );
-
-      const result = await telegramClient.invoke(
-        new Api.payments.SendPaymentForm({
-          formId: paymentForm.formId,
-          invoice: invoice
-        })
-      );
-
-      await pool.query(
-        `UPDATE gifts SET is_withdrawn = TRUE, withdrawn_at = CURRENT_TIMESTAMP, withdrawn_to_id = $1 WHERE gift_id = $2`,
-        [toId, giftId]
-      );
-
-      res.json({ success: true, giftId: giftId });
-
-    } catch (telegramError) {
-      console.error('❌ Ошибка:', telegramError);
-      res.status(500).json({ 
-        error: 'Не удалось отправить подарок',
-        details: telegramError.message
-      });
+    if (!recipient) {
+      return res.status(404).json({ error: 'Получатель не найден. Напишите ему в Telegram сначала.' });
     }
 
+    console.log(`✅ Получатель найден: ${recipient.firstName || 'User'} (${recipient.id})`);
+
+    // 2. Получаем отправителя подарка (from_id)
+    const sender = dialogs.users.find(u => u.id.toString() === gift.from_id);
+    
+    if (!sender) {
+      return res.status(404).json({ error: 'Отправитель подарка не найден в диалогах' });
+    }
+
+    console.log(`✅ Отправитель найден: ${sender.firstName || 'User'} (${sender.id})`);
+
+    // 3. Получаем msgId из raw_data
+    const msgId = gift.raw_data?.action?.savedStarGift?.msgId;
+    
+    if (!msgId) {
+      return res.status(400).json({ error: 'msgId не найден в базе данных' });
+    }
+
+    console.log(`✅ msgId: ${msgId}`);
+
+    // 4. Создаем InputSavedStarGift
+    const inputSavedGift = new Api.InputSavedStarGift({
+      userId: new Api.InputUser({
+        userId: sender.id,
+        accessHash: sender.accessHash
+      }),
+      msgId: bigInt(msgId)
+    });
+
+    // 5. Создаем InputPeerUser для получателя
+    const recipientPeer = new Api.InputPeerUser({
+      userId: recipient.id,
+      accessHash: recipient.accessHash
+    });
+
+    // 6. Создаем invoice для передачи
+    const invoice = new Api.InputInvoiceStarGiftTransfer({
+      stargift: inputSavedGift,
+      toId: recipientPeer
+    });
+
+    console.log(`💳 Запрашиваем форму оплаты...`);
+
+    // 7. Получаем форму оплаты
+    const paymentForm = await telegramClient.invoke(
+      new Api.payments.GetPaymentForm({
+        invoice: invoice
+      })
+    );
+
+    console.log(`💳 Форма получена. Стоимость: ${paymentForm.invoice?.totalAmount || 0} stars`);
+
+    // 8. Оплачиваем и передаем подарок
+    const paymentResult = await telegramClient.invoke(
+      new Api.payments.SendPaymentForm({
+        formId: paymentForm.formId,
+        invoice: invoice
+      })
+    );
+
+    console.log(`✅ Платеж выполнен успешно`);
+
+    // 9. Обновляем базу данных
+    await pool.query(
+      `UPDATE gifts 
+       SET is_withdrawn = TRUE, 
+           withdrawn_at = CURRENT_TIMESTAMP, 
+           withdrawn_to_id = $1 
+       WHERE gift_id = $2`,
+      [toId, giftId]
+    );
+
+    console.log(`✅ База данных обновлена`);
+
+    res.json({ 
+      success: true, 
+      giftId: giftId,
+      message: 'Подарок успешно передан'
+    });
+
   } catch (error) {
-    console.error('❌ Ошибка:', error);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    console.error('❌ Ошибка вывода подарка:', error);
+    res.status(500).json({ 
+      error: 'Ошибка вывода подарка',
+      details: error.message 
+    });
   }
 });
 
