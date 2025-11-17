@@ -1408,7 +1408,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     }
 
     const { Api } = require('telegram');
-    const bigInt = require('big-integer');
 
     console.log(`📤 Вывод подарка ${giftId} → ${toId}`);
 
@@ -1431,20 +1430,26 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       return res.status(404).json({ error: 'Получатель не найден' });
     }
 
-    // От кого пришел подарок
-    const fromUser = dialogs.users.find(u => u.id.toString() === gift.from_id);
-    if (!fromUser) {
-      return res.status(404).json({ error: `Пользователь ${gift.from_id} не найден` });
+    // ТЫ (твой аккаунт - отправитель)
+    const me = dialogs.users.find(u => u.id.toString() === MY_ID);
+    if (!me) {
+      return res.status(404).json({ error: 'Твой аккаунт не найден' });
     }
 
-    console.log(`✅ Получатель: ${recipient.id}, От кого подарок: ${fromUser.id}`);
+    // От кого изначально пришел подарок (чтобы найти msgId)
+    const originalSender = dialogs.users.find(u => u.id.toString() === gift.from_id);
+    if (!originalSender) {
+      return res.status(404).json({ error: `Оригинальный отправитель ${gift.from_id} не найден` });
+    }
 
-    // Получаем историю с fromUser чтобы найти сообщение с подарком
+    console.log(`✅ Получатель: ${recipient.id}, Отправитель (ты): ${me.id}`);
+
+    // Получаем историю с оригинальным отправителем
     const history = await telegramClient.invoke(
       new Api.messages.GetHistory({
         peer: new Api.InputPeerUser({
-          userId: fromUser.id,
-          accessHash: fromUser.accessHash
+          userId: originalSender.id,
+          accessHash: originalSender.accessHash
         }),
         offsetId: 0,
         offsetDate: 0,
@@ -1458,7 +1463,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     console.log(`📜 Получено ${history.messages.length} сообщений`);
 
-    // Ищем сообщение с подарком
+    // Ищем msgId
     let msgId = null;
     for (const msg of history.messages) {
       if (msg.action && 
@@ -1471,14 +1476,14 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     }
 
     if (!msgId) {
-      return res.status(400).json({ error: 'msgId не найден в истории сообщений' });
+      return res.status(400).json({ error: 'msgId не найден' });
     }
 
-    // InputSavedStarGiftUser
+    // InputSavedStarGiftUser - используем оригинального отправителя для идентификации подарка
     const inputSavedGift = new Api.InputSavedStarGiftUser({
       userId: new Api.InputUser({
-        userId: fromUser.id,
-        accessHash: fromUser.accessHash
+        userId: originalSender.id,
+        accessHash: originalSender.accessHash
       }),
       msgId: msgId
     });
@@ -1503,16 +1508,17 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       })
     );
 
-    console.log(`💳 Оплата...`);
+    console.log(`💳 Оплата (ты платишь с аккаунта ${MY_ID})...`);
 
     await telegramClient.invoke(
       new Api.payments.SendPaymentForm({
         formId: paymentForm.formId,
-        invoice: invoice
+        invoice: invoice,
+        credentials: new Api.InputPaymentCredentialsStars()
       })
     );
 
-    console.log(`✅ Передано`);
+    console.log(`✅ Подарок передан от ${MY_ID} к ${toId}`);
 
     await pool.query(
       `UPDATE gifts 
@@ -1533,7 +1539,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     });
   }
 });
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({
