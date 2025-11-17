@@ -1384,7 +1384,6 @@ app.get('/api/gifts/files/list', async (req, res) => {
   }
 });
 
-
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
@@ -1419,20 +1418,28 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
       console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
 
-      // Получаем сущность пользователя
-      const entity = await telegramClient.getEntity(toId);
+      // Получаем информацию о пользователе через users.getUsers
+      const users = await telegramClient.invoke(
+        new Api.users.GetUsers({
+          id: [new Api.InputUser({
+            userId: BigInt(toId),
+            accessHash: BigInt(0)
+          })]
+        })
+      );
 
-      console.log(`Сущность: ${entity}`);
+      if (!users || users.length === 0) {
+        throw new Error('Пользователь не найден');
+      }
 
-      // Создаем InputPeer
+      const user = users[0];
+      console.log(`👤 Пользователь найден: ${user.firstName} (${user.id}), accessHash: ${user.accessHash}`);
+
+      // Создаем правильный InputPeer
       const toPeer = new Api.InputPeerUser({
         userId: BigInt(toId),
-        accessHash: entity.accessHash
+        accessHash: user.accessHash
       });
-
-      console.log(`Peer: ${toPeer}`);
-
-
 
       // Создаем инвойс
       const invoice = new Api.InputInvoiceStarGiftTransfer({
@@ -1453,8 +1460,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       const result = await telegramClient.invoke(
         new Api.payments.SendPaymentForm({
           formId: paymentForm.formId,
-          invoice: invoice,
-          requestedInfoId: undefined
+          invoice: invoice
         })
       );
 
@@ -1481,7 +1487,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
-
 
 // Health check
 app.get('/health', (req, res) => {
