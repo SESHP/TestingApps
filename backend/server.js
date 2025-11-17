@@ -1388,12 +1388,10 @@ app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
 
-    // Проверяем параметры
     if (!giftId || !toId) {
       return res.status(400).json({ error: 'Нет giftId или toId' });
     }
 
-    // Получаем подарок из БД
     const result = await pool.query(
       'SELECT * FROM gifts WHERE gift_id = $1 AND is_withdrawn = FALSE',
       [giftId]
@@ -1405,7 +1403,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     const gift = result.rows[0];
 
-    // Проверяем Telegram клиент
     if (!telegramClient) {
       return res.status(503).json({ error: 'Telegram клиент не подключен' });
     }
@@ -1413,9 +1410,9 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     const { Api } = require('telegram');
     const bigInt = require('big-integer');
 
-    console.log(`📤 Начинаем вывод подарка ${giftId} пользователю ${toId}`);
+    console.log(`📤 Вывод подарка ${giftId} → ${toId}`);
 
-    // 1. Получаем информацию о получателе через диалоги
+    // Получаем диалоги
     const dialogs = await telegramClient.invoke(
       new Api.messages.GetDialogs({
         offsetDate: 0,
@@ -1426,75 +1423,60 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       })
     );
 
+    // Получатель
     const recipient = dialogs.users.find(u => u.id.toString() === toId);
-    
     if (!recipient) {
-      return res.status(404).json({ error: 'Получатель не найден. Напишите ему в Telegram сначала.' });
+      return res.status(404).json({ error: 'Получатель не найден' });
     }
 
-    console.log(`✅ Получатель найден: ${recipient.firstName || 'User'} (${recipient.id})`);
-
-    // 2. Получаем отправителя подарка (from_id)
+    // Отправитель (тот кто ПРИСЛАЛ подарок тебе)
     const sender = dialogs.users.find(u => u.id.toString() === gift.from_id);
-    
     if (!sender) {
-      return res.status(404).json({ error: 'Отправитель подарка не найден в диалогах' });
+      return res.status(404).json({ error: 'Отправитель не найден' });
     }
 
-    console.log(`✅ Отправитель найден: ${sender.firstName || 'User'} (${sender.id})`);
+    console.log(`✅ Получатель: ${recipient.id}, Отправитель: ${sender.id}`);
 
-    // 3. Получаем msgId из raw_data
-    const msgId = gift.raw_data?.action?.savedStarGift?.msgId;
-    
-    if (!msgId) {
-      return res.status(400).json({ error: 'msgId не найден в базе данных' });
-    }
-
-    console.log(`✅ msgId: ${msgId}`);
-
-    // 4. Создаем InputSavedStarGift
-    const inputSavedGift = new Api.InputSavedStarGift({
+    // Создаем InputSavedStarGiftUser
+    const inputSavedGift = new Api.InputSavedStarGiftUser({
       userId: new Api.InputUser({
         userId: sender.id,
         accessHash: sender.accessHash
       }),
-      msgId: bigInt(msgId)
+      msgId: bigInt(gift.raw_data?.action?.savedStarGift?.msgId || 0)
     });
 
-    // 5. Создаем InputPeerUser для получателя
+    // Peer получателя
     const recipientPeer = new Api.InputPeerUser({
       userId: recipient.id,
       accessHash: recipient.accessHash
     });
 
-    // 6. Создаем invoice для передачи
+    // Invoice
     const invoice = new Api.InputInvoiceStarGiftTransfer({
       stargift: inputSavedGift,
       toId: recipientPeer
     });
 
-    console.log(`💳 Запрашиваем форму оплаты...`);
+    console.log(`💳 Запрос формы...`);
 
-    // 7. Получаем форму оплаты
     const paymentForm = await telegramClient.invoke(
       new Api.payments.GetPaymentForm({
         invoice: invoice
       })
     );
 
-    console.log(`💳 Форма получена. Стоимость: ${paymentForm.invoice?.totalAmount || 0} stars`);
+    console.log(`💳 Оплата...`);
 
-    // 8. Оплачиваем и передаем подарок
-    const paymentResult = await telegramClient.invoke(
+    await telegramClient.invoke(
       new Api.payments.SendPaymentForm({
         formId: paymentForm.formId,
         invoice: invoice
       })
     );
 
-    console.log(`✅ Платеж выполнен успешно`);
+    console.log(`✅ Передано`);
 
-    // 9. Обновляем базу данных
     await pool.query(
       `UPDATE gifts 
        SET is_withdrawn = TRUE, 
@@ -1504,18 +1486,12 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       [toId, giftId]
     );
 
-    console.log(`✅ База данных обновлена`);
-
-    res.json({ 
-      success: true, 
-      giftId: giftId,
-      message: 'Подарок успешно передан'
-    });
+    res.json({ success: true, giftId: giftId });
 
   } catch (error) {
-    console.error('❌ Ошибка вывода подарка:', error);
+    console.error('❌ Ошибка:', error);
     res.status(500).json({ 
-      error: 'Ошибка вывода подарка',
+      error: 'Ошибка вывода',
       details: error.message 
     });
   }
