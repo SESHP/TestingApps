@@ -1464,6 +1464,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         details: telegramError.message
       });
     }
+    
 
   } catch (error) {
     console.error('Ошибка:', error);
