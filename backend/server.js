@@ -1423,9 +1423,9 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
       // Отправляем подарок пользователю
       await telegramClient.invoke(
-        new Api.payments.SendStarGift({
+        new Api.payments.transferStarGift({
+          stargift: giftData,
           userId: await telegramClient.getInputEntity(toId),
-          gift: giftData,
           message: ''
         })
       );
