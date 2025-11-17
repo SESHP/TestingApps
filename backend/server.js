@@ -1417,57 +1417,61 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      console.log(`📤 Создание инвойса для передачи подарка ${giftId} пользователю ${toId}`);
+      console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
 
-      // Получаем InputPeer для toId
+      // Получаем сущность пользователя
+      const entity = await telegramClient.getEntity(toId);
+      
+      // Создаем InputPeer
       const toPeer = new Api.InputPeerUser({
         userId: BigInt(toId),
-        accessHash: BigInt(0)
+        accessHash: entity.accessHash
       });
 
-      // Шаг 1: Получаем форму оплаты
+      // Создаем инвойс
+      const invoice = new Api.InputInvoiceStarGiftTransfer({
+        stargift: BigInt(giftData.id),
+        toId: toPeer
+      });
+
+      // Получаем форму оплаты
       const paymentForm = await telegramClient.invoke(
         new Api.payments.GetPaymentForm({
-          invoice: new Api.InputInvoiceStarGiftTransfer({
-            stargift: BigInt(giftData.id),
-            toId: toPeer
-          })
+          invoice: invoice
         })
       );
 
-      console.log(`💳 Форма оплаты получена`);
+      console.log(`💳 Форма оплаты получена, formId: ${paymentForm.formId}`);
 
-      // Шаг 2: Отправляем оплату
-      await telegramClient.invoke(
+      // Отправляем платеж
+      const result = await telegramClient.invoke(
         new Api.payments.SendPaymentForm({
           formId: paymentForm.formId,
-          invoice: new Api.InputInvoiceStarGiftTransfer({
-            stargift: BigInt(giftData.id),
-            toId: toPeer
-          })
+          invoice: invoice,
+          requestedInfoId: undefined
         })
       );
 
+      console.log(`✅ Платеж отправлен:`, result);
+
+      // Обновляем БД
       await pool.query(
         `UPDATE gifts SET is_withdrawn = TRUE, withdrawn_at = CURRENT_TIMESTAMP, withdrawn_to_id = $1 WHERE gift_id = $2`,
         [toId, giftId]
       );
 
-      console.log(`✅ Подарок передан`);
-
       res.json({ success: true, giftId: giftId });
 
     } catch (telegramError) {
-      console.error('Ошибка Telegram:', telegramError);
+      console.error('❌ Ошибка Telegram:', telegramError);
       res.status(500).json({ 
         error: 'Не удалось отправить подарок',
         details: telegramError.message
       });
     }
 
-
   } catch (error) {
-    console.error('Ошибка:', error);
+    console.error('❌ Ошибка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
