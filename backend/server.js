@@ -1408,7 +1408,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     }
 
     const { Api } = require('telegram');
-    const { bigInt } = require('big-integer');
+    const bigInt = require('big-integer');
     
     try {
       const giftData = gift.raw_data?.gift;
@@ -1451,13 +1451,13 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         accessHash: targetUser.accessHash
       });
 
-      // Используем оригинальный ID из raw_data (он уже правильного типа)
-      const starGiftId = giftData.id;
+      // Создаем Long объект для stargift
+      const starGiftLong = bigInt(giftData.id);
       
-      console.log(`🎁 ID подарка (оригинальный):`, starGiftId, typeof starGiftId);
+      console.log(`🎁 ID подарка (Long):`, starGiftLong);
 
       const invoice = new Api.InputInvoiceStarGiftTransfer({
-        stargift: starGiftId,  // Используем как есть из raw_data
+        stargift: starGiftLong,
         toId: toPeer
       });
 
