@@ -1429,7 +1429,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       const paymentForm = await telegramClient.invoke(
         new Api.payments.GetPaymentForm({
           invoice: new Api.InputInvoiceStarGiftTransfer({
-            stargift: giftData,
+            stargift: BigInt(giftData.id),
             toId: toPeer
           })
         })
@@ -1442,7 +1442,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         new Api.payments.SendPaymentForm({
           formId: paymentForm.formId,
           invoice: new Api.InputInvoiceStarGiftTransfer({
-            stargift: giftData,
+            stargift: BigInt(giftData.id),
             toId: toPeer
           })
         })
@@ -1464,7 +1464,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         details: telegramError.message
       });
     }
-    
+
 
   } catch (error) {
     console.error('Ошибка:', error);
