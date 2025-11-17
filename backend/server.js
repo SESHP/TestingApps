@@ -1438,14 +1438,12 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         });
       }
 
-      console.log(`👤 Получатель найден`);
-
       const toPeer = new Api.InputPeerUser({
         userId: targetUser.id,
         accessHash: targetUser.accessHash
       });
 
-      // Получаем peer отправителя (из from_id)
+      // Получаем peer отправителя
       let fromUser = null;
       for (const user of dialogs.users) {
         if (user.id.toString() === gift.from_id) {
@@ -1455,19 +1453,18 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       }
 
       if (!fromUser) {
-        return res.status(404).json({ error: 'Отправитель подарка не найден в диалогах' });
+        return res.status(404).json({ error: 'Отправитель не найден' });
       }
 
-      // Получаем message_id из raw_data
-      const messageId = gift.raw_data?.action?.msgId;
+      // msgId из action.savedStarGift.msgId
+      const messageId = gift.raw_data?.action?.savedStarGift?.msgId;
       
       if (!messageId) {
-        return res.status(400).json({ error: 'msgId не найден' });
+        return res.status(400).json({ error: 'msgId не найден в savedStarGift' });
       }
 
       console.log(`📨 msgId: ${messageId}`);
 
-      // Создаем InputSavedStarGift
       const inputSavedGift = new Api.InputSavedStarGift({
         userId: new Api.InputUser({
           userId: fromUser.id,
@@ -1481,15 +1478,11 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         toId: toPeer
       });
 
-      console.log(`💳 Получаем форму оплаты...`);
-
       const paymentForm = await telegramClient.invoke(
         new Api.payments.GetPaymentForm({
           invoice: invoice
         })
       );
-
-      console.log(`💳 Форма получена`);
 
       const result = await telegramClient.invoke(
         new Api.payments.SendPaymentForm({
@@ -1497,8 +1490,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
           invoice: invoice
         })
       );
-
-      console.log(`✅ Платеж выполнен`);
 
       await pool.query(
         `UPDATE gifts SET is_withdrawn = TRUE, withdrawn_at = CURRENT_TIMESTAMP, withdrawn_to_id = $1 WHERE gift_id = $2`,
@@ -1508,7 +1499,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       res.json({ success: true, giftId: giftId });
 
     } catch (telegramError) {
-      console.error('❌ Ошибка Telegram:', telegramError);
+      console.error('❌ Ошибка:', telegramError);
       res.status(500).json({ 
         error: 'Не удалось отправить подарок',
         details: telegramError.message
