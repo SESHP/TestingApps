@@ -1413,7 +1413,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     const MY_ID = '6387280083';
 
-    // Получаем диалоги
     const dialogs = await telegramClient.invoke(
       new Api.messages.GetDialogs({
         offsetDate: 0,
@@ -1424,27 +1423,23 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       })
     );
 
-    // Получатель
     const recipient = dialogs.users.find(u => u.id.toString() === toId);
     if (!recipient) {
       return res.status(404).json({ error: 'Получатель не найден' });
     }
 
-    // ТЫ (твой аккаунт - отправитель)
     const me = dialogs.users.find(u => u.id.toString() === MY_ID);
     if (!me) {
       return res.status(404).json({ error: 'Твой аккаунт не найден' });
     }
 
-    // От кого изначально пришел подарок (чтобы найти msgId)
     const originalSender = dialogs.users.find(u => u.id.toString() === gift.from_id);
     if (!originalSender) {
-      return res.status(404).json({ error: `Оригинальный отправитель ${gift.from_id} не найден` });
+      return res.status(404).json({ error: 'Оригинальный отправитель не найден' });
     }
 
     console.log(`✅ Получатель: ${recipient.id}, Отправитель (ты): ${me.id}`);
 
-    // Получаем историю с оригинальным отправителем
     const history = await telegramClient.invoke(
       new Api.messages.GetHistory({
         peer: new Api.InputPeerUser({
@@ -1463,7 +1458,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     console.log(`📜 Получено ${history.messages.length} сообщений`);
 
-    // Ищем msgId
     let msgId = null;
     for (const msg of history.messages) {
       if (msg.action && 
@@ -1479,7 +1473,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       return res.status(400).json({ error: 'msgId не найден' });
     }
 
-    // InputSavedStarGiftUser - используем оригинального отправителя для идентификации подарка
     const inputSavedGift = new Api.InputSavedStarGiftUser({
       userId: new Api.InputUser({
         userId: originalSender.id,
@@ -1488,13 +1481,11 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       msgId: msgId
     });
 
-    // Peer получателя
     const recipientPeer = new Api.InputPeerUser({
       userId: recipient.id,
       accessHash: recipient.accessHash
     });
 
-    // Invoice
     const invoice = new Api.InputInvoiceStarGiftTransfer({
       stargift: inputSavedGift,
       toId: recipientPeer
@@ -1508,16 +1499,17 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       })
     );
 
-    console.log(`💳 Оплата (ты платишь с аккаунта ${MY_ID})...`);
+    console.log(`💳 Оплата звездами через sendStarsForm...`);
 
+    // Для звезд используем payments.sendStarsForm
     await telegramClient.invoke(
-      new Api.payments.SendPaymentForm({
+      new Api.payments.SendStarsForm({
         formId: paymentForm.formId,
         invoice: invoice
       })
     );
 
-    console.log(`✅ Подарок передан от ${MY_ID} к ${toId}`);
+    console.log(`✅ Подарок передан`);
 
     await pool.query(
       `UPDATE gifts 
@@ -1538,6 +1530,9 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     });
   }
 });
+
+
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
