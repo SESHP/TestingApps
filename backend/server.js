@@ -1513,11 +1513,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     await telegramClient.invoke(
       new Api.payments.SendPaymentForm({
         formId: paymentForm.formId,
-        invoice: invoice,
-        credentials: new Api.InputPaymentCredentials({
-          save: false,
-          data: new Api.DataJSON({ data: '{}' })
-        })
+        invoice: invoice
       })
     );
 
