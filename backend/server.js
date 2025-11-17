@@ -1417,8 +1417,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       }
 
       console.log(`📤 Передача подарка ${giftId} пользователю ${toId}`);
-      console.log(`🔍 giftData:`, JSON.stringify(giftData, null, 2));
-      console.log(`🔍 giftData.id:`, giftData.id);
 
       // Получаем диалоги
       const dialogs = await telegramClient.invoke(
@@ -1452,16 +1450,24 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         accessHash: targetUser.accessHash
       });
 
-      // Используем правильный ID подарка
-      const starGiftId = giftData.id || giftId;
+      // Проверяем тип giftData.id и конвертируем
+      let starGiftId;
+      if (typeof giftData.id === 'bigint') {
+        starGiftId = giftData.id;
+      } else if (typeof giftData.id === 'string' || typeof giftData.id === 'number') {
+        starGiftId = BigInt(giftData.id);
+      } else {
+        throw new Error(`Неподдерживаемый тип ID подарка: ${typeof giftData.id}`);
+      }
       
-      console.log(`🎁 Используем ID подарка: ${starGiftId} (type: ${typeof starGiftId})`);
+      console.log(`🎁 ID подарка: ${starGiftId} (type: ${typeof starGiftId})`);
 
       const invoice = new Api.InputInvoiceStarGiftTransfer({
-        stargift: BigInt(starGiftId),
+        stargift: starGiftId,
         toId: toPeer
       });
 
+      console.log(`💳 Invoice создан:`, invoice);
       console.log(`💳 Получаем форму оплаты...`);
 
       const paymentForm = await telegramClient.invoke(
@@ -1490,6 +1496,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
     } catch (telegramError) {
       console.error('❌ Ошибка Telegram:', telegramError);
+      console.error('Stack:', telegramError.stack);
       res.status(500).json({ 
         error: 'Не удалось отправить подарок',
         details: telegramError.message
