@@ -1385,7 +1385,6 @@ app.get('/api/gifts/files/list', async (req, res) => {
 });
 
 
-// Вывод подарка через Telegram API
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
@@ -1418,61 +1417,40 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      // Получаем пользователя через API
-      const users = await telegramClient.invoke(
-        new Api.users.GetUsers({
-          id: [BigInt(toId)]
-        })
-      );
+      console.log(`📤 Отправка подарка ${giftId} пользователю ${toId}`);
 
-      if (!users || users.length === 0) {
-        return res.status(404).json({ error: 'Пользователь не найден' });
-      }
-
-      const user = users[0];
-
-      // Создаем InputUser вручную
-      const inputUser = new Api.InputUser({
-        userId: BigInt(toId),
-        accessHash: user.accessHash
-      });
-
+      // Просто отправляем подарок пользователю
       await telegramClient.invoke(
         new Api.payments.TransferStarGift({
           stargift: new Api.InputStarGift({
             id: BigInt(giftData.id)
           }),
-          userId: inputUser
+          userId: new Api.InputUser({
+            userId: BigInt(toId),
+            accessHash: BigInt(0)
+          })
         })
       );
 
       await pool.query(
-        `UPDATE gifts
-         SET is_withdrawn = TRUE,
-             withdrawn_at = CURRENT_TIMESTAMP,
-             withdrawn_to_id = $1
-         WHERE gift_id = $2`,
+        `UPDATE gifts SET is_withdrawn = TRUE, withdrawn_at = CURRENT_TIMESTAMP, withdrawn_to_id = $1 WHERE gift_id = $2`,
         [toId, giftId]
       );
 
-      console.log(`✅ Подарок ${giftId} успешно выведен пользователю ${toId}`);
+      console.log(`✅ Подарок выведен`);
 
-      res.json({
-        success: true,
-        message: 'Подарок успешно выведен',
-        giftId: giftId
-      });
+      res.json({ success: true, giftId: giftId });
 
     } catch (telegramError) {
-      console.error('Ошибка отправки через Telegram:', telegramError);
+      console.error('Ошибка Telegram:', telegramError);
       res.status(500).json({ 
-        error: 'Не удалось отправить подарок через Telegram',
+        error: 'Не удалось отправить подарок',
         details: telegramError.message
       });
     }
 
   } catch (error) {
-    console.error('Ошибка вывода подарка:', error);
+    console.error('Ошибка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
