@@ -280,14 +280,19 @@ function extractGiftInfo(update) {
 
         // ИСПРАВЛЕНО: Получаем ID отправителя из message.fromId, а НЕ из action.from_id
         let fromId = "Неизвестный ID";
-        console.log('🔍 message.from_id:', message.from_id);
-        console.log('🔍 message.from_id.className:', message.from_id?.className);
 
-        if (message.from_id) {
-          if (message.from_id.className === "PeerUser") {
-            fromId = message.from_id.user_id.toString();
-          } else if (message.from_id.className === "PeerChannel") {
-            fromId = message.from_id.channel_id.toString();
+        console.log('🔍 Все поля message:', Object.keys(message));
+        console.log('🔍 message.peerId:', message.peerId);
+        console.log('🔍 message.fromId:', message.fromId);
+        console.log('🔍 message.from_id:', message.from_id);
+        if (message.peer_id) {
+          if (message.peer_id.className === "PeerUser") {
+            // В приватном чате peer_id - это и есть отправитель (для входящих)
+            fromId = message.peer_id.user_id ? message.peer_id.user_id.toString() : 
+                    message.peer_id.userId ? message.peer_id.userId.toString() : "Неизвестный ID";
+          } else if (message.peer_id.className === "PeerChannel") {
+            fromId = message.peer_id.channel_id ? message.peer_id.channel_id.toString() :
+                    message.peer_id.channelId ? message.peer_id.channelId.toString() : "Неизвестный ID";
           }
         }
 
