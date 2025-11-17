@@ -1386,9 +1386,10 @@ app.get('/api/gifts/files/list', async (req, res) => {
 
 
 // Вывод подарка через Telegram API
+// Вывод подарка через Telegram API
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
-    const { giftId, fromId, toId } = req.body;
+    const { giftId, toId } = req.body;
 
     if (!giftId || !toId) {
       return res.status(400).json({ error: 'Недостаточно параметров' });
@@ -1410,23 +1411,24 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       return res.status(503).json({ error: 'Telegram клиент не подключен' });
     }
 
-    // Отправляем подарок обратно через Telegram API
     const { Api } = require('telegram');
     
     try {
-      // Получаем объект подарка из raw_data
       const giftData = gift.raw_data?.gift;
       
       if (!giftData) {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      // Отправляем подарок пользователю
+      // ИСПРАВЛЕНО: Используем BigInt напрямую для userId
+      const userIdBigInt = BigInt(toId);
+      
       await telegramClient.invoke(
-        new Api.payments.transferStarGift({
-          stargift: giftData,
-          to_id: await telegramClient.getInputEntity(toId),
-          // message: ''
+        new Api.payments.TransferStarGift({
+          stargift: new Api.InputStarGift({
+            id: BigInt(giftData.id)
+          }),
+          userId: userIdBigInt
         })
       );
 
