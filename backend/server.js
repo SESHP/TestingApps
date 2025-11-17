@@ -1384,7 +1384,6 @@ app.get('/api/gifts/files/list', async (req, res) => {
   }
 });
 
-
 app.post('/api/gifts/withdraw', async (req, res) => {
   try {
     const { giftId, toId } = req.body;
@@ -1417,13 +1416,28 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      console.log(`📤 Отправка подарка ${giftId} пользователю ${toId}`);
+      console.log(`📤 Создание инвойса для передачи подарка ${giftId} пользователю ${toId}`);
 
-      // Используем сам объект подарка напрямую
-      await telegramClient.invoke(
-        new Api.payments.TransferStarGift({
-          stargift: giftData,
-          userId: BigInt(toId)
+      // Шаг 1: Получаем форму оплаты
+      const paymentForm = await telegramClient.invoke(
+        new Api.payments.GetPaymentForm({
+          invoice: new Api.InputInvoiceStarGiftTransfer({
+            stargift: giftData,
+            toId: await telegramClient.getInputEntity(parseInt(toId))
+          })
+        })
+      );
+
+      console.log(`💳 Форма оплаты получена, стоимость: ${paymentForm.invoice?.totalAmount || 0} stars`);
+
+      // Шаг 2: Отправляем оплату
+      const paymentResult = await telegramClient.invoke(
+        new Api.payments.SendPaymentForm({
+          formId: paymentForm.formId,
+          invoice: new Api.InputInvoiceStarGiftTransfer({
+            stargift: giftData,
+            toId: await telegramClient.getInputEntity(parseInt(toId))
+          })
         })
       );
 
@@ -1432,7 +1446,7 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         [toId, giftId]
       );
 
-      console.log(`✅ Подарок выведен`);
+      console.log(`✅ Подарок успешно передан пользователю ${toId}`);
 
       res.json({ success: true, giftId: giftId });
 
@@ -1449,7 +1463,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({
