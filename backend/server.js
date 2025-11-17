@@ -1413,22 +1413,17 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     try {
       const giftData = gift.raw_data?.gift;
       
-      if (!giftData || !giftData.id) {
+      if (!giftData) {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
       console.log(`📤 Отправка подарка ${giftId} пользователю ${toId}`);
 
-      // Просто отправляем подарок пользователю
+      // Используем сам объект подарка напрямую
       await telegramClient.invoke(
         new Api.payments.TransferStarGift({
-          stargift: new Api.InputStarGift({
-            id: BigInt(giftData.id)
-          }),
-          userId: new Api.InputUser({
-            userId: BigInt(toId),
-            accessHash: BigInt(0)
-          })
+          stargift: giftData,
+          userId: BigInt(toId)
         })
       );
 
