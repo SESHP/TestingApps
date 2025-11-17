@@ -465,52 +465,63 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
 
   const handleWithdraw = async () => {
-    if (!userId || !gift.giftId) {
-      setWithdrawError('Недостаточно данных для вывода');
-      return;
+  if (!userId || !gift.giftId) {
+    setWithdrawError('Недостаточно данных для вывода');
+    return;
+  }
+
+  try {
+    setWithdrawing(true);
+    setWithdrawError(null);
+
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+    
+    console.log('Отправка запроса:', {
+      giftId: gift.giftId,
+      toId: userId
+    });
+    
+    const response = await fetch(`${apiUrl}/api/gifts/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        giftId: gift.giftId,
+        toId: userId
+      })
+    });
+
+    const result = await response.json();
+    
+    console.log('Ответ сервера:', {
+      status: response.status,
+      ok: response.ok,
+      data: result
+    });
+
+    if (!response.ok) {
+      throw new Error(result.error || result.details || 'Не удалось вывести подарок');
+    }
+    
+    if (result.success) {
+      setWithdrawSuccess(true);
+      setTimeout(() => {
+        onWithdrawSuccess();
+      }, 1500);
+    } else {
+      throw new Error('Не удалось вывести подарок');
     }
 
-    try {
-      setWithdrawing(true);
-      setWithdrawError(null);
+  } catch (err) {
+    console.error('Ошибка вывода подарка:', err);
+    setWithdrawError(err.message || 'Не удалось вывести подарок');
+  } finally {
+    setWithdrawing(false);
+  }
+};
 
-      const apiUrl = process.env.REACT_APP_API_URL || '';
-      
-      const response = await fetch(`${apiUrl}/api/gifts/withdraw`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          giftId: gift.giftId,
-          // fromId: gift.fromId,
-          toId: userId
-        })
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Не удалось вывести подарок');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setWithdrawSuccess(true);
-        setTimeout(() => {
-          onWithdrawSuccess();
-        }, 1500);
-      } else {
-        throw new Error('Не удалось вывести подарок');
-      }
-
-    } catch (err) {
-      console.error('Ошибка вывода подарка:', err);
-      setWithdrawError(err.message || 'Не удалось вывести подарок');
-    } finally {
-      setWithdrawing(false);
-    }
-  };
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
