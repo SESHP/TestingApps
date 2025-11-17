@@ -1421,12 +1421,18 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
       // Получаем сущность пользователя
       const entity = await telegramClient.getEntity(toId);
-      
+
+      console.log(`Сущность: ${entity}`);
+
       // Создаем InputPeer
       const toPeer = new Api.InputPeerUser({
         userId: BigInt(toId),
         accessHash: entity.accessHash
       });
+
+      console.log(`Peer: ${toPeer}`);
+
+
 
       // Создаем инвойс
       const invoice = new Api.InputInvoiceStarGiftTransfer({
