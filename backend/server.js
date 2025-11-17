@@ -1395,7 +1395,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       return res.status(400).json({ error: 'Недостаточно параметров' });
     }
 
-    // Проверяем, что подарок существует и не выведен
     const giftCheck = await pool.query(
       'SELECT * FROM gifts WHERE gift_id = $1 AND is_withdrawn = FALSE',
       [giftId]
@@ -1420,19 +1419,19 @@ app.post('/api/gifts/withdraw', async (req, res) => {
         return res.status(400).json({ error: 'Данные подарка не найдены' });
       }
 
-      // ИСПРАВЛЕНО: Используем BigInt напрямую для userId
-      const userIdBigInt = BigInt(toId);
-      
+      // Получаем InputUser для получателя
+      const inputUser = await telegramClient.getInputEntity(parseInt(toId));
+
+      // Отправляем подарок по документации
       await telegramClient.invoke(
         new Api.payments.TransferStarGift({
           stargift: new Api.InputStarGift({
             id: BigInt(giftData.id)
           }),
-          userId: userIdBigInt
+          userId: inputUser
         })
       );
 
-      // Помечаем подарок как выведенный в БД
       await pool.query(
         `UPDATE gifts
          SET is_withdrawn = TRUE,
@@ -1458,8 +1457,6 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       });
     }
 
-
-    
   } catch (error) {
     console.error('Ошибка вывода подарка:', error);
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
