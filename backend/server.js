@@ -1415,15 +1415,21 @@ app.post('/api/gifts/withdraw', async (req, res) => {
     try {
       const giftData = gift.raw_data?.gift;
       
-      if (!giftData) {
-        return res.status(400).json({ error: 'Данные подарка не найдены' });
+      console.log('📦 Gift data:', {
+        hasGift: !!giftData,
+        giftId: giftData?.id,
+        giftClass: giftData?.className
+      });
+      
+      if (!giftData || !giftData.id) {
+        return res.status(400).json({ error: 'Данные подарка не найдены или ID отсутствует' });
       }
 
-      // Получаем InputUser для получателя
       const inputUser = await telegramClient.getInputEntity(parseInt(toId));
+      
+      console.log('👤 Input user:', inputUser);
 
-      // Отправляем подарок по документации
-      await telegramClient.invoke(
+      const result = await telegramClient.invoke(
         new Api.payments.TransferStarGift({
           stargift: new Api.InputStarGift({
             id: BigInt(giftData.id)
@@ -1431,6 +1437,8 @@ app.post('/api/gifts/withdraw', async (req, res) => {
           userId: inputUser
         })
       );
+      
+      console.log('✅ Transfer result:', result);
 
       await pool.query(
         `UPDATE gifts
