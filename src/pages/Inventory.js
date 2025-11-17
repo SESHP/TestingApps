@@ -142,6 +142,13 @@ const Inventory = () => {
     setSelectedGift(null);
   };
 
+  const handleWithdrawSuccess = () => {
+    if (userId) {
+      loadUserGifts(userId);
+    }
+    setSelectedGift(null);
+  };
+
   if (loading) {
     return (
       <div className="inventory-container">
@@ -193,6 +200,8 @@ const Inventory = () => {
         <GiftModal 
           gift={selectedGift} 
           onClose={handleCloseModal}
+          userId={userId}
+          onWithdrawSuccess={handleWithdrawSuccess}
         />
       )}
     </div>
@@ -407,9 +416,12 @@ const GiftCard = ({ gift, onClick }) => {
 };
 
 // Компонент модального окна
-const GiftModal = ({ gift, onClose }) => {
+const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
   const modelLottieRef = useRef(null);
   const modelInstance = useRef(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
   useEffect(() => {
     loadModel();
@@ -451,6 +463,54 @@ const GiftModal = ({ gift, onClose }) => {
     }
   };
 
+
+  const handleWithdraw = async () => {
+    if (!userId || !gift.giftId) {
+      setWithdrawError('Недостаточно данных для вывода');
+      return;
+    }
+
+    try {
+      setWithdrawing(true);
+      setWithdrawError(null);
+
+      const apiUrl = process.env.REACT_APP_API_URL || '';
+      
+      const response = await fetch(`${apiUrl}/api/gifts/withdraw`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          giftId: gift.giftId,
+          fromId: gift.fromId,
+          toId: userId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Не удалось вывести подарок');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setWithdrawSuccess(true);
+        setTimeout(() => {
+          onWithdrawSuccess();
+        }, 1500);
+      } else {
+        throw new Error('Не удалось вывести подарок');
+      }
+
+    } catch (err) {
+      console.error('Ошибка вывода подарка:', err);
+      setWithdrawError(err.message || 'Не удалось вывести подарок');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
   const formatColor = (colorInt) => {
     if (!colorInt && colorInt !== 0) return '#000000';
     const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
@@ -551,6 +611,45 @@ const GiftModal = ({ gift, onClose }) => {
               )}
             </div>
           )}
+          {/* Уведомление об ошибке */}
+          {withdrawError && (
+            <div className="withdraw-error">
+              <span className="error-icon">⚠️</span>
+              <span>{withdrawError}</span>
+            </div>
+          )}
+
+          {/* Уведомление об успехе */}
+          {withdrawSuccess && (
+            <div className="withdraw-success">
+              <span className="success-icon">✓</span>
+              <span>Подарок успешно выведен!</span>
+            </div>
+          )}
+
+          {/* Кнопка вывода */}
+          <button 
+            className="withdraw-button"
+            onClick={handleWithdraw}
+            disabled={withdrawing || withdrawSuccess}
+          >
+            {withdrawing ? (
+              <>
+                <div className="button-spinner"></div>
+                <span>Вывод...</span>
+              </>
+            ) : withdrawSuccess ? (
+              <>
+                <span className="success-icon">✓</span>
+                <span>Выведено</span>
+              </>
+            ) : (
+              <>
+                <span className="button-icon">💸</span>
+                <span>Вывести подарок</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
