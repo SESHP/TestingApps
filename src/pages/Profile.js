@@ -5,6 +5,9 @@ import { getTelegramUser, getFullName, getInitData, hapticFeedback, notification
 import { initUser, getReferralStats } from '../utils/api';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
+import starsIcon from '../assets/icons/stars-icon.svg';
+
+
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -17,10 +20,13 @@ function Profile() {
   const [isCopied, setIsCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [isDisabled, setIsDisabled] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState('ton'); // 'ton' или 'stars'
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
   const cooldownTimerRef = useRef(null);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
 
   // Загрузка пользователя и инициализация
   useEffect(() => {
@@ -53,6 +59,25 @@ function Profile() {
 
     loadUser();
   }, []);
+
+  // Переключение валюты
+  const handleCurrencySwitch = () => {
+    hapticFeedback('light');
+    setSelectedCurrency(prev => prev === 'ton' ? 'stars' : 'ton');
+  };
+
+  // Обработчик депозита
+  const handleDeposit = () => {
+    hapticFeedback('medium');
+    // Здесь будет ваша логика для депозита
+    if (selectedCurrency === 'ton') {
+      console.log('Депозит TON');
+      // TODO: Вызов функции депозита TON
+    } else {
+      console.log('Депозит Stars');
+      // TODO: Вызов функции депозита Stars
+    }
+  };
 
   // Копирование реферальной ссылки
   const handleCopyReferralLink = () => {
@@ -322,6 +347,15 @@ function Profile() {
     };
   }, [isLoading]);
 
+  // Получаем текущий баланс в зависимости от выбранной валюты
+  const getCurrentBalance = () => {
+    if (selectedCurrency === 'ton') {
+      return userData?.balance?.toFixed(2) || '0.00';
+    } else {
+      return userData?.starsBalance?.toFixed(0) || '0';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="profile-container">
@@ -360,17 +394,50 @@ function Profile() {
             </div>
           </div>
 
-          <div className="profile-header-right">
+          {/* Единая плашка в стиле Apple Liquid Glass */}
+          <div className="balance-panel">
+            {/* Переключатель валюты */}
+            <button 
+              className="currency-switch-btn"
+              onClick={handleCurrencySwitch}
+              aria-label="Переключить валюту"
+            >
+              <div className={`switch-indicator ${selectedCurrency === 'stars' ? 'right' : ''}`} />
+              <div className={`currency-option ${selectedCurrency === 'ton' ? 'active' : ''}`}>
+                <img src={tonIcon} alt="TON" className="currency-icon-img" />
+              </div>
+              <div className={`currency-option ${selectedCurrency === 'stars' ? 'active' : ''}`}>
+                <img src={starsIcon} alt="Stars" className="currency-icon-img" />
+              </div>
+            </button>
+
+            {/* Разделитель */}
+            <div className="balance-divider" />
+
+            {/* Баланс */}
             <div className="balance-container">
               <img 
-                src={tonIcon} 
-                alt="TON" 
+                src={selectedCurrency === 'ton' ? tonIcon : starsIcon} 
+                alt={selectedCurrency === 'ton' ? 'TON' : 'Stars'} 
                 className="balance-icon-img"
+                key={selectedCurrency}
               />
-              <div className="balance-value">
-                {userData?.balance?.toFixed(2) || '0.00'}
+              <div className="balance-value" key={`balance-${selectedCurrency}`}>
+                {getCurrentBalance()}
               </div>
             </div>
+
+            {/* Разделитель */}
+            <div className="balance-divider" />
+
+            {/* Кнопка депозита */}
+            <button 
+              className="deposit-btn"
+              onClick={handleDeposit}
+              aria-label="Пополнить баланс"
+            >
+              <span className="deposit-icon">+</span>
+            </button>
           </div>
         </div>
 
