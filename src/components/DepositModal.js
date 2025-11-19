@@ -1,8 +1,9 @@
 // src/components/DepositModal.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { Address, toNano } from '@ton/core';
 import { hapticFeedback, notificationHaptic } from '../utils/telegramUtils';
+import { getPlatformClass } from '../utils/platformDetect';
 import './DepositModal.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
@@ -13,11 +14,17 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [platformClass, setPlatformClass] = useState('');
+
+  // Определяем платформу при монтировании
+  useEffect(() => {
+    setPlatformClass(getPlatformClass());
+  }, []);
 
   // Быстрые суммы для пополнения
   const quickAmounts = selectedCurrency === 'ton' 
     ? ['0.5', '1', '2', '5', '10', '20']
-    : ['100', '500', '1000', '2000', '5000', '10000'];
+    : ['25', '50', '100', '500', '1000', '2000'];
 
   const handleQuickAmount = (value) => {
     hapticFeedback('light');
@@ -106,8 +113,8 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
   if (!isOpen) return null;
 
   return (
-    <div className="deposit-modal-overlay" onClick={onClose}>
-      <div className="deposit-modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className={`deposit-modal-overlay ${platformClass}`} onClick={onClose}>
+      <div className={`deposit-modal-content ${platformClass}`} onClick={(e) => e.stopPropagation()}>
         {/* Заголовок */}
         <div className="deposit-modal-header">
           <h2 className="deposit-modal-title">Пополнить баланс</h2>
@@ -131,7 +138,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
               Для пополнения баланса необходимо подключить TON кошелек
             </p>
             <button 
-              className="deposit-primary-btn"
+              className={`deposit-primary-btn ${platformClass}`}
               onClick={handleConnectWallet}
             >
               <span className="btn-icon">🔗</span>
@@ -142,7 +149,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
           /* Форма депозита */
           <div className="deposit-form">
             {/* Адрес кошелька */}
-            <div className="deposit-wallet-info">
+            <div className={`deposit-wallet-info ${platformClass}`}>
               <span className="wallet-label">Кошелек подключен</span>
               <span className="wallet-address-short">
                 {userAddress.slice(0, 8)}...{userAddress.slice(-6)}
@@ -157,7 +164,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
               <div className="deposit-input-wrapper">
                 <input
                   type="number"
-                  className="deposit-amount-input"
+                  className={`deposit-amount-input ${platformClass}`}
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value);
@@ -178,7 +185,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
               {quickAmounts.map((value) => (
                 <button
                   key={value}
-                  className={`quick-amount-chip ${amount === value ? 'active' : ''}`}
+                  className={`quick-amount-chip ${amount === value ? 'active' : ''} ${platformClass}`}
                   onClick={() => handleQuickAmount(value)}
                 >
                   {value}
@@ -188,7 +195,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
 
             {/* Сообщение об ошибке */}
             {error && (
-              <div className="deposit-error-message">
+              <div className={`deposit-error-message ${platformClass}`}>
                 {error}
               </div>
             )}
@@ -196,13 +203,13 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
             {/* Кнопки действий */}
             <div className="deposit-actions">
               <button 
-                className="deposit-secondary-btn"
+                className={`deposit-secondary-btn ${platformClass}`}
                 onClick={onClose}
               >
                 Отмена
               </button>
               <button 
-                className="deposit-primary-btn"
+                className={`deposit-primary-btn ${platformClass}`}
                 onClick={handleDeposit}
                 disabled={isLoading || !amount}
               >
