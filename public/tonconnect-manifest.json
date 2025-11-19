@@ -1,7 +1,7 @@
 {
-  "url": "https://alged.vercel.app/",
-  "name": "Alged App",
-  "iconUrl": "https://alged.vercel.app/icon.png",
-  "termsOfUseUrl": "https://alged.vercel.app/terms",
-  "privacyPolicyUrl": "https://alged.vercel.app/privacy"
+  "url": "http://localhost:3000",
+  "name": "Alged_App",
+  "iconUrl": "http://localhost:3000/logo192.png",
+  "termsOfUseUrl": "http://localhost:3000",
+  "privacyPolicyUrl": "http://localhost:3000"
 }

@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic, getReferralCode } from '../utils/telegramUtils';
 import { initUser, getReferralStats } from '../utils/api';
+import DepositModal from '../components/DepositModal';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
-
-
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -20,13 +19,12 @@ function Profile() {
   const [isCopied, setIsCopied] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [isDisabled, setIsDisabled] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState('ton'); // 'ton' или 'stars'
+  const [selectedCurrency, setSelectedCurrency] = useState('ton');
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
   const cooldownTimerRef = useRef(null);
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-
 
   // Загрузка пользователя и инициализация
   useEffect(() => {
@@ -35,7 +33,6 @@ function Profile() {
         const telegramUser = getTelegramUser();
         setUser(telegramUser);
 
-        // ИСПРАВЛЕНО: Получаем referral code через новую функцию
         const referralCode = getReferralCode();
         
         if (referralCode) {
@@ -44,7 +41,6 @@ function Profile() {
           console.log('ℹ️ Реферальный код не найден - это первый запуск без реферала');
         }
 
-        // Инициализируем пользователя на бэкенде
         const initData = getInitData();
         const response = await initUser(initData, referralCode);
 
@@ -69,13 +65,19 @@ function Profile() {
   // Обработчик депозита
   const handleDeposit = () => {
     hapticFeedback('medium');
-    // Здесь будет ваша логика для депозита
-    if (selectedCurrency === 'ton') {
-      console.log('Депозит TON');
-      // TODO: Вызов функции депозита TON
-    } else {
-      console.log('Депозит Stars');
-      // TODO: Вызов функции депозита Stars
+    setIsDepositModalOpen(true);
+  };
+
+  // Обработчик успешного депозита
+  const handleDepositSuccess = async () => {
+    try {
+      // Обновляем данные пользователя
+      const initData = getInitData();
+      const response = await initUser(initData);
+      setUserData(response.user);
+      notificationHaptic('success');
+    } catch (error) {
+      console.error('Ошибка обновления баланса:', error);
     }
   };
 
@@ -89,19 +91,14 @@ function Profile() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(referralLink)
         .then(() => {
-          // Блокируем кнопку сразу
           setIsDisabled(true);
           notificationHaptic('success');
-          
-          // Показываем галочку на 1.5 секунды
           setIsCopied(true);
           
           setTimeout(() => {
-            // Убираем галочку и начинаем отсчет
             setIsCopied(false);
             setCooldown(5);
             
-            // Запускаем таймер обратного отсчета
             cooldownTimerRef.current = setInterval(() => {
               setCooldown((prev) => {
                 if (prev <= 1) {
@@ -130,7 +127,7 @@ function Profile() {
     };
   }, []);
 
-  // Анимация canvas
+  // Анимация canvas (оставляем как есть)
   useEffect(() => {
     if (isLoading) return;
 
@@ -488,6 +485,14 @@ function Profile() {
           </p>
         </div>
       </div>
+
+      {/* МОДАЛЬНОЕ ОКНО ДЕПОЗИТА */}
+      <DepositModal
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)}
+        onSuccess={handleDepositSuccess}
+        selectedCurrency={selectedCurrency}
+      />
     </div>
   );
 }
