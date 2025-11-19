@@ -27,20 +27,38 @@
 }
 
 .deposit-modal-content {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* КРИТИЧНО: Используем !important для переопределения стилей Telegram Desktop */
+  background: rgba(20, 20, 30, 0.95) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 32px;
   padding: 0;
   max-width: 420px;
   width: 100%;
   box-shadow: 
     0 24px 48px rgba(0, 0, 0, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
   animation: depositSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
+}
+
+/* Дополнительный слой для более надежного фона */
+.deposit-modal-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(36, 0, 89, 0.4) 0%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+  z-index: -1;
+  pointer-events: none;
 }
 
 .deposit-modal-content::before {
@@ -56,6 +74,7 @@
     rgba(255, 255, 255, 0.1) 50%,
     transparent 100%
   );
+  z-index: 1;
 }
 
 @keyframes depositSlideUp {
@@ -75,13 +94,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 28px 28px 20px 28px;
+  position: relative;
+  z-index: 2;
 }
 
 .deposit-modal-title {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #fff;
+  color: #fff !important;
   letter-spacing: -0.5px;
 }
 
@@ -89,9 +110,9 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
   font-size: 20px;
   cursor: pointer;
   display: flex;
@@ -103,9 +124,9 @@
 }
 
 .deposit-close-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
   transform: rotate(90deg);
 }
 
@@ -119,12 +140,14 @@
   justify-content: center;
   padding: 20px 0;
   animation: depositIconFloat 3s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
 }
 
 .deposit-currency-icon img {
   width: 80px;
   height: 80px;
-  filter: drop-shadow(0 8px 24px rgba(242, 125, 0, 0.5));
+  filter: drop-shadow(0 8px 24px rgba(242, 125, 0, 0.6));
 }
 
 @keyframes depositIconFloat {
@@ -140,18 +163,22 @@
 .deposit-wallet-connect {
   padding: 0 28px 28px 28px;
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .deposit-info-text {
   margin: 0 0 24px 0;
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.7) !important;
   line-height: 1.6;
 }
 
 /* Форма */
 .deposit-form {
   padding: 0 28px 28px 28px;
+  position: relative;
+  z-index: 2;
 }
 
 /* Информация о кошельке */
@@ -160,8 +187,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 16px;
   margin-bottom: 24px;
   backdrop-filter: blur(20px);
@@ -169,13 +196,13 @@
 
 .wallet-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.5) !important;
   font-weight: 500;
 }
 
 .wallet-address-short {
   font-size: 14px;
-  color: #F27D00;
+  color: #F27D00 !important;
   font-weight: 600;
   font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
   letter-spacing: 0.5px;
@@ -189,7 +216,7 @@
 .deposit-input-label {
   display: block;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6) !important;
   margin-bottom: 10px;
   font-weight: 500;
 }
@@ -203,11 +230,11 @@
 .deposit-amount-input {
   width: 100%;
   padding: 20px 70px 20px 20px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 20px;
   font-size: 32px;
-  color: #fff;
+  color: #fff !important;
   font-weight: 700;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
@@ -218,22 +245,22 @@
 
 .deposit-amount-input:focus {
   outline: none;
-  border-color: rgba(242, 125, 0, 0.4);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(242, 125, 0, 0.5) !important;
+  background: rgba(0, 0, 0, 0.5) !important;
   box-shadow: 
-    0 0 0 4px rgba(242, 125, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 0 0 4px rgba(242, 125, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 .deposit-amount-input::placeholder {
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .deposit-currency-label {
   position: absolute;
   right: 20px;
   font-size: 20px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.5) !important;
   font-weight: 600;
   pointer-events: none;
 }
@@ -248,10 +275,10 @@
 
 .quick-amount-chip {
   padding: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 16px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.7) !important;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -269,18 +296,18 @@
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(242, 125, 0, 0.15);
+  background: rgba(242, 125, 0, 0.2);
   transform: translate(-50%, -50%);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
               height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .quick-amount-chip:hover {
-  background: rgba(242, 125, 0, 0.08);
-  border-color: rgba(242, 125, 0, 0.2);
-  color: #F27D00;
+  background: rgba(242, 125, 0, 0.15) !important;
+  border-color: rgba(242, 125, 0, 0.3) !important;
+  color: #F27D00 !important;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .quick-amount-chip:hover::before {
@@ -289,12 +316,12 @@
 }
 
 .quick-amount-chip.active {
-  background: rgba(242, 125, 0, 0.15);
-  border-color: rgba(242, 125, 0, 0.3);
-  color: #F27D00;
+  background: rgba(242, 125, 0, 0.25) !important;
+  border-color: rgba(242, 125, 0, 0.4) !important;
+  color: #F27D00 !important;
   box-shadow: 
-    0 4px 16px rgba(242, 125, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 4px 16px rgba(242, 125, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .quick-amount-chip:active {
@@ -304,10 +331,10 @@
 /* Сообщение об ошибке */
 .deposit-error-message {
   padding: 14px 18px;
-  background: rgba(255, 59, 48, 0.08);
-  border: 1px solid rgba(255, 59, 48, 0.2);
+  background: rgba(255, 59, 48, 0.15) !important;
+  border: 1px solid rgba(255, 59, 48, 0.3) !important;
   border-radius: 14px;
-  color: #ff6b6b;
+  color: #ff6b6b !important;
   font-size: 14px;
   text-align: center;
   margin-bottom: 24px;
@@ -346,12 +373,12 @@
 }
 
 .deposit-primary-btn {
-  background: rgba(242, 125, 0, 0.25);
-  color: #fff;
-  border: 1px solid rgba(242, 125, 0, 0.4);
+  background: rgba(242, 125, 0, 0.35) !important;
+  color: #fff !important;
+  border: 1px solid rgba(242, 125, 0, 0.5) !important;
   box-shadow: 
-    0 8px 24px rgba(242, 125, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 8px 24px rgba(242, 125, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
   backdrop-filter: blur(20px);
 }
 
@@ -363,8 +390,8 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, 
-    rgba(242, 125, 0, 0.3) 0%, 
-    rgba(242, 125, 0, 0.1) 100%);
+    rgba(242, 125, 0, 0.4) 0%, 
+    rgba(242, 125, 0, 0.2) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -372,9 +399,9 @@
 .deposit-primary-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 
-    0 12px 32px rgba(242, 125, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  border-color: rgba(242, 125, 0, 0.6);
+    0 12px 32px rgba(242, 125, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(242, 125, 0, 0.7) !important;
 }
 
 .deposit-primary-btn:hover:not(:disabled)::before {
@@ -391,16 +418,16 @@
 }
 
 .deposit-secondary-btn {
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.3) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   backdrop-filter: blur(20px);
 }
 
 .deposit-secondary-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: rgba(255, 255, 255, 1) !important;
 }
 
 .deposit-secondary-btn:active {
@@ -418,7 +445,7 @@
 .deposit-loading-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: depositSpin 0.8s linear infinite;
