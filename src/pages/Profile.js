@@ -310,8 +310,8 @@ function Profile() {
 
           if (dist < 150 && dist > 0) {
             const force = (150 - dist) / 150;
-            p.speedX += (dx / dist) * force * 0.5;
-            p.speedY += (dy / dist) * force * 0.5;
+            p.speedX += (dx / dist) * force * 0.05;
+            p.speedY += (dy / dist) * force * 0.05;
           }
         }
       }
@@ -385,9 +385,7 @@ function Profile() {
               <h2 className="profile-username">
                 {user ? getFullName(user) : 'Гость'}
               </h2>
-              {user && user.id && (
-                <p className="profile-id">ID: {user.id}</p>
-              )}
+              
             </div>
           </div>
 
