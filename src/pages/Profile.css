@@ -397,6 +397,7 @@
 }
 
 /* Статистика */
+/* Статистика с Liquid Glass */
 .profile-stats {
   display: flex;
   gap: 16px;
@@ -405,12 +406,51 @@
 
 .stat-item-profile {
   flex: 1;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   padding: 16px 12px;
-  border-radius: 12px;
+  border-radius: 16px;
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-item-profile::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-radius: 16px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-item-profile:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.stat-item-profile:hover::before {
+  opacity: 1;
 }
 
 .stat-label {
@@ -418,89 +458,173 @@
   font-size: 12px;
   opacity: 0.7;
   margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .stat-value-profile {
   font-size: 20px;
   font-weight: 600;
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
-/* Реферальная секция */
+/* Реферальная секция с Liquid Glass */
 .referral-section {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   margin-top: 20px;
-  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.referral-section::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-radius: 24px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.referral-section:hover::before {
+  opacity: 1;
 }
 
 .referral-title {
-  margin: 0 0 16px 0;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .referral-stats {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .referral-item {
   flex: 1;
   text-align: center;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.referral-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .referral-label {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   opacity: 0.7;
   margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .referral-value {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 /* Реферальный код */
 .referral-code-container {
-  margin: 16px 0;
+  margin: 20px 0;
 }
 
 .referral-code-label {
-  font-size: 12px;
+  font-size: 13px;
   opacity: 0.7;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .referral-code-box {
-  background: rgba(242, 125, 0, 0.1);
-  border: 2px solid rgba(242, 125, 0, 0.3);
-  border-radius: 12px;
-  padding: 14px 16px;
+  background: rgba(242, 125, 0, 0.15);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 2px solid rgba(242, 125, 0, 0.4);
+  border-radius: 16px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: 
+    0 4px 16px rgba(242, 125, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.referral-code-box::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    135deg,
+    rgba(242, 125, 0, 0.2) 0%,
+    rgba(242, 125, 0, 0.1) 50%,
+    rgba(242, 125, 0, 0) 100%
+  );
+  border-radius: 16px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .referral-code-box:hover:not(.disabled) {
-  background: rgba(242, 125, 0, 0.15);
-  border-color: rgba(242, 125, 0, 0.5);
+  background: rgba(242, 125, 0, 0.25);
+  border-color: rgba(242, 125, 0, 0.6);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(242, 125, 0, 0.2);
+  box-shadow: 
+    0 8px 24px rgba(242, 125, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.referral-code-box:hover:not(.disabled)::before {
+  opacity: 1;
 }
 
 .referral-code-box:active:not(.disabled) {
@@ -515,43 +639,51 @@
 }
 
 .referral-code {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #F27D00;
   letter-spacing: 3px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'Roboto', sans-serif;
   flex: 1;
   text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Иконка копирования */
 .copy-icon-btn {
-  background: transparent;
-  border: none;
+  background: rgba(242, 125, 0, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(242, 125, 0, 0.3);
   color: #F27D00;
   font-size: 20px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  min-width: 32px;
-  height: 32px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 10px;
+  min-width: 36px;
+  height: 36px;
   font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .copy-icon-btn:hover:not(.disabled) {
-  background: rgba(242, 125, 0, 0.15);
+  background: rgba(242, 125, 0, 0.25);
+  border-color: rgba(242, 125, 0, 0.5);
+  transform: scale(1.05);
 }
 
 .copy-icon-btn:active:not(.disabled) {
-  transform: scale(0.9);
+  transform: scale(0.95);
 }
 
 .copy-icon-btn.copied {
   color: #4CAF50;
+  background: rgba(76, 175, 80, 0.15);
+  border-color: rgba(76, 175, 80, 0.3);
   animation: copySuccess 0.3s ease;
 }
 
@@ -559,6 +691,8 @@
   color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
   pointer-events: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 @keyframes copySuccess {
@@ -566,18 +700,18 @@
     transform: scale(1);
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.15);
   }
 }
 
 .referral-description {
-  margin: 16px 0 0 0;
-  font-size: 13px;
+  margin: 20px 0 0 0;
+  font-size: 14px;
   opacity: 0.6;
-  line-height: 1.5;
+  line-height: 1.6;
   text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
-
 /* Адаптивность для маленьких экранов */
 @media (max-width: 480px) {
   .profile-content {
