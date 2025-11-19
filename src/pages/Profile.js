@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic, getReferralCode } from '../utils/telegramUtils';
+
+import { initPlatformDetection } from '../utils/platformDetect';
+
 import { initUser, getReferralStats } from '../utils/api';
 import DepositModal from '../components/DepositModal';
 import './Profile.css';
@@ -28,6 +31,7 @@ function Profile() {
 
   // Загрузка пользователя и инициализация
   useEffect(() => {
+    initPlatformDetection();
     const loadUser = async () => {
       try {
         const telegramUser = getTelegramUser();

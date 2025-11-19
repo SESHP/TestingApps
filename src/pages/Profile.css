@@ -1,5 +1,58 @@
 /* src/pages/Profile.css */
+/* CSS переменные для платформ */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-hover: rgba(255, 255, 255, 0.12);
+  --glass-item-bg: rgba(255, 255, 255, 0.05);
+  --glass-code-bg: rgba(242, 125, 0, 0.15);
+}
 
+/* Реферальные элементы с использованием переменных */
+.referral-section {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* остальные стили */
+}
+
+.referral-item {
+  background: var(--glass-item-bg) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* остальные стили */
+}
+
+.referral-code-box {
+  background: var(--glass-code-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* остальные стили */
+}
+
+/* Специфичный селектор для macOS Desktop */
+.platform-macos-desktop .referral-section,
+html.platform-macos-desktop .referral-section {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.platform-macos-desktop .referral-item,
+html.platform-macos-desktop .referral-item {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.platform-macos-desktop .referral-code-box,
+html.platform-macos-desktop .referral-code-box {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.platform-macos-desktop .stat-item-profile,
+html.platform-macos-desktop .stat-item-profile {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 .profile-container {
   position: relative;
   background: #000;
