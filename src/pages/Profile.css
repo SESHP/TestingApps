@@ -30,29 +30,46 @@
 }
 
 /* Специфичный селектор для macOS Desktop */
+.platform-macos-desktop .stat-item-profile,
+html.platform-macos-desktop .stat-item-profile {
+  background: rgba(30, 35, 45, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 .platform-macos-desktop .referral-section,
 html.platform-macos-desktop .referral-section {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: rgba(30, 35, 45, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .platform-macos-desktop .referral-item,
 html.platform-macos-desktop .referral-item {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: rgba(35, 40, 50, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .platform-macos-desktop .referral-code-box,
 html.platform-macos-desktop .referral-code-box {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: rgba(60, 35, 20, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(242, 125, 0, 0.3) !important;
 }
 
-.platform-macos-desktop .stat-item-profile,
-html.platform-macos-desktop .stat-item-profile {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+.platform-macos-desktop .balance-panel,
+html.platform-macos-desktop .balance-panel {
+  background: rgba(30, 35, 45, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
+
 .profile-container {
   position: relative;
   background: #000;
