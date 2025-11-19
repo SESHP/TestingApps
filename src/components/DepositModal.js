@@ -35,19 +35,19 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
   const handleDeposit = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       setError('Введите корректную сумму');
-      hapticFeedback('error');
+      notificationHaptic('error');
       return;
     }
 
     if (!userAddress) {
       setError('Сначала подключите кошелек');
-      hapticFeedback('error');
+      notificationHaptic('error');
       return;
     }
 
     setIsLoading(true);
     setError('');
-    hapticFeedback('medium');
+    hapticFeedback('light');
 
     try {
       // Адрес вашего кошелька для приема платежей
@@ -59,11 +59,6 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
           {
             address: YOUR_WALLET_ADDRESS,
             amount: toNano(amount).toString(),
-            payload: btoa(JSON.stringify({
-              userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id,
-              type: 'deposit',
-              currency: selectedCurrency
-            }))
           }
         ]
       };
@@ -81,7 +76,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
     } catch (error) {
       console.error('❌ Ошибка депозита:', error);
       setError('Ошибка при отправке транзакции');
-      hapticFeedback('error');
+      notificationHaptic('error');
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +101,7 @@ function DepositModal({ isOpen, onClose, onSuccess, selectedCurrency }) {
   };
 
   const handleConnectWallet = () => {
-    hapticFeedback('medium');
+    hapticFeedback('light');
     tonConnectUI.openModal();
   };
 

@@ -216,27 +216,60 @@ export function hideBackButton() {
 /**
  * ТАКТИЛЬНАЯ ОБРАТНАЯ СВЯЗЬ (Haptic Feedback)
  */
-export const hapticFeedback = (type = 'medium') => {
+/**
+ * Вызов тактильной обратной связи (вибрации)
+ * @param {string} type - Тип обратной связи: 'light', 'medium', 'heavy', 'rigid', 'soft', 'error', 'success', 'warning'
+ */
+export const hapticFeedback = (type = 'light') => {
   try {
-    if (tg?.HapticFeedback) {
+    const tg = window.Telegram?.WebApp;
+    
+    if (!tg || !tg.HapticFeedback) {
+      console.log('HapticFeedback не доступен');
+      return;
+    }
+
+    // Маппинг типов для разных методов
+    const impactStyles = ['light', 'medium', 'heavy', 'rigid', 'soft'];
+    const notificationTypes = ['error', 'success', 'warning'];
+
+    if (impactStyles.includes(type)) {
+      // Для impact используем только валидные стили
       tg.HapticFeedback.impactOccurred(type);
+    } else if (notificationTypes.includes(type)) {
+      // Для уведомлений используем notificationOccurred
+      tg.HapticFeedback.notificationOccurred(type);
+    } else {
+      // По умолчанию light
+      tg.HapticFeedback.impactOccurred('light');
     }
   } catch (error) {
     console.error('Ошибка haptic feedback:', error);
   }
 };
 
-export function notificationHaptic(type = 'success') {
-  if (tg?.HapticFeedback) {
-    tg.HapticFeedback.notificationOccurred(type);
-  }
-}
+/**
+ * Вызов тактильной обратной связи для уведомлений
+ * @param {string} type - Тип уведомления: 'error', 'success', 'warning'
+ */
+export const notificationHaptic = (type = 'success') => {
+  try {
+    const tg = window.Telegram?.WebApp;
+    
+    if (!tg || !tg.HapticFeedback) {
+      console.log('HapticFeedback не доступен');
+      return;
+    }
 
-export function selectionHaptic() {
-  if (tg?.HapticFeedback) {
-    tg.HapticFeedback.selectionChanged();
+    // Валидные типы для notificationOccurred
+    const validTypes = ['error', 'success', 'warning'];
+    const validType = validTypes.includes(type) ? type : 'success';
+
+    tg.HapticFeedback.notificationOccurred(validType);
+  } catch (error) {
+    console.error('Ошибка notification haptic:', error);
   }
-}
+};
 
 /**
  * ВСПЛЫВАЮЩИЕ ОКНА
