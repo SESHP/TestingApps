@@ -282,6 +282,7 @@
   border: 1px solid rgba(242, 125, 0, 0.5);
   border-radius: 10px;
   padding: 2px 6px;
+  z-index: 2;
 }
 
 .current-badge-text {
@@ -291,6 +292,10 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+}
+
+.badge-list-item.current .badge-list-right {
+  padding-top: 20px;
 }
 
 /* Адаптивность */
