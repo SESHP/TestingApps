@@ -5,6 +5,7 @@
   --glass-bg-hover: rgba(255, 255, 255, 0.12);
   --glass-item-bg: rgba(255, 255, 255, 0.05);
   --glass-code-bg: rgba(242, 125, 0, 0.15);
+  --safe-area-top: env(safe-area-inset-top, 0px);
 }
 
 /* Реферальные элементы с использованием переменных */
@@ -92,7 +93,8 @@ html.platform-macos-desktop .balance-panel {
 .profile-content {
   position: relative;
   z-index: 1;
-  padding: 20px;
+  /* Добавляем отступ сверху с учетом safe area */
+  padding: calc(var(--safe-area-top) + 60px) 20px 20px 20px;
   pointer-events: auto;
   max-width: 600px;
   margin: 0 auto;
@@ -575,7 +577,6 @@ html.platform-macos-desktop .balance-panel {
 }
 
 /* Реферальная секция с Liquid Glass */
-/* Реферальная секция с Liquid Glass */
 .referral-section {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px) saturate(180%);
@@ -837,6 +838,10 @@ html.platform-macos-desktop .balance-panel {
 
 /* Адаптивность для мобильных устройств */
 @media (max-width: 480px) {
+  .profile-content {
+    padding: calc(var(--safe-area-top) + 50px) 16px 20px 16px;
+  }
+
   .referral-section {
     padding: 16px;
     border-radius: 18px;
@@ -899,6 +904,10 @@ html.platform-macos-desktop .balance-panel {
 }
 
 @media (max-width: 360px) {
+  .profile-content {
+    padding: calc(var(--safe-area-top) + 40px) 14px 20px 14px;
+  }
+
   .referral-section {
     padding: 14px;
     border-radius: 16px;
@@ -1090,108 +1099,5 @@ html.platform-macos-desktop .balance-panel {
 
   .deposit-icon {
     font-size: 20px;
-  }
-}
-
-/* Адаптивность для очень маленьких экранов */
-@media (max-width: 360px) {
-  .profile-content {
-    padding: 16px;
-  }
-
-  .profile-header {
-    gap: 8px;
-  }
-
-  .profile-header-left {
-    gap: 8px;
-    max-width: 38%;
-  }
-
-  .profile-avatar,
-  .profile-avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-
-  .profile-username {
-    font-size: 13px;
-  }
-
-  .profile-id {
-    font-size: 9px;
-  }
-
-  .balance-panel {
-    padding: 3px;
-  }
-
-  .currency-option {
-    width: 28px;
-    height: 28px;
-  }
-
-  .currency-icon-img {
-    width: 16px;
-    height: 16px;
-  }
-
-  .switch-indicator {
-    width: 28px;
-  }
-
-  .switch-indicator.right {
-    left: calc(100% - 31px);
-  }
-
-  .balance-divider {
-    height: 18px;
-    margin: 0 5px;
-  }
-
-  .balance-container {
-    padding: 0 6px;
-    min-width: 45px;
-  }
-
-  .balance-icon-img {
-    width: 16px;
-    height: 16px;
-  }
-
-  .balance-value {
-    font-size: 12px;
-    min-width: 28px;
-  }
-
-  .deposit-btn {
-    width: 32px;
-    height: 32px;
-  }
-
-  .deposit-icon {
-    font-size: 18px;
-  }
-
-  .profile-stats {
-    gap: 10px;
-  }
-
-  .stat-item-profile {
-    padding: 12px 8px;
-  }
-
-  .stat-value-profile {
-    font-size: 18px;
-  }
-
-  .referral-section {
-    padding: 20px 16px;
-  }
-
-  .referral-code {
-    font-size: 22px;
-    letter-spacing: 2px;
   }
 }
