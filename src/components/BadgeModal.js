@@ -23,8 +23,8 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
           ✕
         </button>
 
-        {/* Текущая плашка пользователя */}
-        <div className="badge-modal-current">
+        {/* Закрепленный блок - текущий статус */}
+        <div className="badge-modal-fixed">
           <h3 className="badge-modal-title">Ваш текущий статус</h3>
           <div className="badge-modal-current-badge">
             <Badge badgeType={currentBadge} size="large" />
@@ -33,8 +33,6 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
             <p className="badge-description-text">{badge.description}</p>
             <p className="badge-details-text">{badge.details}</p>
           </div>
-
-          {/* Информация о комиссии */}
           <div className="badge-commission-info">
             <div className="commission-item">
               <span className="commission-label">Ваша комиссия:</span>
@@ -43,31 +41,26 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
               </span>
             </div>
           </div>
+          <div className="badge-modal-divider"></div>
+          <h4 className="badge-modal-subtitle">Все статусы</h4>
         </div>
 
-        {/* Разделитель */}
-        <div className="badge-modal-divider"></div>
-
-        {/* Все доступные плашки */}
-        <div className="badge-modal-all">
-          <h4 className="badge-modal-subtitle">Все статусы</h4>
+        {/* Скроллящийся блок со списком статусов */}
+        <div className="badge-modal-scrollable">
           <div className="badge-list">
             {Object.entries(BADGE_CONFIG).map(([key, badgeInfo]) => (
               <div 
                 key={key} 
                 className={`badge-list-item ${currentBadge === key ? 'current' : ''}`}
               >
-                <div className="badge-list-badge">
+                <div className="badge-list-left">
                   <Badge badgeType={key} size="small" />
-                </div>
-                <div className="badge-list-info">
-                  <div className="badge-list-header">
-                    <span className="badge-list-name">{badgeInfo.name}</span>
-                    <span className="badge-list-commission" style={{ color: badgeInfo.color }}>
-                      {badgeInfo.commission}%
-                    </span>
-                  </div>
                   <p className="badge-list-requirements">{badgeInfo.requirements}</p>
+                </div>
+                <div className="badge-list-right">
+                  <span className="badge-list-commission" style={{ color: badgeInfo.color }}>
+                    {badgeInfo.commission}%
+                  </span>
                 </div>
                 {currentBadge === key && (
                   <div className="badge-current-indicator">
@@ -76,20 +69,6 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
                 )}
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Информация о прогрессе */}
-        <div className="badge-modal-progress">
-          <div className="progress-stats">
-            <div className="progress-stat">
-              <span className="progress-label">Сделок:</span>
-              <span className="progress-value">{userData?.totalDeals || 0}</span>
-            </div>
-            <div className="progress-stat">
-              <span className="progress-label">Рейтинг:</span>
-              <span className="progress-value">{userData?.rating?.toFixed(1) || '0.0'}</span>
-            </div>
           </div>
         </div>
       </div>
