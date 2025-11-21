@@ -27,30 +27,30 @@
 }
 
 .badge-modal {
-  background: rgba(20, 20, 30, 0.95);
+  background: rgba(20, 20, 30, 0.98);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 24px;
-  padding: 32px 24px 24px 24px;
-  max-width: 500px;
+  padding: 24px 20px 20px 20px;
+  max-width: 440px;
   width: 100%;
-  max-height: 85vh;
+  max-height: 90vh;
   overflow-y: auto;
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
-  animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes modalSlideIn {
   from {
-    transform: translateY(50px) scale(0.9);
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -109,14 +109,14 @@
 /* Текущая плашка пользователя */
 .badge-modal-current {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .badge-modal-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
@@ -124,27 +124,27 @@
 .badge-modal-current-badge {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .badge-modal-description {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .badge-description-text {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  margin: 0 0 12px 0;
-  line-height: 1.5;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .badge-details-text {
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.7);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.5;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
@@ -154,9 +154,9 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 16px;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
 }
 
 .commission-item {
@@ -166,13 +166,13 @@
 }
 
 .commission-label {
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.7);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .commission-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   text-shadow: 0 2px 8px currentColor;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
@@ -187,19 +187,19 @@
     rgba(255, 255, 255, 0.2) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  margin: 28px 0;
+  margin: 20px 0;
 }
 
 /* Список всех плашек */
 .badge-modal-all {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .badge-modal-subtitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
@@ -207,19 +207,16 @@
 .badge-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .badge-list-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 10px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
@@ -227,13 +224,19 @@
 .badge-list-item:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
 .badge-list-item.current {
   background: rgba(242, 125, 0, 0.15);
   border-color: rgba(242, 125, 0, 0.3);
-  box-shadow: 0 4px 16px rgba(242, 125, 0, 0.2);
+  box-shadow: 0 2px 12px rgba(242, 125, 0, 0.2);
+}
+
+.badge-list-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .badge-list-badge {
@@ -249,19 +252,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   gap: 8px;
 }
 
 .badge-list-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
 .badge-list-commission {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   text-shadow: 0 1px 4px currentColor;
   flex-shrink: 0;
@@ -269,7 +272,7 @@
 }
 
 .badge-list-requirements {
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
   line-height: 1.4;
@@ -284,12 +287,12 @@
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
   border: 1px solid rgba(242, 125, 0, 0.5);
-  border-radius: 12px;
-  padding: 3px 8px;
+  border-radius: 10px;
+  padding: 2px 6px;
 }
 
 .current-badge-text {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   color: #F27D00;
   text-transform: uppercase;
@@ -297,64 +300,26 @@
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
 }
 
-/* Прогресс пользователя */
-.badge-modal-progress {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.progress-stats {
-  display: flex;
-  justify-content: space-around;
-  gap: 16px;
-}
-
-.progress-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
-
-.progress-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-}
-
-.progress-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-}
-
 /* Адаптивность */
 @media (max-width: 480px) {
   .badge-modal {
-    padding: 28px 20px 20px 20px;
+    padding: 20px 16px 16px 16px;
     border-radius: 20px;
-    max-height: 90vh;
+    max-height: 92vh;
   }
 
   .badge-modal-title {
-    font-size: 18px;
-    margin-bottom: 16px;
+    font-size: 16px;
+    margin-bottom: 14px;
   }
 
   .badge-description-text {
-    font-size: 15px;
-    margin-bottom: 10px;
+    font-size: 13px;
+    margin-bottom: 8px;
   }
 
   .badge-details-text {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .commission-value {
@@ -362,21 +327,24 @@
   }
 
   .badge-modal-subtitle {
-    font-size: 15px;
-    margin-bottom: 14px;
+    font-size: 14px;
+    margin-bottom: 10px;
   }
 
   .badge-list {
-    gap: 10px;
+    gap: 8px;
   }
 
   .badge-list-item {
-    padding: 10px;
-    gap: 10px;
+    padding: 8px;
+  }
+
+  .badge-list-content {
+    gap: 8px;
   }
 
   .badge-list-name {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .badge-list-commission {
@@ -384,17 +352,13 @@
   }
 
   .badge-list-requirements {
-    font-size: 11px;
-  }
-
-  .progress-value {
-    font-size: 18px;
+    font-size: 10px;
   }
 }
 
 @media (max-width: 360px) {
   .badge-modal {
-    padding: 24px 16px 16px 16px;
+    padding: 18px 14px 14px 14px;
     border-radius: 18px;
   }
 
@@ -405,20 +369,20 @@
   }
 
   .badge-modal-title {
-    font-size: 16px;
-    margin-bottom: 14px;
+    font-size: 15px;
+    margin-bottom: 12px;
   }
 
   .badge-description-text {
-    font-size: 14px;
-  }
-
-  .badge-details-text {
     font-size: 12px;
   }
 
+  .badge-details-text {
+    font-size: 11px;
+  }
+
   .commission-label {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .commission-value {
@@ -427,6 +391,5 @@
 
   .badge-list-item {
     padding: 8px;
-    gap: 8px;
   }
 }
