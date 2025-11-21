@@ -93,12 +93,13 @@ html.platform-macos-desktop .balance-panel {
 .profile-content {
   position: relative;
   z-index: 1;
-  /* Добавляем отступ сверху с учетом safe area */
-  padding: calc(var(--safe-area-top) + 60px) 20px 20px 20px;
+  /* Увеличиваем отступ сверху до 100px */
+  padding: calc(var(--safe-area-top) + 100px) 20px 20px 20px;
   pointer-events: auto;
   max-width: 600px;
   margin: 0 auto;
 }
+
 
 /* Верхний бар */
 .profile-header {
@@ -839,7 +840,7 @@ html.platform-macos-desktop .balance-panel {
 /* Адаптивность для мобильных устройств */
 @media (max-width: 480px) {
   .profile-content {
-    padding: calc(var(--safe-area-top) + 50px) 16px 20px 16px;
+    padding: calc(var(--safe-area-top) + 90px) 16px 20px 16px;
   }
 
   .referral-section {
@@ -905,7 +906,7 @@ html.platform-macos-desktop .balance-panel {
 
 @media (max-width: 360px) {
   .profile-content {
-    padding: calc(var(--safe-area-top) + 40px) 14px 20px 14px;
+    padding: calc(var(--safe-area-top) + 80px) 14px 20px 14px;
   }
 
   .referral-section {
