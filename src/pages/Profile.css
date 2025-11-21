@@ -71,11 +71,15 @@ html.platform-macos-desktop .balance-panel {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* БЛОКИРОВКА СКРОЛЛА */
 .profile-container {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: #000;
   color: #fff;
-  min-height: 100vh;
   overflow: hidden;
 }
 
@@ -98,6 +102,9 @@ html.platform-macos-desktop .balance-panel {
   pointer-events: auto;
   max-width: 600px;
   margin: 0 auto;
+  /* Убираем возможность скролла */
+  overflow: hidden;
+  height: calc(100vh - var(--safe-area-top) - 100px);
 }
 
 
