@@ -54,7 +54,14 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
                 className={`badge-list-item ${currentBadge === key ? 'current' : ''}`}
               >
                 <div className="badge-list-left">
-                  <Badge badgeType={key} size="small" />
+                  <div className="badge-list-top">
+                    <Badge badgeType={key} size="small" />
+                    {currentBadge === key && (
+                      <div className="badge-current-indicator">
+                        <span className="current-badge-text">Текущий</span>
+                      </div>
+                    )}
+                  </div>
                   <p className="badge-list-requirements">{badgeInfo.requirements}</p>
                 </div>
                 <div className="badge-list-right">
@@ -62,11 +69,6 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
                     {badgeInfo.commission}%
                   </span>
                 </div>
-                {currentBadge === key && (
-                  <div className="badge-current-indicator">
-                    <span className="current-badge-text">Текущий</span>
-                  </div>
-                )}
               </div>
             ))}
           </div>
