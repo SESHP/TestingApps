@@ -858,12 +858,41 @@ html.platform-macos-desktop .balance-panel {
     padding: calc(var(--safe-area-top) + 90px) 16px 20px 16px;
   }
 
+  .profile-header {
+    gap: 8px;
+  }
+
   .profile-header-left {
-    max-width: 30%;
+    max-width: 25%;
+    gap: 8px;
+  }
+
+  .profile-avatar,
+  .profile-avatar-placeholder {
+    width: 50px;
+    height: 50px;
+  }
+
+  .profile-username {
+    font-size: 15px;
   }
 
   .profile-badge-container {
-    margin: 0 4px;
+    margin: 0 6px;
+  }
+
+  /* Уменьшаем плашку на мобильных */
+  .profile-badge-container .badge {
+    padding: 6px 12px;
+  }
+
+  .profile-badge-container .badge-name {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  .balance-panel {
+    padding: 5px;
   }
 
   .referral-section {
@@ -932,12 +961,37 @@ html.platform-macos-desktop .balance-panel {
     padding: calc(var(--safe-area-top) + 80px) 14px 20px 14px;
   }
 
+  .profile-header {
+    gap: 6px;
+  }
+
   .profile-header-left {
-    max-width: 25%;
+    max-width: 22%;
+    gap: 6px;
+  }
+
+  .profile-avatar,
+  .profile-avatar-placeholder {
+    width: 45px;
+    height: 45px;
+  }
+
+  .profile-username {
+    font-size: 13px;
   }
 
   .profile-badge-container {
-    margin: 0 2px;
+    margin: 0 4px;
+  }
+
+  /* Еще больше уменьшаем плашку */
+  .profile-badge-container .badge {
+    padding: 5px 10px;
+  }
+
+  .profile-badge-container .badge-name {
+    font-size: 10px;
+    letter-spacing: 0.3px;
   }
 
   .referral-section {
