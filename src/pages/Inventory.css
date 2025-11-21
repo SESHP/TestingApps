@@ -6,8 +6,8 @@
 
 .inventory-container {
   min-height: 100vh;
-  /* Добавляем отступ сверху с учетом safe area */
-  padding: calc(var(--safe-area-top) + 100px) 20px 20px 20px;
+  /* Увеличиваем отступ сверху */
+  padding: calc(var(--safe-area-top) + 120px) 20px 20px 20px;
   background: #000;
 }
 
@@ -678,7 +678,11 @@
 /* Адаптивность */
 @media (max-width: 768px) {
   .inventory-container {
-    padding: calc(var(--safe-area-top) + 90px) 15px 15px 15px;
+    padding: calc(var(--safe-area-top) +100px) 15px 15px 15px;
+  }
+
+  .gift-counter {
+    top: calc(var(--safe-area-top) + 55px);
   }
   
   .inventory-header h1 {
@@ -750,8 +754,8 @@
 /* Плашка с счетчиком подарков */
 .gift-counter {
   position: fixed;
-  /* Учитываем safe area для верхней позиции */
-  top: calc(var(--safe-area-top) + 20px);
+  /* Увеличиваем отступ для счетчика */
+  top: calc(var(--safe-area-top) + 60px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -795,7 +799,11 @@
 
 @media (max-width: 480px) {
   .inventory-container {
-    padding: calc(var(--safe-area-top) + 80px) 16px 20px 16px;
+    padding: calc(var(--safe-area-top) + 100px) 16px 20px 16px;
+  }
+
+  .gift-counter {
+    top: calc(var(--safe-area-top) + 50px);
   }
 
   .gifts-grid {
@@ -814,6 +822,9 @@
 
 @media (max-width: 360px) {
   .inventory-container {
-    padding: calc(var(--safe-area-top) + 70px) 14px 20px 14px;
+    padding: calc(var(--safe-area-top) + 90px) 14px 20px 14px;
+  }
+  .gift-counter {
+    top: calc(var(--safe-area-top) + 45px);
   }
 }
