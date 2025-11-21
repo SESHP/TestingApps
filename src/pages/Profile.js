@@ -7,6 +7,8 @@ import { initPlatformDetection } from '../utils/platformDetect';
 
 import { initUser, getReferralStats } from '../utils/api';
 import DepositModal from '../components/DepositModal';
+import Badge, { calculateBadge } from '../components/Badge';
+import BadgeModal from '../components/BadgeModal';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
@@ -24,6 +26,8 @@ function Profile() {
   const [isDisabled, setIsDisabled] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('ton');
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [currentBadge, setCurrentBadge] = useState('GUEST');
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
@@ -50,6 +54,10 @@ function Profile() {
 
         setUserData(response.user);
         setReferralStats(response.referralStats);
+
+        // Рассчитываем плашку пользователя
+        const badge = calculateBadge(response.user);
+        setCurrentBadge(badge);
       } catch (error) {
         console.error('Ошибка загрузки пользователя:', error);
       } finally {
@@ -83,6 +91,12 @@ function Profile() {
     } catch (error) {
       console.error('Ошибка обновления баланса:', error);
     }
+  };
+
+  // Обработчик открытия модального окна с плашками
+  const handleBadgeClick = () => {
+    hapticFeedback('medium');
+    setIsBadgeModalOpen(true);
   };
 
   // Копирование реферальной ссылки
@@ -389,8 +403,16 @@ function Profile() {
               <h2 className="profile-username">
                 {user ? getFullName(user) : 'Гость'}
               </h2>
-              
             </div>
+          </div>
+
+          {/* ПЛАШКА BADGE */}
+          <div className="profile-badge-container">
+            <Badge 
+              badgeType={currentBadge} 
+              onClick={handleBadgeClick}
+              size="medium"
+            />
           </div>
 
           {/* Единая плашка в стиле Apple Liquid Glass */}
@@ -494,6 +516,14 @@ function Profile() {
         onClose={() => setIsDepositModalOpen(false)}
         onSuccess={handleDepositSuccess}
         selectedCurrency={selectedCurrency}
+      />
+
+      {/* МОДАЛЬНОЕ ОКНО ПЛАШЕК */}
+      <BadgeModal
+        isOpen={isBadgeModalOpen}
+        onClose={() => setIsBadgeModalOpen(false)}
+        currentBadge={currentBadge}
+        userData={userData}
       />
     </div>
   );

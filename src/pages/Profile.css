@@ -126,7 +126,7 @@ html.platform-macos-desktop .balance-panel {
   flex: 0 1 auto;
   min-width: 0;
   /* На маленьких экранах сжимаем, но не переносим */
-  max-width: 50%;
+  max-width: 35%;
 }
 
 .profile-avatar {
@@ -175,6 +175,14 @@ html.platform-macos-desktop .balance-panel {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Контейнер для Badge между аватаром и балансом */
+.profile-badge-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 8px;
 }
 
 /* Правая часть хедера */
@@ -850,6 +858,14 @@ html.platform-macos-desktop .balance-panel {
     padding: calc(var(--safe-area-top) + 90px) 16px 20px 16px;
   }
 
+  .profile-header-left {
+    max-width: 30%;
+  }
+
+  .profile-badge-container {
+    margin: 0 4px;
+  }
+
   .referral-section {
     padding: 16px;
     border-radius: 18px;
@@ -916,6 +932,14 @@ html.platform-macos-desktop .balance-panel {
     padding: calc(var(--safe-area-top) + 80px) 14px 20px 14px;
   }
 
+  .profile-header-left {
+    max-width: 25%;
+  }
+
+  .profile-badge-container {
+    margin: 0 2px;
+  }
+
   .referral-section {
     padding: 14px;
     border-radius: 16px;
@@ -979,7 +1003,7 @@ html.platform-macos-desktop .balance-panel {
 /* Адаптивность для средних экранов */
 @media (max-width: 580px) {
   .profile-header-left {
-    max-width: 45%;
+    max-width: 32%;
   }
   
   .profile-avatar,
@@ -1041,7 +1065,7 @@ html.platform-macos-desktop .balance-panel {
 /* Адаптивность для маленьких экранов */
 @media (max-width: 420px) {
   .profile-header-left {
-    max-width: 40%;
+    max-width: 28%;
   }
 
   .profile-avatar,
