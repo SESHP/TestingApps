@@ -408,7 +408,7 @@ function Profile() {
                 <Badge 
                   badgeType={currentBadge} 
                   onClick={handleBadgeClick}
-                  size="small"
+                  size="medium"
                 />
               </div>
             </div>
