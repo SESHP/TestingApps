@@ -403,62 +403,63 @@ function Profile() {
               <h2 className="profile-username">
                 {user ? getFullName(user) : 'Гость'}
               </h2>
+              {/* ПЛАШКА BADGE внутри profile-header-text */}
+              <div className="profile-badge-container">
+                <Badge 
+                  badgeType={currentBadge} 
+                  onClick={handleBadgeClick}
+                  size="small"
+                />
+              </div>
             </div>
-          </div>
-
-          {/* ПЛАШКА BADGE */}
-          <div className="profile-badge-container">
-            <Badge 
-              badgeType={currentBadge} 
-              onClick={handleBadgeClick}
-              size="medium"
-            />
           </div>
 
           {/* Единая плашка в стиле Apple Liquid Glass */}
-          <div className="balance-panel">
-            {/* Переключатель валюты */}
-            <button 
-              className="currency-switch-btn"
-              onClick={handleCurrencySwitch}
-              aria-label="Переключить валюту"
-            >
-              <div className={`switch-indicator ${selectedCurrency === 'stars' ? 'right' : ''}`} />
-              <div className={`currency-option ${selectedCurrency === 'ton' ? 'active' : ''}`}>
-                <img src={tonIcon} alt="TON" className="currency-icon-img" />
-              </div>
-              <div className={`currency-option ${selectedCurrency === 'stars' ? 'active' : ''}`}>
-                <img src={starsIcon} alt="Stars" className="currency-icon-img" />
-              </div>
-            </button>
+          <div className="profile-header-right">
+            <div className="balance-panel">
+              {/* Переключатель валюты */}
+              <button 
+                className="currency-switch-btn"
+                onClick={handleCurrencySwitch}
+                aria-label="Переключить валюту"
+              >
+                <div className={`switch-indicator ${selectedCurrency === 'stars' ? 'right' : ''}`} />
+                <div className={`currency-option ${selectedCurrency === 'ton' ? 'active' : ''}`}>
+                  <img src={tonIcon} alt="TON" className="currency-icon-img" />
+                </div>
+                <div className={`currency-option ${selectedCurrency === 'stars' ? 'active' : ''}`}>
+                  <img src={starsIcon} alt="Stars" className="currency-icon-img" />
+                </div>
+              </button>
 
-            {/* Разделитель */}
-            <div className="balance-divider" />
+              {/* Разделитель */}
+              <div className="balance-divider" />
 
-            {/* Баланс */}
-            <div className="balance-container">
-              <img 
-                src={selectedCurrency === 'ton' ? tonIcon : starsIcon} 
-                alt={selectedCurrency === 'ton' ? 'TON' : 'Stars'} 
-                className="balance-icon-img"
-                key={selectedCurrency}
-              />
-              <div className="balance-value" key={`balance-${selectedCurrency}`}>
-                {getCurrentBalance()}
+              {/* Баланс */}
+              <div className="balance-container">
+                <img 
+                  src={selectedCurrency === 'ton' ? tonIcon : starsIcon} 
+                  alt={selectedCurrency === 'ton' ? 'TON' : 'Stars'} 
+                  className="balance-icon-img"
+                  key={selectedCurrency}
+                />
+                <div className="balance-value" key={`balance-${selectedCurrency}`}>
+                  {getCurrentBalance()}
+                </div>
               </div>
+
+              {/* Разделитель */}
+              <div className="balance-divider" />
+
+              {/* Кнопка депозита */}
+              <button 
+                className="deposit-btn"
+                onClick={handleDeposit}
+                aria-label="Пополнить баланс"
+              >
+                <span className="deposit-icon">+</span>
+              </button>
             </div>
-
-            {/* Разделитель */}
-            <div className="balance-divider" />
-
-            {/* Кнопка депозита */}
-            <button 
-              className="deposit-btn"
-              onClick={handleDeposit}
-              aria-label="Пополнить баланс"
-            >
-              <span className="deposit-icon">+</span>
-            </button>
           </div>
         </div>
 

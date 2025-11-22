@@ -97,12 +97,10 @@ html.platform-macos-desktop .balance-panel {
 .profile-content {
   position: relative;
   z-index: 1;
-  /* Увеличиваем отступ сверху до 100px */
   padding: calc(var(--safe-area-top) + 100px) 20px 20px 20px;
   pointer-events: auto;
   max-width: 600px;
   margin: 0 auto;
-  /* Убираем возможность скролла */
   overflow: hidden;
   height: calc(100vh - var(--safe-area-top) - 100px);
 }
@@ -115,7 +113,6 @@ html.platform-macos-desktop .balance-panel {
   align-items: center;
   margin-bottom: 20px;
   gap: 12px;
-  /* ВАЖНО: Никогда не переносим на новую строку */
   flex-wrap: nowrap;
 }
 
@@ -125,8 +122,6 @@ html.platform-macos-desktop .balance-panel {
   gap: 12px;
   flex: 0 1 auto;
   min-width: 0;
-  /* На маленьких экранах сжимаем, но не переносим */
-  max-width: 35%;
 }
 
 .profile-avatar {
@@ -152,24 +147,29 @@ html.platform-macos-desktop .balance-panel {
   font-size: 24px;
 }
 
+/* Контейнер для имени и плашки (вертикально) */
 .profile-header-text {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
+  height: 60px; /* Равно высоте аватара */
+  gap: 4px;
 }
 
 .profile-username {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .profile-id {
-  margin: 4px 0 0 0;
+  margin: 0;
   font-size: 12px;
   opacity: 0.7;
   overflow: hidden;
@@ -177,12 +177,11 @@ html.platform-macos-desktop .balance-panel {
   white-space: nowrap;
 }
 
-/* Контейнер для Badge между аватаром и балансом */
+/* Контейнер для Badge - теперь внутри profile-header-text */
 .profile-badge-container {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  margin: 0 8px;
 }
 
 /* Правая часть хедера */
@@ -190,6 +189,7 @@ html.platform-macos-desktop .balance-panel {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Единая плашка баланса в стиле Apple Liquid Glass */
@@ -859,12 +859,11 @@ html.platform-macos-desktop .balance-panel {
   }
 
   .profile-header {
-    gap: 8px;
+    gap: 10px;
   }
 
   .profile-header-left {
-    max-width: 25%;
-    gap: 8px;
+    gap: 10px;
   }
 
   .profile-avatar,
@@ -873,22 +872,19 @@ html.platform-macos-desktop .balance-panel {
     height: 50px;
   }
 
-  .profile-username {
-    font-size: 15px;
+  .profile-header-text {
+    height: 50px;
+    gap: 3px;
   }
 
-  .profile-badge-container {
-    margin: 0 6px;
+  .profile-username {
+    font-size: 14px;
   }
 
   /* Уменьшаем плашку на мобильных */
   .profile-badge-container .badge {
-    padding: 6px 12px;
-  }
-
-  .profile-badge-container .badge-name {
-    font-size: 11px;
-    letter-spacing: 0.5px;
+    padding: 5px 10px;
+    font-size: 10px;
   }
 
   .balance-panel {
@@ -962,12 +958,11 @@ html.platform-macos-desktop .balance-panel {
   }
 
   .profile-header {
-    gap: 6px;
+    gap: 8px;
   }
 
   .profile-header-left {
-    max-width: 22%;
-    gap: 6px;
+    gap: 8px;
   }
 
   .profile-avatar,
@@ -976,22 +971,19 @@ html.platform-macos-desktop .balance-panel {
     height: 45px;
   }
 
+  .profile-header-text {
+    height: 45px;
+    gap: 2px;
+  }
+
   .profile-username {
     font-size: 13px;
   }
 
-  .profile-badge-container {
-    margin: 0 4px;
-  }
-
   /* Еще больше уменьшаем плашку */
   .profile-badge-container .badge {
-    padding: 5px 10px;
-  }
-
-  .profile-badge-container .badge-name {
-    font-size: 10px;
-    letter-spacing: 0.3px;
+    padding: 4px 8px;
+    font-size: 9px;
   }
 
   .referral-section {
@@ -1056,18 +1048,18 @@ html.platform-macos-desktop .balance-panel {
 
 /* Адаптивность для средних экранов */
 @media (max-width: 580px) {
-  .profile-header-left {
-    max-width: 32%;
-  }
-  
   .profile-avatar,
   .profile-avatar-placeholder {
-    width: 50px;
-    height: 50px;
+    width: 55px;
+    height: 55px;
+  }
+
+  .profile-header-text {
+    height: 55px;
   }
 
   .profile-username {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .profile-id {
@@ -1118,14 +1110,14 @@ html.platform-macos-desktop .balance-panel {
 
 /* Адаптивность для маленьких экранов */
 @media (max-width: 420px) {
-  .profile-header-left {
-    max-width: 28%;
-  }
-
   .profile-avatar,
   .profile-avatar-placeholder {
-    width: 45px;
-    height: 45px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .profile-header-text {
+    height: 48px;
   }
 
   .profile-username {
