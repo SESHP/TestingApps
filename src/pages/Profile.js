@@ -56,8 +56,7 @@ function Profile() {
         setReferralStats(response.referralStats);
 
         // Рассчитываем плашку пользователя
-        const badge = calculateBadge(response.user);
-        setCurrentBadge(badge);
+        setCurrentBadge(response.user.badgeStatus || 'GUEST');
       } catch (error) {
         console.error('Ошибка загрузки пользователя:', error);
       } finally {

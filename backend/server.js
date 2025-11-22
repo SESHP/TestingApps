@@ -642,9 +642,14 @@ app.post('/api/user/init', async (req, res) => {
         lastName: user.last_name,
         referralCode: user.referral_code,
         balance: parseFloat(user.balance),
+        starsBalance: parseFloat(user.stars_balance || 0),
         totalDeals: user.total_deals,
         rating: parseFloat(user.rating),
-        referredBy: user.referred_by
+        referredBy: user.referred_by,
+        badgeStatus: user.badge_status || 'GUEST',
+        commissionRate: parseFloat(user.commission_rate || 4),
+        isWhale: user.is_whale || false,
+        telegramAudience: user.telegram_audience || 0
       },
       referralStats: {
         totalReferrals: parseInt(referralStats.total_referrals) || 0,
@@ -1535,6 +1540,122 @@ app.post('/api/gifts/withdraw', async (req, res) => {
       error: 'Ошибка вывода',
       details: error.message 
     });
+  }
+});
+
+
+// Update user badge parameters (whale status, audience)
+app.post('/api/user/:telegramId/badge-params', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { telegramId } = req.params;
+    const { isWhale, telegramAudience } = req.body;
+
+    // Проверяем существование пользователя
+    const checkResult = await client.query(
+      'SELECT telegram_id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Обновляем параметры (триггер автоматически пересчитает плашку)
+    const updates = [];
+    const values = [];
+    let valueIndex = 1;
+
+    if (typeof isWhale === 'boolean') {
+      updates.push(`is_whale = $${valueIndex}`);
+      values.push(isWhale);
+      valueIndex++;
+    }
+
+    if (typeof telegramAudience === 'number') {
+      updates.push(`telegram_audience = $${valueIndex}`);
+      values.push(telegramAudience);
+      valueIndex++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Нет параметров для обновления' });
+    }
+
+    values.push(telegramId);
+    const updateQuery = `
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE telegram_id = $${valueIndex}
+      RETURNING badge_status, commission_rate, is_whale, telegram_audience
+    `;
+
+    const result = await client.query(updateQuery, values);
+    const updatedUser = result.rows[0];
+
+    res.json({
+      success: true,
+      user: {
+        telegramId: parseInt(telegramId),
+        badgeStatus: updatedUser.badge_status,
+        commissionRate: parseFloat(updatedUser.commission_rate),
+        isWhale: updatedUser.is_whale,
+        telegramAudience: updatedUser.telegram_audience
+      }
+    });
+
+  } catch (error) {
+    console.error('Ошибка обновления параметров плашки:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get badge statistics
+app.get('/api/badges/stats', async (req, res) => {
+  try {
+    const statsResult = await pool.query(`
+      SELECT 
+        badge_status,
+        COUNT(*) as user_count,
+        AVG(commission_rate) as avg_commission,
+        AVG(rating) as avg_rating,
+        AVG(total_deals) as avg_deals,
+        MIN(commission_rate) as min_commission,
+        MAX(commission_rate) as max_commission
+      FROM users
+      GROUP BY badge_status
+      ORDER BY 
+        CASE badge_status
+          WHEN 'DADDY' THEN 1
+          WHEN 'INFL' THEN 2
+          WHEN 'RESIDENT' THEN 3
+          WHEN 'JOKER' THEN 4
+          WHEN 'GUEST' THEN 5
+          WHEN 'SCAM' THEN 6
+          ELSE 99
+        END;
+    `);
+
+    const totalUsers = await pool.query('SELECT COUNT(*) as total FROM users');
+
+    res.json({
+      total: parseInt(totalUsers.rows[0].total),
+      badges: statsResult.rows.map(row => ({
+        badge: row.badge_status,
+        userCount: parseInt(row.user_count),
+        avgCommission: parseFloat(row.avg_commission).toFixed(2),
+        avgRating: parseFloat(row.avg_rating).toFixed(2),
+        avgDeals: Math.round(parseFloat(row.avg_deals)),
+        minCommission: parseFloat(row.min_commission),
+        maxCommission: parseFloat(row.max_commission)
+      }))
+    });
+
+  } catch (error) {
+    console.error('Ошибка получения статистики плашек:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
