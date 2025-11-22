@@ -154,11 +154,11 @@ html.platform-macos-desktop .balance-panel {
 .profile-header-text {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   min-width: 0;
   flex: 0 1 auto;
-  height: 60px; /* Равно высоте аватара */
-  gap: 4px;
+  height: 50px; /* Равно высоте аватара */
+  gap: 7px;
 }
 
 .profile-username {
@@ -1097,7 +1097,7 @@ html.platform-macos-desktop .balance-panel {
   }
 
   .profile-header-text {
-    height: 55px;
+    height: 45px;
   }
 
   .profile-username {
@@ -1164,7 +1164,7 @@ html.platform-macos-desktop .balance-panel {
   }
 
   .profile-header-text {
-    height: 48px;
+    height: 40px;
   }
 
   .profile-username {
