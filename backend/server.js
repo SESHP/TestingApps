@@ -1660,6 +1660,178 @@ app.get('/api/badges/stats', async (req, res) => {
 });
 
 
+// ============ STARS PAYMENT ENDPOINTS ============
+
+// Создание Stars invoice
+app.post('/api/stars/create-invoice', async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'Неверные параметры' });
+    }
+
+    // Проверяем пользователя
+    const userResult = await pool.query(
+      'SELECT telegram_id FROM users WHERE telegram_id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    if (!BOT_TOKEN) {
+      return res.status(500).json({ error: 'BOT_TOKEN не настроен' });
+    }
+
+    // Создаем invoice через Bot API
+    const invoiceData = {
+      title: 'Пополнение Stars',
+      description: `Пополнение баланса на ${amount} Stars`,
+      payload: JSON.stringify({ 
+        userId, 
+        amount,
+        type: 'stars_deposit',
+        timestamp: Date.now()
+      }),
+      currency: 'XTR', // Специальная валюта для Stars
+      prices: [
+        {
+          label: 'Stars',
+          amount: parseInt(amount) // Цена в Stars (целое число)
+        }
+      ]
+    };
+
+    // Создаем invoice link
+    const response = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      console.error('❌ Ошибка создания invoice:', data);
+      return res.status(500).json({ 
+        error: 'Ошибка создания платежа',
+        details: data.description 
+      });
+    }
+
+    console.log('✅ Stars invoice создан:', data.result);
+
+    res.json({
+      success: true,
+      invoiceLink: data.result
+    });
+
+  } catch (error) {
+    console.error('❌ Ошибка создания Stars invoice:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Webhook для обработки успешной оплаты Stars
+app.post('/api/stars/webhook', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const update = req.body;
+
+    console.log('📥 Stars webhook получен:', JSON.stringify(update, null, 2));
+
+    // Проверяем что это успешная оплата
+    if (update.pre_checkout_query) {
+      // Pre-checkout query - отвечаем OK
+      const BOT_TOKEN = process.env.BOT_TOKEN;
+      await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/answerPreCheckoutQuery`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pre_checkout_query_id: update.pre_checkout_query.id,
+            ok: true
+          })
+        }
+      );
+      
+      return res.json({ ok: true });
+    }
+
+    if (update.message?.successful_payment) {
+      const payment = update.message.successful_payment;
+      const payload = JSON.parse(payment.invoice_payload);
+
+      console.log('✅ Успешная оплата Stars:', {
+        userId: payload.userId,
+        amount: payload.amount,
+        totalAmount: payment.total_amount
+      });
+
+      await client.query('BEGIN');
+
+      // Обновляем баланс пользователя
+      const result = await client.query(
+        `UPDATE users 
+         SET stars_balance = stars_balance + $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE telegram_id = $2
+         RETURNING stars_balance`,
+        [payload.amount, payload.userId]
+      );
+
+      if (result.rows.length > 0) {
+        console.log(`✅ Stars баланс обновлен для пользователя ${payload.userId}: +${payload.amount}`);
+      }
+
+      await client.query('COMMIT');
+
+      return res.json({ ok: true });
+    }
+
+    res.json({ ok: true });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Ошибка обработки Stars webhook:', error);
+    res.status(500).json({ error: 'Ошибка обработки платежа' });
+  } finally {
+    client.release();
+  }
+});
+
+// Проверка статуса Stars баланса
+app.get('/api/stars/balance/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(
+      'SELECT stars_balance FROM users WHERE telegram_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    res.json({
+      userId: parseInt(userId),
+      starsBalance: parseFloat(result.rows[0].stars_balance)
+    });
+
+  } catch (error) {
+    console.error('Ошибка получения Stars баланса:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 
 // Health check
 app.get('/health', (req, res) => {
