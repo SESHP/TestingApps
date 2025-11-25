@@ -43,6 +43,47 @@ function Guarantee() {
     }
   }, []);
 
+  // Загрузка сделки из URL при открытии
+  useEffect(() => {
+    const loadDealFromUrl = async () => {
+      if (!user || !socket) return;
+
+      // Получаем dealId из URL параметров Telegram Mini App
+      const tg = window.Telegram?.WebApp;
+      const startParam = tg?.initDataUnsafe?.start_param;
+
+      if (startParam && startParam.startsWith('deal_')) {
+        const dealId = parseInt(startParam.replace('deal_', ''));
+        
+        try {
+          console.log('🔍 Загрузка сделки из URL:', dealId);
+          const response = await fetch(`${API_URL}/api/deals/${dealId}`);
+          const data = await response.json();
+          
+          if (data.deal) {
+            console.log('✅ Сделка загружена:', data.deal);
+            setCurrentDeal(data.deal);
+            setScreen('deal');
+            
+            // ВАЖНО: Подключаемся к WebSocket комнате
+            socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
+            
+            // Загружаем подарки сделки
+            const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
+            const giftsData = await giftsResponse.json();
+            if (giftsData.gifts) {
+              setDealGifts(giftsData.gifts);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Ошибка загрузки сделки:', error);
+        }
+      }
+    };
+
+    loadDealFromUrl();
+  }, [user, socket]);
+
   // Инициализация WebSocket
   useEffect(() => {
     console.log('🔌 Подключение к WebSocket:', API_URL);
@@ -108,6 +149,7 @@ function Guarantee() {
 
     socket.on('gifts-updated', (data) => {
       console.log('🎁 Подарки обновлены:', data);
+      console.log('🎁 Структура подарков:', JSON.stringify(data.gifts, null, 2));
       setDealGifts(data.gifts || {});
     });
 
@@ -366,9 +408,15 @@ function Guarantee() {
     }, [gift.id]);
 
     const loadModel = async () => {
-      if (!gift.rawData?.gift || !modelLottieRef.current) return;
+      // Проверяем откуда пришел gift - из myGifts или из dealGifts
+      const giftData = gift.rawData?.gift || gift.raw_data?.gift;
+      
+      if (!giftData || !modelLottieRef.current) {
+        console.log('⚠️ Нет rawData для подарка:', gift.id);
+        return;
+      }
 
-      const attributes = gift.rawData.gift.attributes || [];
+      const attributes = giftData.attributes || [];
       const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
       
       if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
@@ -401,7 +449,9 @@ function Guarantee() {
       return `#${hex}`;
     };
 
-    if (!gift.rawData?.gift) {
+    const giftData = gift.rawData?.gift || gift.raw_data?.gift;
+    
+    if (!giftData) {
       return (
         <div className={`gift-preview-placeholder ${size}`}>
           <span className="gift-symbol">🎁</span>
@@ -409,7 +459,6 @@ function Guarantee() {
       );
     }
 
-    const giftData = gift.rawData.gift;
     const attributes = giftData.attributes || [];
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     

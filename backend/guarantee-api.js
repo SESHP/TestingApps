@@ -142,7 +142,7 @@ function setupGuaranteeAPI(app, pool, io) {
           model: row.model,
           background: row.background,
           symbol: row.symbol,
-          rawData: row.raw_data,
+          raw_data: row.raw_data, // используем snake_case как в базе
           addedAt: row.added_at
         });
       }
