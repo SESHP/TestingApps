@@ -132,7 +132,7 @@ function setupGuaranteeAPI(app, pool, io) {
 
       const gifts = {};
       for (const row of result.rows) {
-        const userId = row.user_id;
+        const userId = String(row.user_id); // Приводим к строке!
         if (!gifts[userId]) {
           gifts[userId] = [];
         }

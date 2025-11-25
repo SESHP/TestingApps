@@ -595,8 +595,17 @@ function Guarantee() {
     const myUserId = String(user.id);
     const otherUserIdStr = String(otherUserId);
     
+    console.log('👤 Мой ID:', myUserId, 'Тип:', typeof myUserId);
+    console.log('👤 ID другого:', otherUserIdStr, 'Тип:', typeof otherUserIdStr);
+    console.log('📦 Ключи в dealGifts:', Object.keys(dealGifts));
+    console.log('📦 dealGifts полностью:', dealGifts);
+    
     const myGiftsInDeal = dealGifts[myUserId] || [];
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
+    
+    console.log('🎁 Мои подарки в сделке:', myGiftsInDeal.length);
+    console.log('🎁 Подарки другого:', otherGiftsInDeal.length);
+    
     const myConfirmed = isCreator ? currentDeal.creator_confirmed : currentDeal.participant_confirmed;
     const otherConfirmed = isCreator ? currentDeal.participant_confirmed : currentDeal.creator_confirmed;
 

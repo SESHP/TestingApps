@@ -207,7 +207,8 @@ async function getDealGifts(pool, dealId) {
 
   const gifts = {};
   for (const row of result.rows) {
-    const userId = row.user_id;
+    const userId = String(row.user_id); // Приводим к строке!
+    console.log(`📦 Подарок ${row.gift_id} принадлежит user_id: ${userId} (тип: ${typeof userId})`);
     if (!gifts[userId]) {
       gifts[userId] = [];
     }
@@ -222,6 +223,7 @@ async function getDealGifts(pool, dealId) {
     });
   }
 
+  console.log('📦 Итоговая структура dealGifts:', JSON.stringify(Object.keys(gifts)));
   return gifts;
 }
 
