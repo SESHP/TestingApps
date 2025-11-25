@@ -9,8 +9,8 @@ const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const http = require('http');
 const { Server } = require('socket.io');
-const { initGuaranteeSocket } = require('./backend/guarantee-socket');
-const { setupGuaranteeAPI } = require('./backend/guarantee-api');
+const { initGuaranteeSocket } = require('./guarantee-socket');
+const { setupGuaranteeAPI } = require('./guarantee-api');
 
 const server = http.createServer(app);
 const io = new Server(server, {
