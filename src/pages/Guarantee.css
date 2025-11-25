@@ -5,62 +5,20 @@
   background: #000;
   color: #fff;
   padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.guarantee-content {
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-/* Кнопка назад */
-.back-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 20px;
-}
-
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: translateX(-2px);
-}
-
-/* Хедер */
+/* Header */
 .guarantee-header {
   text-align: center;
   margin-bottom: 40px;
 }
 
-.guarantee-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
 .guarantee-title {
   font-size: 32px;
   font-weight: 700;
-  margin: 0 0 12px 0;
-  background: linear-gradient(135deg, #fff 0%, #F27D00 100%);
+  margin: 0 0 8px 0;
+  background: linear-gradient(135deg, #F27D00, #ff9500);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -72,586 +30,148 @@
   margin: 0;
 }
 
-/* Кнопки действий */
+/* Main Actions */
 .guarantee-actions {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-bottom: 40px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .guarantee-btn {
-  padding: 18px 24px;
-  border-radius: 16px;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
+  padding: 16px 24px;
   border: none;
-}
-
-.guarantee-btn.primary {
-  background: linear-gradient(135deg, #F27D00 0%, #ff9500 100%);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(242, 125, 0, 0.3);
-}
-
-.guarantee-btn.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(242, 125, 0, 0.4);
-}
-
-.guarantee-btn.secondary {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.guarantee-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.guarantee-btn.large {
-  padding: 20px 32px;
+  border-radius: 16px;
   font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.guarantee-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.guarantee-btn:active {
+  transform: scale(0.98);
 }
 
 .btn-icon {
   font-size: 24px;
 }
 
-/* Информационные карточки */
-.guarantee-info {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 40px;
+.btn-text {
+  font-size: 18px;
 }
 
-.info-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
+.create-btn {
+  background: linear-gradient(135deg, #F27D00, #ff9500);
+  color: white;
+  box-shadow: 0 4px 20px rgba(242, 125, 0, 0.3);
 }
 
-.info-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(242, 125, 0, 0.3);
+.create-btn:hover {
+  box-shadow: 0 6px 30px rgba(242, 125, 0, 0.5);
   transform: translateY(-2px);
 }
 
-.info-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
+.join-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border: 2px solid rgba(242, 125, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 
-.info-card h3 {
+.join-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(242, 125, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Info Section */
+.guarantee-info {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.guarantee-info h3 {
   font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: #fff;
+  margin: 0 0 16px 0;
+  color: #F27D00;
 }
 
-.info-card p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+.guarantee-info ol {
   margin: 0;
-  line-height: 1.5;
+  padding-left: 20px;
+  line-height: 1.8;
 }
 
-/* Форма присоединения */
-.join-deal-form,
-.create-deal-info {
-  margin-bottom: 24px;
-}
-
-.input-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
+.guarantee-info li {
   color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+/* Join Form */
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .invite-code-input {
-  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(242, 125, 0, 0.3);
+  border-radius: 16px;
   padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
   font-size: 24px;
-  color: #F27D00;
   font-weight: 700;
   text-align: center;
+  color: #F27D00;
   letter-spacing: 4px;
+  font-family: 'Courier New', monospace;
   text-transform: uppercase;
-  margin-bottom: 16px;
+}
+
+.invite-code-input::placeholder {
+  color: rgba(242, 125, 0, 0.4);
 }
 
 .invite-code-input:focus {
   outline: none;
-  border-color: rgba(242, 125, 0, 0.5);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: #F27D00;
+  box-shadow: 0 0 0 4px rgba(242, 125, 0, 0.1);
 }
 
-.error-message {
-  padding: 12px 16px;
-  background: rgba(255, 59, 48, 0.1);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  border-radius: 12px;
-  color: #ff3b30;
-  font-size: 14px;
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.create-deal-info p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-  text-align: center;
-}
-
-/* ========== ЭКРАН АКТИВНОЙ СДЕЛКИ ========== */
-
-.guarantee-container.deal-active {
-  padding: 0;
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Баннер с кодом приглашения */
-.invite-code-banner {
-  background: rgba(242, 125, 0, 0.15);
-  border-bottom: 1px solid rgba(242, 125, 0, 0.3);
-  padding: 12px 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.banner-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-}
-
-.code-display {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: #F27D00;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.code-display:hover {
-  background: rgba(0, 0, 0, 0.5);
-  transform: scale(1.05);
-}
-
-.copy-hint {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.code-display:hover .copy-hint {
-  opacity: 1;
-}
-
-/* Окна участников */
-.deal-participants {
-  display: flex;
-  gap: 16px;
-  padding: 20px;
-  height: 200px;
-  flex-shrink: 0;
-}
-
-.participant-window {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.my-window {
-  border-color: rgba(242, 125, 0, 0.3);
-}
-
-.window-header {
-  padding: 12px 16px;
+.back-btn {
   background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.participant-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.confirmed-badge {
-  font-size: 12px;
-  color: #4CAF50;
-  font-weight: 600;
-  background: rgba(76, 175, 80, 0.15);
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.window-gifts {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.empty-gifts {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
-  text-align: center;
-}
-
-/* Мини-карточка подарка */
-.gift-card-mini {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 8px;
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.gift-card-mini:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.gift-preview-mini {
-  width: 50px;
-  height: 50px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.gift-info-mini {
-  flex: 1;
-  min-width: 0;
-}
-
-.gift-title-mini {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gift-model-mini {
-  font-size: 10px;
-  color: #F27D00;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.remove-gift-btn {
-  width: 24px;
-  height: 24px;
-  background: rgba(255, 59, 48, 0.2);
-  border: none;
-  border-radius: 50%;
-  color: #ff3b30;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.remove-gift-btn:hover {
-  background: rgba(255, 59, 48, 0.4);
-  transform: scale(1.1);
-}
-
-/* Инвентарь */
-.deal-inventory {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.inventory-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.inventory-header h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0;
-}
-
-.gifts-count {
-  font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
-}
-
-.inventory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
-}
-
-.gift-card-inventory {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.gift-card-inventory:hover:not(.disabled) {
-  background: rgba(242, 125, 0, 0.1);
-  border-color: rgba(242, 125, 0, 0.3);
-  transform: translateY(-2px);
-}
-
-.gift-card-inventory.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.gift-preview-inventory {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.gift-info-inventory {
-  text-align: center;
-}
-
-.gift-title-inventory {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Lottie превью */
-.gift-lottie-preview {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border-radius: 8px;
-}
-
-.lottie-container {
-  width: 80%;
-  height: 80%;
-}
-
-/* Кнопки управления */
-.deal-controls {
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.control-btn {
-  flex: 1;
-  padding: 16px;
-  border-radius: 14px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-}
-
-.control-btn.cancel {
-  background: rgba(255, 59, 48, 0.15);
-  color: #ff3b30;
-  border: 1px solid rgba(255, 59, 48, 0.3);
-}
-
-.control-btn.cancel:hover:not(:disabled) {
-  background: rgba(255, 59, 48, 0.25);
-}
-
-.control-btn.confirm {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.3);
-}
-
-.control-btn.confirm:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
-}
-
-.control-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Модальное окно */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: #1a1a1a;
-  border-radius: 20px;
-  padding: 24px;
-  max-width: 400px;
-  width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.modal-content h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 16px 0;
-  text-align: center;
-}
-
-.modal-gift-info {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.modal-gift-info p {
-  margin: 4px 0;
-  font-size: 14px;
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.8);
 }
 
-.modal-gift-info strong {
-  color: #fff;
-  font-size: 16px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.modal-btn {
-  flex: 1;
-  padding: 14px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-}
-
-.modal-btn.cancel {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.modal-btn.cancel:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.modal-btn.confirm {
-  background: linear-gradient(135deg, #F27D00 0%, #ff9500 100%);
-  color: #fff;
-}
-
-.modal-btn.confirm:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(242, 125, 0, 0.4);
-}
-
+/* Invite Code Banner */
 .invite-code-banner {
   background: linear-gradient(135deg, rgba(242, 125, 0, 0.1), rgba(255, 149, 0, 0.05));
   border: 2px solid rgba(242, 125, 0, 0.3);
   border-radius: 16px;
   padding: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   text-align: center;
   backdrop-filter: blur(10px);
 }
@@ -711,76 +231,467 @@
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 8px;
+  line-height: 1.5;
 }
 
-/* Адаптивность */
+/* Deal Windows */
+.deal-windows {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.participant-window {
+  flex: 1;
+  min-width: 280px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  min-height: 200px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.my-window {
+  border-color: rgba(242, 125, 0, 0.3);
+}
+
+.window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.participant-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.confirmed-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.window-gifts {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-gifts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Gift Card Mini */
+.gift-card-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
+.gift-card-mini:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gift-mini-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gift-mini-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gift-mini-model {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.gift-remove-btn {
+  background: rgba(255, 59, 48, 0.2);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: #FF3B30;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.gift-remove-btn:hover {
+  background: rgba(255, 59, 48, 0.3);
+  transform: scale(1.1);
+}
+
+/* Inventory */
+.deal-inventory {
+  margin-bottom: 24px;
+}
+
+.inventory-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #F27D00;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.empty-inventory {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Gift Card Inventory */
+.gift-card-inventory {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.gift-card-inventory:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.gift-card-inventory.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gift-card-inventory.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.gift-card-title {
+  font-size: 12px;
+  text-align: center;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gift-card-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(242, 125, 0, 0.9);
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Gift Preview */
+.gift-preview-lottie,
+.gift-preview-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gift-preview-lottie.size-small {
+  width: 50px;
+  height: 50px;
+}
+
+.gift-preview-lottie.size-medium {
+  width: 100%;
+  height: 100%;
+}
+
+.gift-preview-lottie.size-large {
+  width: 150px;
+  height: 150px;
+}
+
+.gift-lottie-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gift-preview-placeholder {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.gift-symbol {
+  font-size: 40px;
+}
+
+.gift-preview-placeholder.size-small .gift-symbol {
+  font-size: 24px;
+}
+
+.gift-preview-placeholder.size-large .gift-symbol {
+  font-size: 60px;
+}
+
+/* Deal Actions */
+.deal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cancel-btn {
+  flex: 1;
+  background: rgba(255, 59, 48, 0.15);
+  color: #FF3B30;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+}
+
+.cancel-btn:hover {
+  background: rgba(255, 59, 48, 0.25);
+}
+
+.confirm-btn {
+  flex: 2;
+  background: linear-gradient(135deg, #34C759, #30D158);
+  color: white;
+  box-shadow: 0 4px 20px rgba(52, 199, 89, 0.3);
+}
+
+.confirm-btn:hover {
+  box-shadow: 0 6px 30px rgba(52, 199, 89, 0.5);
+}
+
+.confirm-btn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.waiting-message {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  padding: 16px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.modal-content {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: #fff;
+}
+
+.modal-gift {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.modal-gift-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.modal-btn.cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modal-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.modal-btn.confirm {
+  background: linear-gradient(135deg, #F27D00, #ff9500);
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  box-shadow: 0 4px 16px rgba(242, 125, 0, 0.4);
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .guarantee-container {
-    padding: 16px;
-  }
-
-  .guarantee-title {
-    font-size: 28px;
-  }
-
-  .guarantee-icon {
-    font-size: 56px;
-  }
-
-  .deal-participants {
+  .deal-windows {
     flex-direction: column;
-    height: auto;
-    max-height: 40vh;
   }
 
   .participant-window {
-    min-height: 150px;
+    min-width: 100%;
+    max-height: 40vh;
   }
 
   .inventory-grid {
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 10px;
-  }
-
-  .control-btn {
-    font-size: 14px;
-    padding: 14px;
   }
 }
 
 @media (max-width: 480px) {
   .guarantee-title {
-    font-size: 24px;
-  }
-
-  .guarantee-icon {
-    font-size: 48px;
+    font-size: 28px;
   }
 
   .guarantee-btn {
-    padding: 16px 20px;
+    padding: 14px 20px;
     font-size: 16px;
   }
 
-  .deal-participants {
-    padding: 12px;
-    gap: 12px;
+  .btn-icon {
+    font-size: 20px;
   }
 
-  .deal-inventory {
-    padding: 12px;
-  }
-
-  .deal-controls {
-    padding: 12px;
-    flex-direction: column;
-  }
-
-  .control-btn {
-    width: 100%;
+  .btn-text {
+    font-size: 16px;
   }
 
   .inventory-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  .deal-actions {
+    flex-direction: column;
+  }
+
+  .invite-code-display {
+    font-size: 24px;
+    letter-spacing: 2px;
+  }
+}
+
+/* Scrollbar */
+.window-gifts::-webkit-scrollbar,
+.inventory-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.window-gifts::-webkit-scrollbar-track,
+.inventory-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.window-gifts::-webkit-scrollbar-thumb,
+.inventory-grid::-webkit-scrollbar-thumb {
+  background: rgba(242, 125, 0, 0.5);
+  border-radius: 3px;
+}
+
+.window-gifts::-webkit-scrollbar-thumb:hover,
+.inventory-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 125, 0, 0.7);
 }
