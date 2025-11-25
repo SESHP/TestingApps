@@ -87,6 +87,7 @@ function Guarantee() {
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
       
+      // Обновляем локальную сделку на active
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
@@ -100,6 +101,8 @@ function Guarantee() {
           buttons: [{ type: 'ok' }]
         });
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      } else {
+        alert('🎉 Участник присоединился!');
       }
     });
 

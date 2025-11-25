@@ -30,7 +30,7 @@ async function generateUniqueInviteCode(pool) {
   return code;
 }
 
-function setupGuaranteeAPI(app, pool) {
+function setupGuaranteeAPI(app, pool, io) {
   // Создание новой сделки
   app.post('/api/deals/create', async (req, res) => {
     try {
@@ -98,6 +98,12 @@ function setupGuaranteeAPI(app, pool) {
       );
 
       console.log(`✅ Участник ${participantId} присоединился к сделке ${deal.id}`);
+
+      // ЭМИТИМ СОБЫТИЕ СОЗДАТЕЛЮ
+      io.to(`deal-${deal.id}`).emit('participant-joined', {
+        dealId: deal.id,
+        participantId: participantId
+      });
 
       res.json({
         success: true,
