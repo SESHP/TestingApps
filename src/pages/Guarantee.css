@@ -308,56 +308,86 @@
 .gift-card-mini {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 8px;
   transition: all 0.2s ease;
+  min-height: 70px;
 }
 
 .gift-card-mini:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.gift-mini-preview {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.gift-card-mini .gift-preview-lottie,
+.gift-card-mini .gift-preview-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gift-card-mini .gift-preview-lottie > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .gift-mini-info {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .gift-mini-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.gift-mini-model {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.3;
 }
 
 .gift-remove-btn {
   background: rgba(255, 59, 48, 0.2);
   border: 1px solid rgba(255, 59, 48, 0.3);
   color: #FF3B30;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .gift-remove-btn:hover {
   background: rgba(255, 59, 48, 0.3);
   transform: scale(1.1);
+}
+
+.gift-remove-btn:active {
+  transform: scale(0.95);
 }
 
 /* Inventory */

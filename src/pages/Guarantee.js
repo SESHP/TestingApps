@@ -302,11 +302,13 @@ function Guarantee() {
   const handleConfirmDeal = () => {
     if (!currentDeal || !socket) return;
 
-    const myGiftsInDeal = dealGifts[user.id] || [];
+    const myUserId = String(user.id);
+    const myGiftsInDeal = dealGifts[myUserId] || [];
     const otherUserId = currentDeal.creator_id === user.id 
       ? currentDeal.participant_id 
       : currentDeal.creator_id;
-    const otherGiftsInDeal = dealGifts[otherUserId] || [];
+    const otherUserIdStr = String(otherUserId);
+    const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
 
     if (myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0) {
       alert('Оба участника должны добавить хотя бы один подарок');
@@ -433,7 +435,8 @@ function Guarantee() {
   };
 
   const GiftCardInventory = ({ gift }) => {
-    const isInDeal = dealGifts[user.id]?.some(g => g.id === gift.id);
+    const myUserId = String(user.id);
+    const isInDeal = dealGifts[myUserId]?.some(g => g.id === gift.id);
     
     return (
       <div 
@@ -450,10 +453,11 @@ function Guarantee() {
   const GiftCardMini = ({ gift, canRemove, onRemove }) => {
     return (
       <div className="gift-card-mini">
-        <GiftPreview gift={gift} size="small" />
+        <div className="gift-mini-preview">
+          <GiftPreview gift={gift} size="small" />
+        </div>
         <div className="gift-mini-info">
           <div className="gift-mini-title">{gift.giftTitle || gift.gift_title}</div>
-          <div className="gift-mini-model">{gift.model}</div>
         </div>
         {canRemove && (
           <button 
@@ -537,8 +541,13 @@ function Guarantee() {
   if (screen === 'deal' && currentDeal) {
     const isCreator = currentDeal.creator_id === user.id;
     const otherUserId = isCreator ? currentDeal.participant_id : currentDeal.creator_id;
-    const myGiftsInDeal = dealGifts[user.id] || [];
-    const otherGiftsInDeal = dealGifts[otherUserId] || [];
+    
+    // ФИКС: приводим к строке для сравнения с ключами dealGifts
+    const myUserId = String(user.id);
+    const otherUserIdStr = String(otherUserId);
+    
+    const myGiftsInDeal = dealGifts[myUserId] || [];
+    const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
     const myConfirmed = isCreator ? currentDeal.creator_confirmed : currentDeal.participant_confirmed;
     const otherConfirmed = isCreator ? currentDeal.participant_confirmed : currentDeal.creator_confirmed;
 
