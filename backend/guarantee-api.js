@@ -192,3 +192,5 @@ function setupGuaranteeAPI(app, pool) {
     }
   });
 }
+
+module.exports = { setupGuaranteeAPI };
