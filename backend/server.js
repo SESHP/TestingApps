@@ -1,4 +1,3 @@
-// backend/server.js
 require('dotenv').config();
 
 const express = require('express');
@@ -12,18 +11,24 @@ const { Server } = require('socket.io');
 const { initGuaranteeSocket } = require('./guarantee-socket');
 const { setupGuaranteeAPI } = require('./guarantee-api');
 
+// СНАЧАЛА создаем app
+const app = express();
+let PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// ПОТОМ создаем server на основе app
 const server = http.createServer(app);
+
+// И только после этого создаем io
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST']
   }
 });
-
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 // Настройка PostgreSQL
 const pool = new Pool({
@@ -1918,7 +1923,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-async function startServer() {
+sync function startServer() {
   try {
     console.log('🚀 Запуск сервера...\n');
 
@@ -1926,24 +1931,29 @@ async function startServer() {
     console.log('📊 Инициализация базы данных...');
     await initDatabase();
 
+    // ✅ ДОБАВЬ ЭТИ СТРОКИ ЗДЕСЬ:
+    // Инициализация WebSocket для гаранта
+    console.log('🔌 Инициализация WebSocket...');
+    initGuaranteeSocket(io, pool);
+
+    // Инициализация API эндпоинтов для гаранта
+    console.log('📡 Инициализация Guarantee API...');
+    setupGuaranteeAPI(app, pool);
+
     // Запуск отслеживания подарков
     console.log('🎁 Запуск отслеживания подарков...');
     startGiftTracking().catch(err => {
       console.error('⚠️  Ошибка запуска отслеживания подарков:', err);
     });
 
-    // Инициализация WebSocket
-    initGuaranteeSocket(io, pool);
-
-    // Инициализация API эндпоинтов
-    setupGuaranteeAPI(app, pool);
-
-    // Запуск Express сервера
-    const server = server.listen(PORT, () => {
+    // ❌ ЗАМЕНИ app.listen НА server.listen:
+    // const server = app.listen(PORT, () => {  // <-- УДАЛИ ЭТУ СТРОКУ
+    
+    server.listen(PORT, () => {  // <-- ИСПОЛЬЗУЙ ЭТУ
       console.log('═'.repeat(50));
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
-      console.log(`🔌 WebSocket готов`);
       console.log(`🗄️  База данных: PostgreSQL`);
+      console.log(`🔌 WebSocket: готов`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
       console.log('═'.repeat(50));
     }).on('error', (err) => {
