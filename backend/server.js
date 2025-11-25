@@ -1923,7 +1923,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-sync function startServer() {
+async function startServer() {
   try {
     console.log('🚀 Запуск сервера...\n');
 
