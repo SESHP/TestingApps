@@ -25,8 +25,13 @@ const server = http.createServer(app);
 // И только после этого создаем io
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST']
+    origin: [
+      'http://localhost:3000',
+      'https://alged.vercel.app',  // ← ДОБАВЬ СВОЙ ДОМЕН
+      'https://web.telegram.org'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
