@@ -1943,7 +1943,7 @@ async function startServer() {
 
     // Инициализация API эндпоинтов для гаранта
     console.log('📡 Инициализация Guarantee API...');
-    setupGuaranteeAPI(app, pool);
+    setupGuaranteeAPI(app, pool, io);
 
     // Запуск отслеживания подарков
     console.log('🎁 Запуск отслеживания подарков...');
