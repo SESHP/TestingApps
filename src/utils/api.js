@@ -70,6 +70,109 @@ export async function checkReferralCode(code) {
   }
 }
 
+
+/**
+ * Создать новую сделку
+ */
+export async function createDeal(creatorId) {
+  try {
+    const response = await fetch(`${API_URL}/api/deals/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ creatorId })
+    });
+
+    if (!response.ok) {
+      throw new Error('Ошибка создания сделки');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка API createDeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Присоединиться к сделке
+ */
+export async function joinDeal(inviteCode, participantId) {
+  try {
+    const response = await fetch(`${API_URL}/api/deals/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ inviteCode, participantId })
+    });
+
+    if (!response.ok) {
+      throw new Error('Ошибка присоединения к сделке');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка API joinDeal:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получить подарки в сделке
+ */
+export async function getDealGifts(dealId) {
+  try {
+    const response = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
+
+    if (!response.ok) {
+      throw new Error('Ошибка получения подарков сделки');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка API getDealGifts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получить информацию о сделке
+ */
+export async function getDealInfo(dealId) {
+  try {
+    const response = await fetch(`${API_URL}/api/deals/${dealId}`);
+
+    if (!response.ok) {
+      throw new Error('Ошибка получения информации о сделке');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка API getDealInfo:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получить активные сделки пользователя
+ */
+export async function getUserDeals(userId) {
+  try {
+    const response = await fetch(`${API_URL}/api/deals/user/${userId}`);
+
+    if (!response.ok) {
+      throw new Error('Ошибка получения сделок пользователя');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка API getUserDeals:', error);
+    throw error;
+  }
+}
+
 /**
  * Health check
  */

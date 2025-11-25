@@ -7,9 +7,19 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
+const http = require('http');
+const { Server } = require('socket.io');
+const { initGuaranteeSocket } = require('./backend/guarantee-socket');
+const { setupGuaranteeAPI } = require('./backend/guarantee-api');
 
-const app = express();
-let PORT = process.env.PORT || 3001;
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST']
+  }
+});
+
 
 // Middleware
 app.use(cors());
@@ -1922,10 +1932,17 @@ async function startServer() {
       console.error('⚠️  Ошибка запуска отслеживания подарков:', err);
     });
 
+    // Инициализация WebSocket
+    initGuaranteeSocket(io, pool);
+
+    // Инициализация API эндпоинтов
+    setupGuaranteeAPI(app, pool);
+
     // Запуск Express сервера
-    const server = app.listen(PORT, () => {
+    const server = server.listen(PORT, () => {
       console.log('═'.repeat(50));
       console.log(`🚀 Сервер запущен на порту ${PORT}`);
+      console.log(`🔌 WebSocket готов`);
       console.log(`🗄️  База данных: PostgreSQL`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
       console.log('═'.repeat(50));
