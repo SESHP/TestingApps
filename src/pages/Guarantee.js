@@ -1,6 +1,6 @@
+// src/pages/Guarantee.js
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
-import lottie from 'lottie-web';
 import './Guarantee.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
@@ -13,20 +13,32 @@ function Guarantee() {
   const [myGifts, setMyGifts] = useState([]);
   const [user, setUser] = useState(null);
   const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
 
   // Инициализация пользователя
   useEffect(() => {
     if (window.Telegram?.WebApp) {
-      const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-      if (tgUser) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+
+      const telegramUser = tg.initDataUnsafe?.user;
+      if (telegramUser) {
         setUser({
-          id: tgUser.id,
-          firstName: tgUser.first_name,
-          username: tgUser.username
+          id: telegramUser.id,
+          firstName: telegramUser.first_name,
+          lastName: telegramUser.last_name,
+          username: telegramUser.username
         });
       }
+    } else {
+      setUser({
+        id: 123456789,
+        firstName: 'Test',
+        lastName: 'User',
+        username: 'testuser'
+      });
     }
   }, []);
 
@@ -36,43 +48,41 @@ function Guarantee() {
     const newSocket = io(API_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     newSocket.on('connect', () => {
       console.log('✅ WebSocket подключен:', newSocket.id);
     });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('❌ Ошибка подключения WebSocket:', error);
-    });
-
     newSocket.on('disconnect', () => {
       console.log('❌ WebSocket отключен');
     });
 
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ Ошибка подключения WebSocket:', error);
+    });
+
     setSocket(newSocket);
-    
+
     return () => {
       console.log('🔌 Закрытие WebSocket соединения');
       newSocket.close();
     };
   }, []);
 
-  // Слушатели WebSocket для текущей сделки
+  // Слушатели WebSocket
   useEffect(() => {
     if (!socket || !currentDeal) return;
 
     console.log('🔌 Настройка слушателей WebSocket для сделки:', currentDeal.id);
 
-    // Обновление состояния сделки
     socket.on('deal-state', (deal) => {
-      console.log('📋 Получено состояние сделки:', deal);
+      console.log('✅ Получено обновление сделки:', deal);
       setCurrentDeal(deal);
     });
 
-    // Участник присоединился
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
       
@@ -84,22 +94,19 @@ function Guarantee() {
       
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.showPopup({
-          title: '✅ Участник присоединился!',
-          message: 'Теперь вы можете добавлять подарки для обмена',
+          title: '🎉 Участник присоединился!',
+          message: 'Теперь можете добавлять подарки',
           buttons: [{ type: 'ok' }]
         });
-      } else {
-        alert('✅ Участник присоединился! Теперь можно добавлять подарки.');
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     });
 
-    // Обновление подарков
     socket.on('gifts-updated', (data) => {
       console.log('🎁 Подарки обновлены:', data);
       setDealGifts(data.gifts || {});
     });
 
-    // Обновление подтверждений
     socket.on('confirmation-updated', (data) => {
       console.log('✅ Подтверждение обновлено:', data);
       setCurrentDeal(prev => ({
@@ -109,56 +116,48 @@ function Guarantee() {
       }));
     });
 
-    // Сделка завершена
     socket.on('deal-completed', (data) => {
       console.log('🎉 Сделка завершена:', data);
       
       if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showAlert(data.message || '🎉 Обмен успешно завершен!', () => {
-          setScreen('main');
-          setCurrentDeal(null);
-          setDealGifts({});
-          loadMyGifts();
+        window.Telegram.WebApp.showPopup({
+          title: '🎉 Обмен завершен!',
+          message: data.message || 'Подарки успешно обменены!',
+          buttons: [{ type: 'ok' }]
         });
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       } else {
         alert(data.message || '🎉 Обмен успешно завершен!');
-        setScreen('main');
-        setCurrentDeal(null);
-        setDealGifts({});
-        loadMyGifts();
       }
+      
+      setScreen('main');
+      setCurrentDeal(null);
+      setDealGifts({});
     });
 
-    // Сделка отменена
     socket.on('deal-cancelled', (data) => {
       console.log('❌ Сделка отменена:', data);
       
       if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showAlert('Сделка была отменена', () => {
-          setScreen('main');
-          setCurrentDeal(null);
-          setDealGifts({});
+        window.Telegram.WebApp.showPopup({
+          title: '❌ Сделка отменена',
+          message: 'Обмен был отменен',
+          buttons: [{ type: 'ok' }]
         });
       } else {
-        alert('Сделка была отменена');
-        setScreen('main');
-        setCurrentDeal(null);
-        setDealGifts({});
+        alert('❌ Сделка была отменена');
       }
+      
+      setScreen('main');
+      setCurrentDeal(null);
+      setDealGifts({});
     });
 
-    // Ошибка
     socket.on('error', (data) => {
       console.error('❌ Ошибка WebSocket:', data);
-      
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showAlert(data.message || 'Произошла ошибка');
-      } else {
-        alert(data.message || 'Произошла ошибка');
-      }
+      alert(data.message || 'Произошла ошибка');
     });
 
-    // Очистка слушателей
     return () => {
       console.log('🔌 Отключение слушателей WebSocket');
       socket.off('deal-state');
@@ -171,37 +170,31 @@ function Guarantee() {
     };
   }, [socket, currentDeal]);
 
-  // Загрузка подарков пользователя
-  const loadMyGifts = async () => {
+  // Загрузка подарков
+  useEffect(() => {
     if (!user) return;
 
-    try {
-      const response = await fetch(`${API_URL}/api/gifts/${user.id}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // Фильтруем только невыведенные подарки
-        const availableGifts = data.gifts.filter(g => !g.is_withdrawn);
-        setMyGifts(availableGifts);
-        console.log('✅ Загружено подарков:', availableGifts.length);
+    const loadMyGifts = async () => {
+      try {
+        console.log('📦 Загрузка подарков пользователя:', user.id);
+        const response = await fetch(`${API_URL}/api/gifts/user/${user.id}`);
+        const data = await response.json();
+        
+        if (data.gifts) {
+          const availableGifts = data.gifts.filter(gift => !gift.is_withdrawn);
+          console.log('✅ Загружено подарков:', availableGifts.length);
+          setMyGifts(availableGifts);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки подарков:', error);
       }
-    } catch (error) {
-      console.error('❌ Ошибка загрузки подарков:', error);
-    }
-  };
+    };
 
-  useEffect(() => {
-    if (user) {
-      loadMyGifts();
-    }
+    loadMyGifts();
   }, [user]);
 
-  // Создание новой сделки
   const handleCreateDeal = async () => {
-    if (!user) {
-      alert('Ошибка: пользователь не определен');
-      return;
-    }
+    if (!user) return;
 
     try {
       const response = await fetch(`${API_URL}/api/deals/create`, {
@@ -213,30 +206,23 @@ function Guarantee() {
       const data = await response.json();
       
       if (data.success) {
+        console.log('✅ Сделка создана:', data.deal);
         setCurrentDeal(data.deal);
         setScreen('deal');
         
         const inviteCode = data.deal.invite_code;
         
-        // Копируем код в буфер обмена
         if (navigator.clipboard) {
-          navigator.clipboard.writeText(inviteCode).catch(err => {
-            console.error('Ошибка копирования:', err);
-          });
+          navigator.clipboard.writeText(inviteCode).catch(err => console.error(err));
         }
         
-        // Показываем уведомление
         if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showPopup({
-            title: '✅ Сделка создана!',
-            message: `Код для обмена: ${inviteCode}\n\nКод скопирован в буфер обмена. Отправьте его другому пользователю.`,
-            buttons: [{ type: 'ok' }]
-          });
-        } else {
-          alert(`Код для обмена: ${inviteCode}\n\nКод скопирован в буфер обмена!`);
+          window.Telegram.WebApp.showAlert(
+            `Код обмена: ${inviteCode}\n\nКод скопирован в буфер обмена!`
+          );
+          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
         
-        // Подключаемся к сделке через WebSocket
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
       }
     } catch (error) {
@@ -245,19 +231,15 @@ function Guarantee() {
     }
   };
 
-  // Присоединение к существующей сделке
   const handleJoinDeal = async () => {
-    if (!user || !inviteCodeInput.trim()) {
-      alert('Введите код обмена');
-      return;
-    }
+    if (!user || !inviteCodeInput.trim()) return;
 
     try {
       const response = await fetch(`${API_URL}/api/deals/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          inviteCode: inviteCodeInput.trim().toUpperCase(), 
+          inviteCode: inviteCodeInput.toUpperCase(),
           participantId: user.id 
         })
       });
@@ -265,39 +247,30 @@ function Guarantee() {
       const data = await response.json();
       
       if (data.success) {
+        console.log('✅ Присоединились к сделке:', data.deal);
         setCurrentDeal(data.deal);
         setScreen('deal');
         setInviteCodeInput('');
         
-        // Подключаемся к сделке через WebSocket
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
-        
-        if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showPopup({
-            title: '✅ Присоединились к обмену!',
-            message: 'Добавьте свои подарки для обмена',
-            buttons: [{ type: 'ok' }]
-          });
-        }
       } else {
-        alert(data.error || 'Не удалось присоединиться к сделке');
+        alert('Ошибка: ' + (data.error || 'Сделка не найдена'));
       }
     } catch (error) {
-      console.error('❌ Ошибка присоединения к сделке:', error);
-      alert('Не удалось присоединиться к сделке');
+      console.error('❌ Ошибка присоединения:', error);
+      alert('Не удалось присоединиться');
     }
   };
 
-  // Добавление подарка в сделку
   const handleAddGift = (gift) => {
     setSelectedGift(gift);
-    setShowAddModal(true);
+    setShowGiftModal(true);
   };
 
   const confirmAddGift = () => {
-    if (!socket || !currentDeal || !selectedGift) return;
+    if (!selectedGift || !currentDeal || !socket) return;
 
-    console.log('➕ Добавление подарка в сделку:', selectedGift.id);
+    console.log('🎁 Добавление подарка:', selectedGift.id);
     
     socket.emit('add-gift-to-deal', {
       dealId: currentDeal.id,
@@ -305,16 +278,17 @@ function Guarantee() {
       giftId: selectedGift.id
     });
 
-    setShowAddModal(false);
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+
+    setShowGiftModal(false);
     setSelectedGift(null);
   };
 
-  // Удаление подарка из сделки
   const handleRemoveGift = (giftId) => {
-    if (!socket || !currentDeal) return;
+    if (!currentDeal || !socket) return;
 
-    console.log('➖ Удаление подарка из сделки:', giftId);
-    
     socket.emit('remove-gift-from-deal', {
       dealId: currentDeal.id,
       userId: user.id,
@@ -322,9 +296,8 @@ function Guarantee() {
     });
   };
 
-  // Подтверждение обмена
   const handleConfirmDeal = () => {
-    if (!socket || !currentDeal) return;
+    if (!currentDeal || !socket) return;
 
     const myGiftsInDeal = dealGifts[user.id] || [];
     const otherUserId = currentDeal.creator_id === user.id 
@@ -337,21 +310,16 @@ function Guarantee() {
       return;
     }
 
-    console.log('✅ Подтверждение обмена');
-    
     socket.emit('confirm-deal', {
       dealId: currentDeal.id,
       userId: user.id
     });
   };
 
-  // Отмена сделки
   const handleCancelDeal = () => {
-    if (!socket || !currentDeal) return;
+    if (!currentDeal || !socket) return;
 
-    if (window.confirm('Вы уверены, что хотите отменить обмен?')) {
-      console.log('❌ Отмена сделки');
-      
+    if (window.confirm('Вы уверены?')) {
       socket.emit('cancel-deal', {
         dealId: currentDeal.id,
         userId: user.id
@@ -359,60 +327,60 @@ function Guarantee() {
     }
   };
 
-  // Компонент мини-карточки подарка в окне участника
-  const GiftCardMini = ({ gift, onRemove, canRemove }) => {
-    const [lottieContainer, setLottieContainer] = useState(null);
-
-    useEffect(() => {
-      if (!lottieContainer || !gift.rawData) return;
-
-      let lottieInstance = null;
-
-      const loadLottie = async () => {
-        try {
-          const rawData = typeof gift.rawData === 'string' 
-            ? JSON.parse(gift.rawData) 
-            : gift.rawData;
-
-          const modelAttr = rawData.attributes?.find(a => a._ === 'StarGiftAttributeModel');
-          
-          if (modelAttr?.document?.id) {
-            const lottieUrl = `${API_URL}/api/telegram/file/${modelAttr.document.id}`;
-            const response = await fetch(lottieUrl);
-            const lottieData = await response.json();
-
-            lottieInstance = lottie.loadAnimation({
-              container: lottieContainer,
-              renderer: 'svg',
-              loop: true,
-              autoplay: true,
-              animationData: lottieData
+  const handleCopyCode = () => {
+    const code = currentDeal.invite_code;
+    
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code)
+        .then(() => {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showPopup({
+              title: '✅ Скопировано!',
+              message: 'Код скопирован',
+              buttons: [{ type: 'ok' }]
             });
+          } else {
+            alert('✅ Код скопирован!');
           }
-        } catch (error) {
-          console.error('Ошибка загрузки Lottie:', error);
-        }
-      };
+        });
+    }
+  };
 
-      loadLottie();
+  // Компоненты для рендера подарков
+  const GiftPreview = ({ gift, size = 'medium' }) => {
+    return (
+      <div className={`gift-preview ${size}`}>
+        <span className="gift-symbol">{gift.symbol || '🎁'}</span>
+      </div>
+    );
+  };
 
-      return () => {
-        if (lottieInstance) {
-          lottieInstance.destroy();
-        }
-      };
-    }, [lottieContainer, gift]);
+  const GiftCardInventory = ({ gift }) => {
+    const isInDeal = dealGifts[user.id]?.some(g => g.id === gift.id);
+    
+    return (
+      <div 
+        className={`gift-card-inventory ${isInDeal ? 'disabled' : ''}`}
+        onClick={() => !isInDeal && handleAddGift(gift)}
+      >
+        <GiftPreview gift={gift} size="medium" />
+        <div className="gift-card-title">{gift.gift_title}</div>
+        {isInDeal && <div className="gift-card-badge">✓</div>}
+      </div>
+    );
+  };
 
+  const GiftCardMini = ({ gift, canRemove, onRemove }) => {
     return (
       <div className="gift-card-mini">
-        <div className="gift-preview-mini" ref={setLottieContainer}></div>
-        <div className="gift-info-mini">
-          <div className="gift-title-mini">{gift.giftTitle}</div>
-          <div className="gift-model-mini">{gift.model}</div>
+        <GiftPreview gift={gift} size="small" />
+        <div className="gift-mini-info">
+          <div className="gift-mini-title">{gift.giftTitle || gift.gift_title}</div>
+          <div className="gift-mini-model">{gift.model}</div>
         </div>
         {canRemove && (
           <button 
-            className="remove-gift-btn"
+            className="gift-remove-btn"
             onClick={() => onRemove(gift.id)}
           >
             ✕
@@ -422,62 +390,7 @@ function Guarantee() {
     );
   };
 
-  // Компонент карточки подарка в инвентаре
-  const GiftCardInventory = ({ gift, onClick, disabled }) => {
-    const [lottieContainer, setLottieContainer] = useState(null);
-
-    useEffect(() => {
-      if (!lottieContainer || !gift.raw_data) return;
-
-      let lottieInstance = null;
-
-      const loadLottie = async () => {
-        try {
-          const rawData = typeof gift.raw_data === 'string' 
-            ? JSON.parse(gift.raw_data) 
-            : gift.raw_data;
-
-          const modelAttr = rawData.attributes?.find(a => a._ === 'StarGiftAttributeModel');
-          
-          if (modelAttr?.document?.id) {
-            const lottieUrl = `${API_URL}/api/telegram/file/${modelAttr.document.id}`;
-            const response = await fetch(lottieUrl);
-            const lottieData = await response.json();
-
-            lottieInstance = lottie.loadAnimation({
-              container: lottieContainer,
-              renderer: 'svg',
-              loop: true,
-              autoplay: true,
-              animationData: lottieData
-            });
-          }
-        } catch (error) {
-          console.error('Ошибка загрузки Lottie:', error);
-        }
-      };
-
-      loadLottie();
-
-      return () => {
-        if (lottieInstance) {
-          lottieInstance.destroy();
-        }
-      };
-    }, [lottieContainer, gift]);
-
-    return (
-      <div 
-        className={`gift-card-inventory ${disabled ? 'disabled' : ''}`}
-        onClick={() => !disabled && onClick(gift)}
-      >
-        <div className="gift-preview-inventory" ref={setLottieContainer}></div>
-        <div className="gift-title-inventory">{gift.gift_title}</div>
-      </div>
-    );
-  };
-
-  // Рендер главного экрана
+  // Главный экран
   if (screen === 'main') {
     return (
       <div className="guarantee-container">
@@ -487,198 +400,184 @@ function Guarantee() {
         </div>
 
         <div className="guarantee-actions">
-          <button className="guarantee-btn primary" onClick={handleCreateDeal}>
-            ➕ Создать обмен
+          <button className="guarantee-btn create-btn" onClick={handleCreateDeal}>
+            <span className="btn-icon">🎁</span>
+            <span className="btn-text">Создать обмен</span>
           </button>
 
-          <div className="join-deal-section">
-            <input
-              type="text"
-              className="invite-code-input"
-              placeholder="Введите код обмена"
-              value={inviteCodeInput}
-              onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
-              maxLength={8}
-            />
-            <button className="guarantee-btn secondary" onClick={handleJoinDeal}>
-              🔗 Присоединиться
-            </button>
-          </div>
+          <button className="guarantee-btn join-btn" onClick={() => setScreen('join')}>
+            <span className="btn-icon">🔗</span>
+            <span className="btn-text">Присоединиться</span>
+          </button>
         </div>
 
         <div className="guarantee-info">
-          <h3>Как это работает:</h3>
+          <h3>Как это работает?</h3>
           <ol>
-            <li>Создайте обмен и получите уникальный код</li>
+            <li>Создайте обмен и получите код</li>
             <li>Отправьте код другому пользователю</li>
-            <li>Оба добавляете подарки для обмена</li>
-            <li>Подтверждаете обмен</li>
-            <li>Подарки автоматически меняются владельцами</li>
+            <li>Добавьте подарки в обмен</li>
+            <li>Подтвердите обмен</li>
+            <li>Получите новые подарки!</li>
           </ol>
         </div>
       </div>
     );
   }
 
-  // Рендер экрана активной сделки
-  if (screen === 'deal' && currentDeal) {
-    const myGiftsInDeal = dealGifts[user.id] || [];
-    const otherUserId = currentDeal.creator_id === user.id 
-      ? currentDeal.participant_id 
-      : currentDeal.creator_id;
-    const otherGiftsInDeal = dealGifts[otherUserId] || [];
+  // Экран присоединения
+  if (screen === 'join') {
+    return (
+      <div className="guarantee-container">
+        <div className="guarantee-header">
+          <h1 className="guarantee-title">🔗 Присоединиться</h1>
+          <p className="guarantee-subtitle">Введите код обмена</p>
+        </div>
 
+        <div className="join-form">
+          <input
+            type="text"
+            className="invite-code-input"
+            placeholder="AB12CD34"
+            value={inviteCodeInput}
+            onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
+            maxLength={8}
+          />
+
+          <button className="guarantee-btn join-btn" onClick={handleJoinDeal}>
+            Присоединиться
+          </button>
+
+          <button className="guarantee-btn back-btn" onClick={() => setScreen('main')}>
+            Назад
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Экран сделки
+  if (screen === 'deal' && currentDeal) {
     const isCreator = currentDeal.creator_id === user.id;
+    const otherUserId = isCreator ? currentDeal.participant_id : currentDeal.creator_id;
+    const myGiftsInDeal = dealGifts[user.id] || [];
+    const otherGiftsInDeal = dealGifts[otherUserId] || [];
     const myConfirmed = isCreator ? currentDeal.creator_confirmed : currentDeal.participant_confirmed;
     const otherConfirmed = isCreator ? currentDeal.participant_confirmed : currentDeal.creator_confirmed;
 
-    // Фильтруем подарки - не показываем те, что уже добавлены
-    const addedGiftIds = myGiftsInDeal.map(g => g.id);
-    const availableGifts = myGifts.filter(g => !addedGiftIds.includes(g.id));
-
     return (
       <div className="guarantee-container">
-        {/* Баннер с кодом приглашения */}
+        <div className="guarantee-header">
+          <h1 className="guarantee-title">🤝 Обмен</h1>
+        </div>
+
+        {/* Баннер с кодом */}
         {currentDeal.status === 'waiting' && isCreator && (
           <div className="invite-code-banner">
             <div className="invite-code-header">
               <span className="invite-icon">🔗</span>
               <span>Код для обмена</span>
             </div>
-            <div className="invite-code-display">
-              {currentDeal.invite_code}
-            </div>
-            <button 
-              className="copy-code-btn"
-              onClick={() => {
-                const code = currentDeal.invite_code;
-                
-                if (navigator.clipboard) {
-                  navigator.clipboard.writeText(code)
-                    .then(() => {
-                      if (window.Telegram?.WebApp) {
-                        window.Telegram.WebApp.showPopup({
-                          title: '✅ Скопировано!',
-                          message: 'Код скопирован в буфер обмена',
-                          buttons: [{ type: 'ok' }]
-                        });
-                      } else {
-                        alert('Код скопирован!');
-                      }
-                    })
-                    .catch(err => console.error('Ошибка копирования:', err));
-                }
-              }}
-            >
+            <div className="invite-code-display">{currentDeal.invite_code}</div>
+            <button className="copy-code-btn" onClick={handleCopyCode}>
               📋 Скопировать код
             </button>
-            <p className="invite-hint">
-              Отправьте этот код другому пользователю для начала обмена
-            </p>
+            <p className="invite-hint">Отправьте этот код другому пользователю</p>
           </div>
         )}
 
         {/* Окна участников */}
-        <div className="deal-windows">
-          {/* Мое окно */}
-          <div className="deal-window my-window">
-            <div className="window-header">
-              <span className="participant-name">Вы</span>
-              {myConfirmed && (
-                <span className="confirmed-badge">✓ Подтверждено</span>
-              )}
-            </div>
-            <div className="window-gifts">
-              {myGiftsInDeal.length === 0 ? (
-                <div className="empty-gifts">Добавьте подарки из инвентаря</div>
-              ) : (
-                myGiftsInDeal.map(gift => (
-                  <GiftCardMini 
-                    key={gift.id} 
-                    gift={gift} 
-                    onRemove={handleRemoveGift}
-                    canRemove={!myConfirmed}
-                  />
-                ))
-              )}
-            </div>
-          </div>
+        {currentDeal.status === 'active' && (
+          <>
+            <div className="deal-windows">
+              {/* Мое окно */}
+              <div className="participant-window my-window">
+                <div className="window-header">
+                  <span className="participant-name">Вы</span>
+                  {myConfirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
+                </div>
+                <div className="window-gifts">
+                  {myGiftsInDeal.length === 0 ? (
+                    <div className="empty-gifts">Добавьте подарки из инвентаря</div>
+                  ) : (
+                    myGiftsInDeal.map(gift => (
+                      <GiftCardMini 
+                        key={gift.id} 
+                        gift={gift} 
+                        canRemove={!myConfirmed}
+                        onRemove={handleRemoveGift}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
 
-          {/* Окно другого участника */}
-          <div className="deal-window other-window">
-            <div className="window-header">
-              <span className="participant-name">
-                {currentDeal.status === 'waiting' ? 'Ожидание...' : 'Участник'}
-              </span>
-              {otherConfirmed && (
-                <span className="confirmed-badge">✓ Подтверждено</span>
-              )}
+              {/* Окно участника */}
+              <div className="participant-window other-window">
+                <div className="window-header">
+                  <span className="participant-name">Участник</span>
+                  {otherConfirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
+                </div>
+                <div className="window-gifts">
+                  {otherGiftsInDeal.length === 0 ? (
+                    <div className="empty-gifts">Ожидание подарков...</div>
+                  ) : (
+                    otherGiftsInDeal.map(gift => (
+                      <GiftCardMini key={gift.id} gift={gift} canRemove={false} />
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="window-gifts">
-              {currentDeal.status === 'waiting' ? (
-                <div className="empty-gifts">Ожидание участника...</div>
-              ) : otherGiftsInDeal.length === 0 ? (
-                <div className="empty-gifts">Участник еще не добавил подарки</div>
-              ) : (
-                otherGiftsInDeal.map(gift => (
-                  <GiftCardMini 
-                    key={gift.id} 
-                    gift={gift} 
-                    canRemove={false}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Инвентарь */}
-        {currentDeal.status === 'active' && !myConfirmed && (
-          <div className="inventory-section">
-            <h3 className="inventory-title">Ваши подарки ({availableGifts.length})</h3>
-            <div className="inventory-grid">
-              {availableGifts.map(gift => (
-                <GiftCardInventory
-                  key={gift.id}
-                  gift={gift}
-                  onClick={handleAddGift}
-                  disabled={false}
-                />
-              ))}
+            {/* Инвентарь */}
+            {!myConfirmed && (
+              <div className="deal-inventory">
+                <h3 className="inventory-title">Мой инвентарь</h3>
+                <div className="inventory-grid">
+                  {myGifts.length === 0 ? (
+                    <div className="empty-inventory">У вас нет доступных подарков</div>
+                  ) : (
+                    myGifts.map(gift => (
+                      <GiftCardInventory key={gift.id} gift={gift} />
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Кнопки управления */}
+            <div className="deal-actions">
+              <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
+                Отменить обмен
+              </button>
+
+              {!myConfirmed ? (
+                <button 
+                  className="guarantee-btn confirm-btn"
+                  onClick={handleConfirmDeal}
+                  disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
+                >
+                  Подтвердить обмен
+                </button>
+              ) : (
+                <div className="waiting-message">Ожидание подтверждения...</div>
+              )}
             </div>
-          </div>
+          </>
         )}
 
-        {/* Кнопки управления */}
-        <div className="deal-controls">
-          <button 
-            className="deal-btn cancel"
-            onClick={handleCancelDeal}
-            disabled={myConfirmed}
-          >
-            ❌ Отменить обмен
-          </button>
-
-          {currentDeal.status === 'active' && (
-            <button 
-              className="deal-btn confirm"
-              onClick={handleConfirmDeal}
-              disabled={myConfirmed || myGiftsInDeal.length === 0}
-            >
-              {myConfirmed ? '✓ Вы подтвердили' : '✅ Подтвердить обмен'}
-            </button>
-          )}
-        </div>
-
-        {/* Модальное окно подтверждения добавления подарка */}
-        {showAddModal && selectedGift && (
-          <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        {/* Модальное окно */}
+        {showGiftModal && selectedGift && (
+          <div className="modal-overlay" onClick={() => setShowGiftModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h3>Добавить подарок в обмен?</h3>
-              <p className="gift-name">{selectedGift.gift_title}</p>
-              <p className="gift-model">{selectedGift.model}</p>
-              <div className="modal-buttons">
-                <button className="modal-btn cancel" onClick={() => setShowAddModal(false)}>
+              <h3>Добавить подарок?</h3>
+              <div className="modal-gift">
+                <GiftPreview gift={selectedGift} size="large" />
+                <p className="modal-gift-title">{selectedGift.gift_title}</p>
+              </div>
+              <div className="modal-actions">
+                <button className="modal-btn cancel" onClick={() => setShowGiftModal(false)}>
                   Отмена
                 </button>
                 <button className="modal-btn confirm" onClick={confirmAddGift}>
@@ -692,7 +591,11 @@ function Guarantee() {
     );
   }
 
-  return null;
+  return (
+    <div className="guarantee-container">
+      <div className="loading">Загрузка...</div>
+    </div>
+  );
 }
 
 export default Guarantee;
