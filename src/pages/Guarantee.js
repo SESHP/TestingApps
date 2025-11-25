@@ -1,6 +1,7 @@
 // src/pages/Guarantee.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import lottie from 'lottie-web';
 import './Guarantee.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
@@ -177,13 +178,12 @@ function Guarantee() {
     const loadMyGifts = async () => {
       try {
         console.log('📦 Загрузка подарков пользователя:', user.id);
-        const response = await fetch(`${API_URL}/api/gifts/user/${user.id}`);
+        const response = await fetch(`${API_URL}/api/gifts?fromId=${user.id}&withdrawn=false`);
         const data = await response.json();
         
         if (data.gifts) {
-          const availableGifts = data.gifts.filter(gift => !gift.is_withdrawn);
-          console.log('✅ Загружено подарков:', availableGifts.length);
-          setMyGifts(availableGifts);
+          console.log('✅ Загружено подарков:', data.gifts.length);
+          setMyGifts(data.gifts);
         }
       } catch (error) {
         console.error('❌ Ошибка загрузки подарков:', error);
@@ -346,11 +346,85 @@ function Guarantee() {
     }
   };
 
-  // Компоненты для рендера подарков
+  // Компонент для рендера подарков с Lottie
   const GiftPreview = ({ gift, size = 'medium' }) => {
+    const modelLottieRef = useRef(null);
+    const modelInstance = useRef(null);
+
+    useEffect(() => {
+      loadModel();
+      return () => {
+        if (modelInstance.current) {
+          modelInstance.current.destroy();
+        }
+      };
+    }, [gift.id]);
+
+    const loadModel = async () => {
+      if (!gift.rawData?.gift || !modelLottieRef.current) return;
+
+      const attributes = gift.rawData.gift.attributes || [];
+      const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
+      
+      if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
+        try {
+          const response = await fetch(`${API_URL}/api/telegram/file/${modelAttr.document.id}`);
+          if (response.ok) {
+            const animationData = await response.json();
+            
+            if (modelInstance.current) {
+              modelInstance.current.destroy();
+            }
+            
+            modelInstance.current = lottie.loadAnimation({
+              container: modelLottieRef.current,
+              renderer: 'svg',
+              loop: true,
+              autoplay: true,
+              animationData: animationData
+            });
+          }
+        } catch (err) {
+          console.error('Ошибка загрузки модели:', err);
+        }
+      }
+    };
+
+    const formatColor = (colorInt) => {
+      if (!colorInt && colorInt !== 0) return '#000000';
+      const hex = (colorInt >>> 0).toString(16).padStart(6, '0');
+      return `#${hex}`;
+    };
+
+    if (!gift.rawData?.gift) {
+      return (
+        <div className={`gift-preview-placeholder ${size}`}>
+          <span className="gift-symbol">🎁</span>
+        </div>
+      );
+    }
+
+    const giftData = gift.rawData.gift;
+    const attributes = giftData.attributes || [];
+    const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
+    
+    const backgroundStyle = backdropAttr ? {
+      background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
+    } : {
+      background: '#1a1a1a'
+    };
+
     return (
-      <div className={`gift-preview ${size}`}>
-        <span className="gift-symbol">{gift.symbol || '🎁'}</span>
+      <div className={`gift-preview-lottie ${size}`} style={backgroundStyle}>
+        <div 
+          ref={modelLottieRef} 
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            height: '100%'
+          }}
+        />
       </div>
     );
   };
@@ -364,7 +438,7 @@ function Guarantee() {
         onClick={() => !isInDeal && handleAddGift(gift)}
       >
         <GiftPreview gift={gift} size="medium" />
-        <div className="gift-card-title">{gift.gift_title}</div>
+        <div className="gift-card-title">{gift.giftTitle || gift.gift_title}</div>
         {isInDeal && <div className="gift-card-badge">✓</div>}
       </div>
     );
@@ -574,7 +648,7 @@ function Guarantee() {
               <h3>Добавить подарок?</h3>
               <div className="modal-gift">
                 <GiftPreview gift={selectedGift} size="large" />
-                <p className="modal-gift-title">{selectedGift.gift_title}</p>
+                <p className="modal-gift-title">{selectedGift.giftTitle || selectedGift.gift_title}</p>
               </div>
               <div className="modal-actions">
                 <button className="modal-btn cancel" onClick={() => setShowGiftModal(false)}>
@@ -597,6 +671,5 @@ function Guarantee() {
     </div>
   );
 }
-
 
 export default Guarantee;
