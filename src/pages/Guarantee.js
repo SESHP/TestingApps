@@ -255,19 +255,37 @@ function Guarantee() {
 
         const inviteCode = data.deal.invite_code;
 
-        // Автоматически копируем код в буфер обмена
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(inviteCode)
-            .then(() => {
-              console.log('✅ Код автоматически скопирован:', inviteCode);
-              showNotification('Код приглашения скопирован в буфер обмена!', 'success');
-            })
-            .catch(err => {
-              console.error('❌ Ошибка копирования кода:', err);
-              showNotification('Код приглашения: ' + inviteCode, 'info');
-            });
-        } else {
-          showNotification('Код приглашения: ' + inviteCode, 'info');
+        // Автоматически копируем код - используем более надежный способ
+        try {
+          // Создаем временный input элемент
+          const tempInput = document.createElement('input');
+          tempInput.value = inviteCode;
+          tempInput.style.position = 'fixed';
+          tempInput.style.opacity = '0';
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          tempInput.setSelectionRange(0, 99999);
+
+          const successful = document.execCommand('copy');
+          document.body.removeChild(tempInput);
+
+          if (successful) {
+            console.log('✅ Код автоматически скопирован:', inviteCode);
+            showNotification('Код приглашения скопирован!', 'success');
+          } else {
+            // Fallback на современный API
+            navigator.clipboard.writeText(inviteCode)
+              .then(() => {
+                console.log('✅ Код скопирован через clipboard API');
+                showNotification('Код приглашения скопирован!', 'success');
+              })
+              .catch(() => {
+                showNotification('Код: ' + inviteCode, 'info');
+              });
+          }
+        } catch (err) {
+          console.error('❌ Ошибка автокопирования:', err);
+          showNotification('Код: ' + inviteCode, 'info');
         }
 
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
@@ -640,26 +658,16 @@ function Guarantee() {
       <div className="guarantee-container">
         <div className="guarantee-header">
           <h1 className="guarantee-title">🤝 Обмен</h1>
-        </div>
 
-        {/* Баннер с кодом - ВСЕГДА ПОКАЗЫВАЕМ ДЛЯ СОЗДАТЕЛЯ */}
-        {isCreator && (
-          <div className="invite-code-banner">
-            <div className="invite-code-header">
-              <span className="invite-icon">🔗</span>
-              <span>Код для обмена</span>
+          {/* Код приглашения для создателя - просто и красиво */}
+          {isCreator && (
+            <div className="invite-code-simple" onClick={handleCopyCode}>
+              <div className="invite-code-label">Код приглашения</div>
+              <div className="invite-code-value">{currentDeal.invite_code}</div>
+              <div className="invite-code-tap">Нажмите, чтобы скопировать</div>
             </div>
-            <div className="invite-code-display">{currentDeal.invite_code}</div>
-            <button className="copy-code-btn" onClick={handleCopyCode}>
-              📋 Скопировать код
-            </button>
-            <p className="invite-hint">
-              {currentDeal.status === 'waiting'
-                ? 'Отправьте этот код другому пользователю'
-                : 'Можете поделиться кодом для справки'}
-            </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Экран ожидания участника */}
         {currentDeal.status === 'waiting' && (
