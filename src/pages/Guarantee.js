@@ -16,6 +16,7 @@ function Guarantee() {
   const [inviteCodeInput, setInviteCodeInput] = useState('');
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState(null);
+  const [notifications, setNotifications] = useState([]);
 
   // Инициализация пользователя
   useEffect(() => {
@@ -127,24 +128,15 @@ function Guarantee() {
 
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
-      
+
       // Обновляем локальную сделку на active
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
         status: 'active'
       }));
-      
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showPopup({
-          title: '🎉 Участник присоединился!',
-          message: 'Теперь можете добавлять подарки',
-          buttons: [{ type: 'ok' }]
-        });
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      } else {
-        alert('🎉 Участник присоединился!');
-      }
+
+      showNotification('🎉 Участник присоединился! Теперь можете добавлять подарки', 'success');
     });
 
     socket.on('gifts-updated', (data) => {
@@ -164,18 +156,9 @@ function Guarantee() {
 
     socket.on('deal-completed', (data) => {
       console.log('🎉 Сделка завершена:', data);
-      
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showPopup({
-          title: '🎉 Обмен завершен!',
-          message: data.message || 'Подарки успешно обменены!',
-          buttons: [{ type: 'ok' }]
-        });
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      } else {
-        alert(data.message || '🎉 Обмен успешно завершен!');
-      }
-      
+
+      showNotification('🎉 ' + (data.message || 'Обмен успешно завершен! Подарки обменены'), 'success');
+
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -183,17 +166,9 @@ function Guarantee() {
 
     socket.on('deal-cancelled', (data) => {
       console.log('❌ Сделка отменена:', data);
-      
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.showPopup({
-          title: '❌ Сделка отменена',
-          message: 'Обмен был отменен',
-          buttons: [{ type: 'ok' }]
-        });
-      } else {
-        alert('❌ Сделка была отменена');
-      }
-      
+
+      showNotification('❌ Обмен был отменен', 'error');
+
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -201,7 +176,7 @@ function Guarantee() {
 
     socket.on('error', (data) => {
       console.error('❌ Ошибка WebSocket:', data);
-      alert(data.message || 'Произошла ошибка');
+      showNotification(data.message || 'Произошла ошибка', 'error');
     });
 
     return () => {
@@ -238,6 +213,29 @@ function Guarantee() {
     loadMyGifts();
   }, [user]);
 
+  // Функция для показа уведомлений
+  const showNotification = (message, type = 'info') => {
+    const id = Date.now();
+    const notification = { id, message, type };
+    setNotifications(prev => [...prev, notification]);
+
+    // Автоматически убираем уведомление через 4 секунды
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+
+    // Haptic feedback для Telegram
+    if (window.Telegram?.WebApp) {
+      if (type === 'success') {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      } else if (type === 'error') {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+      } else {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+      }
+    }
+  };
+
   const handleCreateDeal = async () => {
     if (!user) return;
 
@@ -254,25 +252,19 @@ function Guarantee() {
         console.log('✅ Сделка создана:', data.deal);
         setCurrentDeal(data.deal);
         setScreen('deal');
-        
+
         const inviteCode = data.deal.invite_code;
-        
+
         if (navigator.clipboard) {
           navigator.clipboard.writeText(inviteCode).catch(err => console.error(err));
+          showNotification('Код скопирован в буфер обмена!', 'success');
         }
-        
-        if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.showAlert(
-            `Код обмена: ${inviteCode}\n\nКод скопирован в буфер обмена!`
-          );
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
-        
+
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
       }
     } catch (error) {
       console.error('❌ Ошибка создания сделки:', error);
-      alert('Не удалось создать сделку');
+      showNotification('Не удалось создать сделку', 'error');
     }
   };
 
@@ -296,14 +288,15 @@ function Guarantee() {
         setCurrentDeal(data.deal);
         setScreen('deal');
         setInviteCodeInput('');
-        
+
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
+        showNotification('Успешно присоединились к обмену!', 'success');
       } else {
-        alert('Ошибка: ' + (data.error || 'Сделка не найдена'));
+        showNotification(data.error || 'Сделка не найдена', 'error');
       }
     } catch (error) {
       console.error('❌ Ошибка присоединения:', error);
-      alert('Не удалось присоединиться');
+      showNotification('Не удалось присоединиться', 'error');
     }
   };
 
@@ -353,7 +346,7 @@ function Guarantee() {
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
 
     if (myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0) {
-      alert('Оба участника должны добавить хотя бы один подарок');
+      showNotification('Оба участника должны добавить хотя бы один подарок', 'error');
       return;
     }
 
@@ -361,34 +354,30 @@ function Guarantee() {
       dealId: currentDeal.id,
       userId: user.id
     });
+
+    showNotification('Ваше подтверждение отправлено', 'success');
   };
 
   const handleCancelDeal = () => {
     if (!currentDeal || !socket) return;
 
-    if (window.confirm('Вы уверены?')) {
-      socket.emit('cancel-deal', {
-        dealId: currentDeal.id,
-        userId: user.id
-      });
-    }
+    // Вместо confirm используем прямую отмену
+    socket.emit('cancel-deal', {
+      dealId: currentDeal.id,
+      userId: user.id
+    });
   };
 
   const handleCopyCode = () => {
     const code = currentDeal.invite_code;
-    
+
     if (navigator.clipboard) {
       navigator.clipboard.writeText(code)
         .then(() => {
-          if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showPopup({
-              title: '✅ Скопировано!',
-              message: 'Код скопирован',
-              buttons: [{ type: 'ok' }]
-            });
-          } else {
-            alert('✅ Код скопирован!');
-          }
+          showNotification('✅ Код скопирован в буфер обмена!', 'success');
+        })
+        .catch(() => {
+          showNotification('Не удалось скопировать код', 'error');
         });
     }
   };
@@ -551,6 +540,20 @@ function Guarantee() {
             <li>Получите новые подарки!</li>
           </ol>
         </div>
+
+        {/* Уведомления */}
+        <div className="notifications-container">
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`notification notification-${notification.type}`}
+            >
+              <div className="notification-content">
+                {notification.message}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -581,6 +584,20 @@ function Guarantee() {
           <button className="guarantee-btn back-btn" onClick={() => setScreen('main')}>
             Назад
           </button>
+        </div>
+
+        {/* Уведомления */}
+        <div className="notifications-container">
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`notification notification-${notification.type}`}
+            >
+              <div className="notification-content">
+                {notification.message}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -767,6 +784,20 @@ function Guarantee() {
             </div>
           </div>
         )}
+
+        {/* Уведомления */}
+        <div className="notifications-container">
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`notification notification-${notification.type}`}
+            >
+              <div className="notification-content">
+                {notification.message}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -774,6 +805,20 @@ function Guarantee() {
   return (
     <div className="guarantee-container">
       <div className="loading">Загрузка...</div>
+
+      {/* Уведомления */}
+      <div className="notifications-container">
+        {notifications.map(notification => (
+          <div
+            key={notification.id}
+            className={`notification notification-${notification.type}`}
+          >
+            <div className="notification-content">
+              {notification.message}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
