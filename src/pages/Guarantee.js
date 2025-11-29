@@ -658,15 +658,6 @@ function Guarantee() {
       <div className="guarantee-container">
         <div className="guarantee-header">
           <h1 className="guarantee-title">🤝 Обмен</h1>
-
-          {/* Код приглашения для создателя - просто и красиво */}
-          {isCreator && (
-            <div className="invite-code-simple" onClick={handleCopyCode}>
-              <div className="invite-code-label">Код приглашения</div>
-              <div className="invite-code-value">{currentDeal.invite_code}</div>
-              <div className="invite-code-tap">Нажмите, чтобы скопировать</div>
-            </div>
-          )}
         </div>
 
         {/* Экран ожидания участника */}
@@ -676,9 +667,19 @@ function Guarantee() {
               <div className="pulse-icon">👤</div>
             </div>
             <h2 className="waiting-title">Ожидание участника...</h2>
+
+            {/* КОД ПРИГЛАШЕНИЯ ВСТРОЕН ПРЯМО СЮДА */}
+            {isCreator && (
+              <div className="invite-code-inline" onClick={handleCopyCode}>
+                <div className="invite-code-label">Код приглашения</div>
+                <div className="invite-code-value">{currentDeal.invite_code}</div>
+                <div className="invite-code-tap">👆 Нажмите, чтобы скопировать</div>
+              </div>
+            )}
+
             <p className="waiting-description">
               {isCreator
-                ? 'Отправьте код приглашения другому пользователю. Как только он присоединится, вы сможете начать обмен.'
+                ? 'Отправьте этот код другому пользователю. Как только он присоединится, вы сможете начать обмен.'
                 : 'Ожидание подключения к обмену...'}
             </p>
             <div className="waiting-steps">
