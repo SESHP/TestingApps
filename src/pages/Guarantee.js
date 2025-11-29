@@ -640,9 +640,6 @@ function Guarantee() {
 
     const isCreator = creatorId === myUserId;
     const otherUserId = isCreator ? participantId : creatorId;
-    
-    // ФИКС: приводим к строке для сравнения с ключами dealGifts
-    const myUserId = String(user.id);
     const otherUserIdStr = String(otherUserId);
     
     console.log('👤 Мой ID:', myUserId, 'Тип:', typeof myUserId);
