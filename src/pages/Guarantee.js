@@ -633,11 +633,13 @@ function Guarantee() {
 
   // Экран сделки
   if (screen === 'deal' && currentDeal) {
-    const isCreator = currentDeal.creator_id === user.id;
-    const otherUserId = isCreator ? currentDeal.participant_id : currentDeal.creator_id;
-    
-    // ФИКС: приводим к строке для сравнения с ключами dealGifts
+    // ФИКС: приводим ID к строке для сравнения
     const myUserId = String(user.id);
+    const creatorId = String(currentDeal.creator_id);
+    const participantId = String(currentDeal.participant_id);
+
+    const isCreator = creatorId === myUserId;
+    const otherUserId = isCreator ? participantId : creatorId;
     const otherUserIdStr = String(otherUserId);
     
     console.log('👤 Мой ID:', myUserId, 'Тип:', typeof myUserId);
