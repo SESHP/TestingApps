@@ -675,7 +675,7 @@ function Guarantee() {
               <div className="invite-code-inline" onClick={handleCopyCode}>
                 <div className="invite-code-label">Код приглашения</div>
                 <div className="invite-code-value">{currentDeal.invite_code}</div>
-                <div className="invite-code-tap">👆 Нажмите, чтобы скопировать</div>
+                <div className="invite-code-tap">Нажмите, чтобы скопировать</div>
               </div>
             )}
 
