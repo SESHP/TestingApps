@@ -239,6 +239,7 @@
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
+  margin-top: 20px;
   flex-wrap: wrap;
 }
 
@@ -723,7 +724,7 @@
   text-align: center;
   backdrop-filter: blur(10px);
   max-width: 500px;
-  margin: 0 auto;
+  margin: 20px auto 0 auto;
 }
 
 .waiting-animation {
