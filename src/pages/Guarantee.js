@@ -255,9 +255,19 @@ function Guarantee() {
 
         const inviteCode = data.deal.invite_code;
 
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(inviteCode).catch(err => console.error(err));
-          showNotification('Код скопирован в буфер обмена!', 'success');
+        // Автоматически копируем код в буфер обмена
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(inviteCode)
+            .then(() => {
+              console.log('✅ Код автоматически скопирован:', inviteCode);
+              showNotification('Код приглашения скопирован в буфер обмена!', 'success');
+            })
+            .catch(err => {
+              console.error('❌ Ошибка копирования кода:', err);
+              showNotification('Код приглашения: ' + inviteCode, 'info');
+            });
+        } else {
+          showNotification('Код приглашения: ' + inviteCode, 'info');
         }
 
         socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
@@ -632,8 +642,8 @@ function Guarantee() {
           <h1 className="guarantee-title">🤝 Обмен</h1>
         </div>
 
-        {/* Баннер с кодом */}
-        {currentDeal.status === 'waiting' && isCreator && (
+        {/* Баннер с кодом - ВСЕГДА ПОКАЗЫВАЕМ ДЛЯ СОЗДАТЕЛЯ */}
+        {isCreator && (
           <div className="invite-code-banner">
             <div className="invite-code-header">
               <span className="invite-icon">🔗</span>
@@ -643,7 +653,11 @@ function Guarantee() {
             <button className="copy-code-btn" onClick={handleCopyCode}>
               📋 Скопировать код
             </button>
-            <p className="invite-hint">Отправьте этот код другому пользователю</p>
+            <p className="invite-hint">
+              {currentDeal.status === 'waiting'
+                ? 'Отправьте этот код другому пользователю'
+                : 'Можете поделиться кодом для справки'}
+            </p>
           </div>
         )}
 
