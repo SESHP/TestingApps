@@ -630,6 +630,42 @@ function Guarantee() {
           </div>
         )}
 
+        {/* Экран ожидания участника */}
+        {currentDeal.status === 'waiting' && (
+          <div className="waiting-participant-screen">
+            <div className="waiting-animation">
+              <div className="pulse-icon">👤</div>
+            </div>
+            <h2 className="waiting-title">Ожидание участника...</h2>
+            <p className="waiting-description">
+              {isCreator
+                ? 'Отправьте код приглашения другому пользователю. Как только он присоединится, вы сможете начать обмен.'
+                : 'Ожидание подключения к обмену...'}
+            </p>
+            <div className="waiting-steps">
+              <div className="waiting-step completed">
+                <span className="step-icon">✓</span>
+                <span className="step-text">Обмен создан</span>
+              </div>
+              <div className="waiting-step pending">
+                <span className="step-icon">⏳</span>
+                <span className="step-text">Ожидание участника</span>
+              </div>
+              <div className="waiting-step pending">
+                <span className="step-icon">○</span>
+                <span className="step-text">Добавление подарков</span>
+              </div>
+              <div className="waiting-step pending">
+                <span className="step-icon">○</span>
+                <span className="step-text">Подтверждение обмена</span>
+              </div>
+            </div>
+            <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
+              Отменить обмен
+            </button>
+          </div>
+        )}
+
         {/* Окна участников */}
         {currentDeal.status === 'active' && (
           <>
