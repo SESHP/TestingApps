@@ -657,7 +657,7 @@ function Guarantee() {
     return (
       <div className="guarantee-container">
         <div className="guarantee-header">
-          <h1 className="guarantee-title">🤝 Обмен</h1>
+          <h1 className="guarantee-title">Обмен</h1>
         </div>
 
         {/* Экран ожидания участника */}
@@ -682,6 +682,7 @@ function Guarantee() {
                 ? 'Отправьте этот код другому пользователю. Как только он присоединится, вы сможете начать обмен.'
                 : 'Ожидание подключения к обмену...'}
             </p>
+
             <div className="waiting-steps">
               <div className="waiting-step completed">
                 <span className="step-icon">✓</span>
