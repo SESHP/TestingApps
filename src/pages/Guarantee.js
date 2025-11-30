@@ -689,24 +689,20 @@ function Guarantee() {
 
     return (
       <div className="guarantee-container">
-        <div className="guarantee-header">
-          <h1 className="guarantee-title">🤝 Обмен</h1>
-        </div>
-
         {/* Экран ожидания участника */}
         {currentDeal.status === 'waiting' && (
           <div className="waiting-participant-screen">
             <div className="waiting-animation">
-              <div className="pulse-icon">👤</div>
+              <div className="hourglass-icon">⏳</div>
             </div>
-            <h2 className="waiting-title">Ожидание участника...</h2>
+            <h2 className="waiting-title">Ожидание участника<span className="animated-dots"></span></h2>
 
             {/* КОД ПРИГЛАШЕНИЯ ВСТРОЕН ПРЯМО СЮДА */}
             {isCreator && (
               <div className="invite-code-inline" onClick={handleCopyCode}>
                 <div className="invite-code-label">Код приглашения</div>
                 <div className="invite-code-value">{currentDeal.invite_code}</div>
-                <div className="invite-code-tap">👆 Нажмите, чтобы скопировать</div>
+                <div className="invite-code-tap">Нажмите, чтобы скопировать</div>
               </div>
             )}
 
