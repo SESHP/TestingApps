@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import lottie from 'lottie-web';
 import './Guarantee.css';
+import moneyAnimation from '../assets/icons/money.json';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
@@ -426,13 +427,13 @@ function Guarantee() {
     useEffect(() => {
       if (!containerRef.current) return;
 
-      // Загрузка анимации с lottie.host
+      // Загрузка анимации из локального файла
       animInstance.current = lottie.loadAnimation({
         container: containerRef.current,
         renderer: 'svg',
         loop: true,
         autoplay: true,
-        path: 'https://lottie.host/101fa5bc-4785-45c5-a848-a0b3376048a2/v9sDe4yev8.json'
+        animationData: moneyAnimation
       });
 
       return () => {
