@@ -117,13 +117,18 @@ function initGuaranteeSocket(io, pool) {
 
         const currentDeal = deal.rows[0];
 
+        // ФИКС: приводим к строкам для сравнения
+        const userIdStr = String(userId);
+        const creatorIdStr = String(currentDeal.creator_id);
+        const participantIdStr = String(currentDeal.participant_id);
+
         // Определяем, кто подтверждает (creator или participant)
-        if (userId === currentDeal.creator_id) {
+        if (userIdStr === creatorIdStr) {
           await pool.query(
             'UPDATE deals SET creator_confirmed = TRUE WHERE id = $1',
             [dealId]
           );
-        } else if (userId === currentDeal.participant_id) {
+        } else if (userIdStr === participantIdStr) {
           await pool.query(
             'UPDATE deals SET participant_confirmed = TRUE WHERE id = $1',
             [dealId]
