@@ -841,22 +841,22 @@
 
 .hourglass-icon {
   font-size: 80px;
-  animation: hourglass-flip 3s ease-in-out infinite;
+  animation: hourglass-realistic 8s ease-in-out infinite;
   display: inline-block;
   filter: drop-shadow(0 4px 12px rgba(242, 125, 0, 0.3));
 }
 
-@keyframes hourglass-flip {
+@keyframes hourglass-realistic {
   0% {
     transform: rotate(0deg);
   }
-  25% {
+  45% {
     transform: rotate(0deg);
   }
   50% {
     transform: rotate(180deg);
   }
-  75% {
+  95% {
     transform: rotate(180deg);
   }
   100% {
@@ -873,7 +873,7 @@
 
 .animated-dots::after {
   content: '';
-  animation: dots 1.5s steps(3, end) infinite;
+  animation: dots 2.5s steps(3, end) infinite;
 }
 
 @keyframes dots {
