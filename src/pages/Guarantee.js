@@ -367,8 +367,8 @@ function Guarantee() {
 
     const myUserId = String(user.id);
     const myGiftsInDeal = dealGifts[myUserId] || [];
-    const otherUserId = currentDeal.creator_id === user.id 
-      ? currentDeal.participant_id 
+    const otherUserId = currentDeal.creator_id === user.id
+      ? currentDeal.participant_id
       : currentDeal.creator_id;
     const otherUserIdStr = String(otherUserId);
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
@@ -377,6 +377,14 @@ function Guarantee() {
       showNotification('Оба участника должны добавить хотя бы один подарок', 'error');
       return;
     }
+
+    // СРАЗУ ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
+    const isCreator = String(currentDeal.creator_id) === myUserId;
+    setCurrentDeal(prev => ({
+      ...prev,
+      creator_confirmed: isCreator ? true : prev.creator_confirmed,
+      participant_confirmed: !isCreator ? true : prev.participant_confirmed
+    }));
 
     socket.emit('confirm-deal', {
       dealId: currentDeal.id,
