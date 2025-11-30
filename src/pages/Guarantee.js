@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import lottie from 'lottie-web';
 import './Guarantee.css';
-import moneyAnimation from '../assets/icons/money.json';
+import moneyAnimation from '../assets/icons/Money.json';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
