@@ -426,30 +426,14 @@ function Guarantee() {
     useEffect(() => {
       if (!containerRef.current) return;
 
-      // Загрузка анимации песочных часов с LottieFiles
-      const loadAnimation = async () => {
-        try {
-          // Публичная анимация песочных часов
-          const response = await fetch('https://assets10.lottiefiles.com/packages/lf20_t9gkkhz4.json');
-          const animationData = await response.json();
-
-          animInstance.current = lottie.loadAnimation({
-            container: containerRef.current,
-            renderer: 'svg',
-            loop: true,
-            autoplay: true,
-            animationData: animationData
-          });
-        } catch (error) {
-          console.error('Ошибка загрузки анимации:', error);
-          // Fallback на эмодзи
-          if (containerRef.current) {
-            containerRef.current.innerHTML = '<div style="font-size: 100px; text-align: center;">⏳</div>';
-          }
-        }
-      };
-
-      loadAnimation();
+      // Загрузка анимации с lottie.host
+      animInstance.current = lottie.loadAnimation({
+        container: containerRef.current,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: 'https://lottie.host/101fa5bc-4785-45c5-a848-a0b3376048a2/v9sDe4yev8.json'
+      });
 
       return () => {
         if (animInstance.current) {
