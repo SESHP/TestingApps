@@ -711,6 +711,7 @@ function Guarantee() {
                 ? 'Отправьте этот код другому пользователю. Как только он присоединится, вы сможете начать обмен.'
                 : 'Ожидание подключения к обмену...'}
             </p>
+
             <div className="waiting-steps">
               <div className="waiting-step completed">
                 <span className="step-icon">✓</span>
