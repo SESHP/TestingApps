@@ -8,6 +8,160 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Main Screen Header */
+.guarantee-header-main {
+  text-align: center;
+  margin-bottom: 48px;
+  padding-top: 60px;
+}
+
+.guarantee-title-main {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #F27D00, #ff9500);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+.guarantee-subtitle-main {
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+}
+
+/* Main Actions - Apple Style */
+.guarantee-actions-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 56px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 20px;
+}
+
+.guarantee-btn-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border: none;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: -0.3px;
+}
+
+.guarantee-btn-main:active {
+  transform: scale(0.98);
+}
+
+.guarantee-btn-main.primary {
+  background: linear-gradient(135deg, #F27D00, #ff9500);
+  color: white;
+  box-shadow: 0 2px 16px rgba(242, 125, 0, 0.25);
+}
+
+.guarantee-btn-main.primary:hover {
+  box-shadow: 0 4px 24px rgba(242, 125, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.guarantee-btn-main.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.guarantee-btn-main.secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-text-main {
+  font-size: 17px;
+  letter-spacing: -0.2px;
+}
+
+.btn-arrow {
+  font-size: 20px;
+  opacity: 0.7;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.guarantee-btn-main:hover .btn-arrow {
+  transform: translateX(4px);
+  opacity: 1;
+}
+
+/* Features Section - Apple Style */
+.guarantee-features {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.feature-item {
+  display: flex;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease;
+}
+
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-number {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(242, 125, 0, 0.1);
+  border: 1px solid rgba(242, 125, 0, 0.2);
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #F27D00;
+  flex-shrink: 0;
+}
+
+.feature-content {
+  flex: 1;
+}
+
+.feature-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.3px;
+}
+
+.feature-description {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+  line-height: 1.5;
+  letter-spacing: -0.2px;
+}
+
 /* Header */
 .guarantee-header {
   text-align: center;
@@ -29,97 +183,6 @@
   font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
-}
-
-/* Main Actions */
-.guarantee-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 40px;
-  max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.guarantee-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 24px;
-  border: none;
-  border-radius: 16px;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.guarantee-btn:active {
-  transform: scale(0.98);
-}
-
-.btn-icon {
-  font-size: 24px;
-}
-
-.btn-text {
-  font-size: 18px;
-}
-
-.create-btn {
-  background: linear-gradient(135deg, #F27D00, #ff9500);
-  color: white;
-  box-shadow: 0 4px 20px rgba(242, 125, 0, 0.3);
-}
-
-.create-btn:hover {
-  box-shadow: 0 6px 30px rgba(242, 125, 0, 0.5);
-  transform: translateY(-2px);
-}
-
-.join-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  border: 2px solid rgba(242, 125, 0, 0.3);
-  backdrop-filter: blur(10px);
-}
-
-.join-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(242, 125, 0, 0.5);
-  transform: translateY(-2px);
-}
-
-/* Info Section */
-.guarantee-info {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.guarantee-info h3 {
-  font-size: 20px;
-  margin: 0 0 16px 0;
-  color: #F27D00;
-}
-
-.guarantee-info ol {
-  margin: 0;
-  padding-left: 20px;
-  line-height: 1.8;
-}
-
-.guarantee-info li {
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 8px;
 }
 
 /* Join Form */
@@ -659,24 +722,25 @@
   .inventory-grid {
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   }
+
+  /* Main screen адаптация */
+  .guarantee-header-main {
+    padding-top: 40px;
+    margin-bottom: 36px;
+  }
+
+  .guarantee-title-main {
+    font-size: 34px;
+  }
+
+  .feature-item {
+    padding: 16px 0;
+  }
 }
 
 @media (max-width: 480px) {
   .guarantee-title {
     font-size: 28px;
-  }
-
-  .guarantee-btn {
-    padding: 14px 20px;
-    font-size: 16px;
-  }
-
-  .btn-icon {
-    font-size: 20px;
-  }
-
-  .btn-text {
-    font-size: 16px;
   }
 
   .inventory-grid {
@@ -690,6 +754,64 @@
   .invite-code-display {
     font-size: 24px;
     letter-spacing: 2px;
+  }
+
+  /* Main screen мобильная адаптация */
+  .guarantee-header-main {
+    padding-top: 32px;
+    margin-bottom: 28px;
+  }
+
+  .guarantee-title-main {
+    font-size: 28px;
+    letter-spacing: -0.3px;
+  }
+
+  .guarantee-subtitle-main {
+    font-size: 15px;
+  }
+
+  .guarantee-actions-main {
+    margin-bottom: 40px;
+    padding: 0 16px;
+  }
+
+  .guarantee-btn-main {
+    padding: 16px 20px;
+    font-size: 16px;
+  }
+
+  .btn-text-main {
+    font-size: 16px;
+  }
+
+  .btn-arrow {
+    font-size: 18px;
+  }
+
+  .guarantee-features {
+    padding: 0 16px;
+  }
+
+  .feature-item {
+    padding: 14px 0;
+    gap: 12px;
+  }
+
+  .feature-number {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 15px;
+  }
+
+  .feature-title {
+    font-size: 16px;
+  }
+
+  .feature-description {
+    font-size: 14px;
   }
 }
 
