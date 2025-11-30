@@ -418,6 +418,55 @@ function Guarantee() {
     }
   };
 
+  // Компонент песочных часов с Lottie анимацией
+  const HourglassAnimation = () => {
+    const hourglassRef = useRef(null);
+    const animationInstance = useRef(null);
+
+    useEffect(() => {
+      if (!hourglassRef.current) return;
+
+      // Загрузка анимации с LottieFiles
+      const loadAnimation = async () => {
+        try {
+          const response = await fetch('https://lottie.host/4c8144eb-02b9-4a53-b5e4-46f9d6c6cf6e/4vBBwPivbH.json');
+          const animationData = await response.json();
+
+          animationInstance.current = lottie.loadAnimation({
+            container: hourglassRef.current,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            animationData: animationData
+          });
+        } catch (error) {
+          console.error('Ошибка загрузки анимации песочных часов:', error);
+        }
+      };
+
+      loadAnimation();
+
+      return () => {
+        if (animationInstance.current) {
+          animationInstance.current.destroy();
+        }
+      };
+    }, []);
+
+    return (
+      <div
+        ref={hourglassRef}
+        className="hourglass-lottie-container"
+        style={{
+          width: '140px',
+          height: '140px',
+          margin: '0 auto',
+          filter: 'drop-shadow(0 4px 16px rgba(242, 125, 0, 0.4))'
+        }}
+      />
+    );
+  };
+
   // Компонент для рендера подарков с Lottie
   const GiftPreview = ({ gift, size = 'medium' }) => {
     const modelLottieRef = useRef(null);
@@ -693,7 +742,7 @@ function Guarantee() {
         {currentDeal.status === 'waiting' && (
           <div className="waiting-participant-screen">
             <div className="waiting-animation">
-              <div className="hourglass-icon">⏳</div>
+              <HourglassAnimation />
             </div>
             <h2 className="waiting-title">Ожидание участника<span className="animated-dots"></span></h2>
 

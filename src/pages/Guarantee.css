@@ -839,29 +839,14 @@
   margin-bottom: 24px;
 }
 
-.hourglass-icon {
-  font-size: 80px;
-  animation: hourglass-realistic 8s ease-in-out infinite;
+.hourglass-lottie-container {
   display: inline-block;
-  filter: drop-shadow(0 4px 12px rgba(242, 125, 0, 0.3));
+  position: relative;
 }
 
-@keyframes hourglass-realistic {
-  0% {
-    transform: rotate(0deg);
-  }
-  45% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(180deg);
-  }
-  95% {
-    transform: rotate(180deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+.hourglass-lottie-container svg {
+  width: 100%;
+  height: 100%;
 }
 
 .waiting-title {
