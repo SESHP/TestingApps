@@ -549,32 +549,55 @@ function Guarantee() {
   if (screen === 'main') {
     return (
       <div className="guarantee-container">
-        <div className="guarantee-header">
-          <h1 className="guarantee-title">🤝 Гарант-сервис</h1>
-          <p className="guarantee-subtitle">Безопасный обмен подарками</p>
+        <div className="guarantee-header-main">
+          <h1 className="guarantee-title-main">Гарант-сервис</h1>
+          <p className="guarantee-subtitle-main">Безопасный обмен подарками</p>
         </div>
 
-        <div className="guarantee-actions">
-          <button className="guarantee-btn create-btn" onClick={handleCreateDeal}>
-            <span className="btn-icon">🎁</span>
-            <span className="btn-text">Создать обмен</span>
+        <div className="guarantee-actions-main">
+          <button className="guarantee-btn-main primary" onClick={handleCreateDeal}>
+            <span className="btn-text-main">Создать обмен</span>
+            <span className="btn-arrow">→</span>
           </button>
 
-          <button className="guarantee-btn join-btn" onClick={() => setScreen('join')}>
-            <span className="btn-icon">🔗</span>
-            <span className="btn-text">Присоединиться</span>
+          <button className="guarantee-btn-main secondary" onClick={() => setScreen('join')}>
+            <span className="btn-text-main">Присоединиться к обмену</span>
+            <span className="btn-arrow">→</span>
           </button>
         </div>
 
-        <div className="guarantee-info">
-          <h3>Как это работает?</h3>
-          <ol>
-            <li>Создайте обмен и получите код</li>
-            <li>Отправьте код другому пользователю</li>
-            <li>Добавьте подарки в обмен</li>
-            <li>Подтвердите обмен</li>
-            <li>Получите новые подарки!</li>
-          </ol>
+        <div className="guarantee-features">
+          <div className="feature-item">
+            <div className="feature-number">1</div>
+            <div className="feature-content">
+              <h3 className="feature-title">Создайте обмен</h3>
+              <p className="feature-description">Получите уникальный код для приглашения</p>
+            </div>
+          </div>
+
+          <div className="feature-item">
+            <div className="feature-number">2</div>
+            <div className="feature-content">
+              <h3 className="feature-title">Пригласите участника</h3>
+              <p className="feature-description">Отправьте код другому пользователю</p>
+            </div>
+          </div>
+
+          <div className="feature-item">
+            <div className="feature-number">3</div>
+            <div className="feature-content">
+              <h3 className="feature-title">Добавьте подарки</h3>
+              <p className="feature-description">Выберите подарки для обмена из инвентаря</p>
+            </div>
+          </div>
+
+          <div className="feature-item">
+            <div className="feature-number">4</div>
+            <div className="feature-content">
+              <h3 className="feature-title">Подтвердите обмен</h3>
+              <p className="feature-description">Оба участника подтверждают условия</p>
+            </div>
+          </div>
         </div>
 
         {/* Уведомления */}
