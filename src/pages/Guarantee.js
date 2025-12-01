@@ -73,10 +73,20 @@ function Guarantee() {
       if (!otherUserId) return;
 
       try {
+        console.log('📥 Запрос информации о пользователе:', otherUserId);
         const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
         const data = await response.json();
         
+        console.log('📥 Получен ответ:', data);
+        
         if (data.user) {
+          console.log('✅ Данные пользователя:', {
+            id: data.user.id,
+            username: data.user.username,
+            firstName: data.user.firstName,
+            photoUrl: data.user.photoUrl,
+            hasPhoto: !!data.user.photoUrl
+          });
           setParticipantUser(data.user);
         }
       } catch (error) {
@@ -633,13 +643,36 @@ function Guarantee() {
 
     const displayName = userData?.firstName || 'Участник';
     const username = userData?.username ? `@${userData.username}` : '';
+    const photoUrl = userData?.photoUrl;
+
+    // Debug логи
+    console.log('👤 ParticipantHeader render:', {
+      isMe,
+      displayName,
+      username,
+      photoUrl,
+      hasPhoto: !!photoUrl
+    });
 
     return (
       <div className="window-header">
         <div className="participant-info">
           <div className="participant-avatar">
-            {userData?.photoUrl ? (
-              <img src={userData.photoUrl} alt={displayName} />
+            {photoUrl ? (
+              <>
+                <img 
+                  src={photoUrl} 
+                  alt={displayName}
+                  onLoad={() => console.log('✅ Аватарка загружена:', photoUrl)}
+                  onError={(e) => {
+                    console.error('❌ Ошибка загрузки аватарки:', photoUrl);
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <span style={{ position: 'absolute', zIndex: -1 }}>
+                  {getInitials(userData?.firstName, userData?.lastName)}
+                </span>
+              </>
             ) : (
               <span>{getInitials(userData?.firstName, userData?.lastName)}</span>
             )}

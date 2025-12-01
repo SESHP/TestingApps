@@ -319,6 +319,7 @@
   flex: 1;
 }
 
+
 .participant-avatar {
   width: 32px;
   height: 32px;
@@ -327,11 +328,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: white;
   flex-shrink: 0;
   overflow: hidden;
+  border: 2px solid rgba(242, 125, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(242, 125, 0, 0.2);
+  position: relative;
 }
 
 .participant-avatar img {
@@ -339,6 +343,21 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  background: #2a2a2a;
+}
+
+.participant-avatar span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Для случая когда картинка не загружается */
+.participant-avatar img[style*="display: none"] + span {
+  z-index: 3;
 }
 
 .participant-text {

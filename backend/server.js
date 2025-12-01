@@ -1976,9 +1976,48 @@ app.get('/api/stars/balance/:userId', async (req, res) => {
   }
 });
 
+
+async function getUserProfilePhoto(userId) {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return null;
+
+  try {
+    // Получаем фото профиля
+    const response = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`
+    );
+    
+    const data = await response.json();
+    
+    if (data.ok && data.result.total_count > 0) {
+      const photo = data.result.photos[0][0]; // Берем самое маленькое фото
+      const fileId = photo.file_id;
+      
+      // Получаем путь к файлу
+      const fileResponse = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
+      );
+      
+      const fileData = await fileResponse.json();
+      
+      if (fileData.ok) {
+        const filePath = fileData.result.file_path;
+        return `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Ошибка получения фото профиля:', error);
+    return null;
+  }
+}
+
+
 // Добавь этот эндпоинт в твой server.js после других user endpoints
 
 // Get user info by telegram ID
+// Обновленный эндпоинт для получения информации о пользователе
 app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
   try {
     const { telegramId } = req.params;
@@ -2002,14 +2041,17 @@ app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
 
     const user = result.rows[0];
     
+    // Получаем фото профиля через Bot API
+    const photoUrl = await getUserProfilePhoto(telegramId);
+    
     // БЕЗОПАСНОСТЬ: Санитизация данных перед отправкой
     res.json({
       user: {
         id: user.telegram_id,
         username: user.username,
         firstName: user.first_name,
-        lastName: user.last_name
-        // photoUrl можно добавить если ты сохраняешь его в БД
+        lastName: user.last_name,
+        photoUrl: photoUrl // Возвращаем URL фото
       }
     });
 
@@ -2018,6 +2060,10 @@ app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
+
+
+
+
 
 
 // Health check
