@@ -9,21 +9,46 @@ const { validateTelegramId, sanitizeUserData } = require('./utils/validation');
 
 // Middleware для аутентификации в контексте guarantee API
 function authenticateDealRequest(req, res, next) {
-  const initData = req.headers['x-telegram-init-data'] || req.body.initData;
-  const botToken = process.env.BOT_TOKEN;
+  try {
+    const initData = req.headers['x-telegram-init-data'] || req.body.initData;
+    const botToken = process.env.BOT_TOKEN;
 
-  const userData = validateTelegramData(initData, botToken);
+    // ВАЛИДАЦИЯ: Проверяем наличие initData
+    if (!initData) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Missing authentication data (initData required)'
+      });
+    }
 
-  if (!userData) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid Telegram authentication data'
+    // ВАЛИДАЦИЯ: В production обязательно требуем BOT_TOKEN
+    if (process.env.NODE_ENV === 'production' && !botToken) {
+      console.error('❌ BOT_TOKEN not configured in production');
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Authentication service misconfigured'
+      });
+    }
+
+    const userData = validateTelegramData(initData, botToken);
+
+    if (!userData) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired Telegram authentication data'
+      });
+    }
+
+    req.user = userData;
+    req.userId = userData.id;
+    next();
+  } catch (error) {
+    console.error('❌ Authentication error:', error.message);
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Authentication failed'
     });
   }
-
-  req.user = userData;
-  req.userId = userData.id;
-  next();
 }
 
 function generateInviteCode() {
