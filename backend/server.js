@@ -822,7 +822,8 @@ app.get('/api/user/:telegramId/referrals', authenticateUser, requireOwnUser, asy
 });
 
 // Check referral code
-app.get('/api/referral/check/:code', async (req, res) => {
+// БЕЗОПАСНОСТЬ: Ограниченная информация для неаутентифицированных пользователей
+app.get('/api/referral/check/:code', readLimiter, optionalAuth, async (req, res) => {
   try {
     const { code } = req.params;
 
@@ -833,6 +834,18 @@ app.get('/api/referral/check/:code', async (req, res) => {
 
     if (result.rows.length > 0) {
       const user = result.rows[0];
+
+      // Если пользователь НЕ аутентифицирован, возвращаем минимум информации
+      if (!req.userId) {
+        return res.json({
+          valid: true,
+          referrer: {
+            firstName: user.first_name // Только имя, без ID и username
+          }
+        });
+      }
+
+      // Для аутентифицированных - полная информация
       res.json({
         valid: true,
         referrer: {
