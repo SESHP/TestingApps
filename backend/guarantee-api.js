@@ -13,8 +13,16 @@ function authenticateDealRequest(req, res, next) {
     const initData = req.headers['x-telegram-init-data'] || req.body.initData;
     const botToken = process.env.BOT_TOKEN;
 
+    console.log('🔐 Guarantee Auth Check:', {
+      hasInitData: !!initData,
+      initDataLength: initData?.length,
+      hasBotToken: !!botToken,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     // ВАЛИДАЦИЯ: Проверяем наличие initData
     if (!initData) {
+      console.warn('⚠️  Missing initData in Guarantee request');
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing authentication data (initData required)'
@@ -33,17 +41,19 @@ function authenticateDealRequest(req, res, next) {
     const userData = validateTelegramData(initData, botToken);
 
     if (!userData) {
+      console.warn('⚠️  Telegram data validation failed for Guarantee request');
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Invalid or expired Telegram authentication data'
       });
     }
 
+    console.log('✅ Guarantee Auth Success:', { userId: userData.id });
     req.user = userData;
     req.userId = userData.id;
     next();
   } catch (error) {
-    console.error('❌ Authentication error:', error.message);
+    console.error('❌ Authentication error in Guarantee:', error.message, error.stack);
     return res.status(500).json({
       error: 'Internal Server Error',
       message: 'Authentication failed'
