@@ -5,6 +5,7 @@ import lottie from 'lottie-web';
 import './Guarantee.css';
 import moneyAnimation from '../assets/icons/Money.json';
 import { getInitData } from '../utils/telegramUtils';
+import { createDeal, joinDeal } from '../utils/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
@@ -19,6 +20,7 @@ function Guarantee() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [showDebugInfo, setShowDebugInfo] = useState(false); // Для отладки
 
   // Инициализация пользователя
   useEffect(() => {
@@ -36,6 +38,18 @@ function Guarantee() {
           username: telegramUser.username
         });
       }
+
+      // ДИАГНОСТИКА: Логируем initData
+      const initData = getInitData();
+      console.log('🔍 Guarantee.js Debug Info:', {
+        hasWebApp: !!window.Telegram?.WebApp,
+        hasTgObject: !!window.Telegram,
+        platform: tg.platform,
+        version: tg.version,
+        initDataLength: initData?.length || 0,
+        initDataPreview: initData ? initData.substring(0, 50) + '...' : 'empty',
+        hasUser: !!telegramUser
+      });
     } else {
       setUser({
         id: 123456789,
@@ -43,6 +57,7 @@ function Guarantee() {
         lastName: 'User',
         username: 'testuser'
       });
+      console.warn('⚠️ Telegram WebApp not found - using test user');
     }
   }, []);
 
@@ -250,14 +265,9 @@ function Guarantee() {
     if (!user) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/deals/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId: user.id })
-      });
+      console.log('🔄 Creating deal for user:', user.id);
+      const data = await createDeal(user.id);
 
-      const data = await response.json();
-      
       if (data.success) {
         console.log('✅ Сделка создана:', data.deal);
         setCurrentDeal(data.deal);
@@ -311,17 +321,9 @@ function Guarantee() {
     if (!user || !inviteCodeInput.trim()) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/deals/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          inviteCode: inviteCodeInput.toUpperCase(),
-          participantId: user.id 
-        })
-      });
+      console.log('🔄 Joining deal with code:', inviteCodeInput);
+      const data = await joinDeal(inviteCodeInput.toUpperCase(), user.id);
 
-      const data = await response.json();
-      
       if (data.success) {
         console.log('✅ Присоединились к сделке:', data.deal);
         setCurrentDeal(data.deal);
