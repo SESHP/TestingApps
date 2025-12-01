@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import lottie from 'lottie-web';
 import './Guarantee.css';
 import moneyAnimation from '../assets/icons/Money.json';
+import { getInitData } from '../utils/telegramUtils';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
@@ -68,7 +69,8 @@ function Guarantee() {
             setScreen('deal');
             
             // ВАЖНО: Подключаемся к WebSocket комнате
-            socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
+            // БЕЗОПАСНОСТЬ: userId теперь берется из аутентификации на сервере
+            socket.emit('join-deal', { dealId: data.deal.id });
             
             // Загружаем подарки сделки
             const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
@@ -89,11 +91,18 @@ function Guarantee() {
   // Инициализация WebSocket
   useEffect(() => {
     console.log('🔌 Подключение к WebSocket:', API_URL);
+
+    // БЕЗОПАСНОСТЬ: Получаем initData для аутентификации
+    const initData = getInitData();
+
     const newSocket = io(API_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      auth: {
+        initData: initData || 'dev'  // Передаем initData для аутентификации
+      }
     });
 
     newSocket.on('connect', () => {
@@ -289,7 +298,8 @@ function Guarantee() {
           showNotification('Код: ' + inviteCode, 'info');
         }
 
-        socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
+        // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
+        socket.emit('join-deal', { dealId: data.deal.id });
       }
     } catch (error) {
       console.error('❌ Ошибка создания сделки:', error);
@@ -318,7 +328,8 @@ function Guarantee() {
         setScreen('deal');
         setInviteCodeInput('');
 
-        socket.emit('join-deal', { dealId: data.deal.id, userId: user.id });
+        // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
+        socket.emit('join-deal', { dealId: data.deal.id });
         showNotification('Успешно присоединились к обмену!', 'success');
       } else {
         showNotification(data.error || 'Сделка не найдена', 'error');
@@ -338,10 +349,10 @@ function Guarantee() {
     if (!selectedGift || !currentDeal || !socket) return;
 
     console.log('🎁 Добавление подарка:', selectedGift.id);
-    
+
+    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('add-gift-to-deal', {
       dealId: currentDeal.id,
-      userId: user.id,
       giftId: selectedGift.id
     });
 
@@ -356,9 +367,9 @@ function Guarantee() {
   const handleRemoveGift = (giftId) => {
     if (!currentDeal || !socket) return;
 
+    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('remove-gift-from-deal', {
       dealId: currentDeal.id,
-      userId: user.id,
       giftId: giftId
     });
   };
@@ -387,9 +398,9 @@ function Guarantee() {
       participant_confirmed: !isCreator ? true : prev.participant_confirmed
     }));
 
+    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('confirm-deal', {
-      dealId: currentDeal.id,
-      userId: user.id
+      dealId: currentDeal.id
     });
 
     showNotification('Ваше подтверждение отправлено', 'success');
@@ -398,10 +409,9 @@ function Guarantee() {
   const handleCancelDeal = () => {
     if (!currentDeal || !socket) return;
 
-    // Вместо confirm используем прямую отмену
+    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('cancel-deal', {
-      dealId: currentDeal.id,
-      userId: user.id
+      dealId: currentDeal.id
     });
   };
 

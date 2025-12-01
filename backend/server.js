@@ -10,6 +10,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { initGuaranteeSocket } = require('./guarantee-socket');
 const { setupGuaranteeAPI } = require('./guarantee-api');
+const { validateTelegramData } = require('./utils/telegramAuth');
+const { authenticateUser, optionalAuth, requireOwnUser } = require('./middleware/auth');
 
 // СНАЧАЛА создаем app
 const app = express();
@@ -36,11 +38,16 @@ const io = new Server(server, {
 });
 
 // Настройка PostgreSQL
+// БЕЗОПАСНОСТЬ: В production обязательно требуем переменные окружения
+if (process.env.NODE_ENV === 'production' && !process.env.DB_PASSWORD) {
+  throw new Error('DB_PASSWORD environment variable is required in production');
+}
+
 const pool = new Pool({
   user: process.env.DB_USER || 'buzeoff',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'alged_ref_db',
-  password: process.env.DB_PASSWORD || 'olhseS05!',
+  password: process.env.DB_PASSWORD, // Убран fallback пароль!
   port: process.env.DB_PORT || 5432,
 });
 
@@ -188,18 +195,8 @@ async function generateUniqueReferralCode() {
   return code;
 }
 
-function validateTelegramData(initData) {
-  try {
-    const params = new URLSearchParams(initData);
-    const userStr = params.get('user');
-    if (userStr) {
-      return JSON.parse(decodeURIComponent(userStr));
-    }
-  } catch (error) {
-    console.error('Ошибка валидации:', error);
-  }
-  return null;
-}
+// УДАЛЕНА старая небезопасная функция validateTelegramData
+// Теперь используется безопасная версия из utils/telegramAuth.js с проверкой HMAC
 
 function getTestUserData(referralCode = null) {
   if (referralCode) {
@@ -589,15 +586,20 @@ app.post('/api/user/init', async (req, res) => {
       referralCode: referralCode || 'none'
     });
 
+    // БЕЗОПАСНОСТЬ: Используем безопасную валидацию с проверкой HMAC
     let userData;
     if (initData && initData !== 'dev') {
-      userData = validateTelegramData(initData);
+      userData = validateTelegramData(initData, process.env.BOT_TOKEN);
     } else {
+      // Dev режим - используется только для разработки
       userData = getTestUserData(referralCode);
     }
 
     if (!userData) {
-      return res.status(400).json({ error: 'Неверные данные' });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired Telegram authentication data'
+      });
     }
 
     await client.query('BEGIN');
@@ -687,7 +689,8 @@ app.post('/api/user/init', async (req, res) => {
 });
 
 // Get user referrals
-app.get('/api/user/:telegramId/referrals', async (req, res) => {
+// БЕЗОПАСНОСТЬ: Требуем аутентификацию и проверяем что пользователь запрашивает свои данные
+app.get('/api/user/:telegramId/referrals', authenticateUser, requireOwnUser, async (req, res) => {
   try {
     const { telegramId } = req.params;
 
@@ -1566,7 +1569,8 @@ app.post('/api/gifts/withdraw', async (req, res) => {
 
 
 // Update user badge parameters (whale status, audience)
-app.post('/api/user/:telegramId/badge-params', async (req, res) => {
+// БЕЗОПАСНОСТЬ: Требуем аутентификацию и проверяем что пользователь изменяет свои данные
+app.post('/api/user/:telegramId/badge-params', authenticateUser, requireOwnUser, async (req, res) => {
   const client = await pool.connect();
   try {
     const { telegramId } = req.params;

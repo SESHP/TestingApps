@@ -1,18 +1,55 @@
 // backend/guarantee-socket.js
 // WebSocket логика для гарант-сервиса
 
+const { validateTelegramData } = require('./utils/telegramAuth');
+
 const activeDeals = new Map(); // dealId -> { deal данные }
 const userSockets = new Map(); // userId -> socketId
 
 function initGuaranteeSocket(io, pool) {
+  // БЕЗОПАСНОСТЬ: Middleware для аутентификации WebSocket соединений
+  io.use((socket, next) => {
+    const initData = socket.handshake.auth.initData;
+    const botToken = process.env.BOT_TOKEN;
+
+    // Валидируем Telegram данные
+    const userData = validateTelegramData(initData, botToken);
+
+    if (!userData) {
+      console.error('❌ WebSocket: Invalid authentication');
+      return next(new Error('Authentication failed'));
+    }
+
+    // Сохраняем проверенный userId в socket
+    socket.userId = userData.id;
+    socket.userData = userData;
+    console.log(`✅ WebSocket аутентификация успешна: User ${userData.id}`);
+
+    next();
+  });
+
   io.on('connection', (socket) => {
-    console.log(`✅ Подключен клиент: ${socket.id}`);
+    console.log(`✅ Подключен аутентифицированный клиент: ${socket.id}, User: ${socket.userId}`);
 
     // Присоединение пользователя к сделке
-    socket.on('join-deal', async ({ dealId, userId }) => {
+    socket.on('join-deal', async ({ dealId }) => {
       try {
+        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket, а не из параметров
+        const userId = socket.userId;
+
         console.log(`👤 Пользователь ${userId} присоединяется к сделке ${dealId}`);
-        
+
+        // Проверяем что пользователь является участником сделки
+        const dealCheck = await pool.query(
+          'SELECT * FROM deals WHERE id = $1 AND (creator_id = $2 OR participant_id = $2)',
+          [dealId, userId]
+        );
+
+        if (dealCheck.rows.length === 0) {
+          socket.emit('error', { message: 'У вас нет доступа к этой сделке' });
+          return;
+        }
+
         socket.join(`deal-${dealId}`);
         userSockets.set(userId.toString(), socket.id);
         
@@ -36,11 +73,14 @@ function initGuaranteeSocket(io, pool) {
     });
 
     // Добавление подарка в сделку
-    socket.on('add-gift-to-deal', async ({ dealId, userId, giftId }) => {
+    socket.on('add-gift-to-deal', async ({ dealId, giftId }) => {
       try {
+        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket, а не из параметров
+        const userId = socket.userId;
+
         console.log(`🎁 Добавление подарка ${giftId} в сделку ${dealId} от ${userId}`);
-        
-        // Проверяем, что подарок принадлежит пользователю и не выведен
+
+        // БЕЗОПАСНОСТЬ: Проверяем что подарок принадлежит аутентифицированному пользователю и не выведен
         const giftCheck = await pool.query(
           `SELECT * FROM gifts WHERE id = $1 AND from_id = $2 AND is_withdrawn = FALSE`,
           [giftId, userId]
@@ -77,10 +117,14 @@ function initGuaranteeSocket(io, pool) {
     });
 
     // Удаление подарка из сделки
-    socket.on('remove-gift-from-deal', async ({ dealId, userId, giftId }) => {
+    socket.on('remove-gift-from-deal', async ({ dealId, giftId }) => {
       try {
+        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
+        const userId = socket.userId;
+
         console.log(`🗑️ Удаление подарка ${giftId} из сделки ${dealId}`);
 
+        // БЕЗОПАСНОСТЬ: Удаляем только свои подарки
         await pool.query(
           `DELETE FROM deal_gifts WHERE deal_id = $1 AND user_id = $2 AND gift_id = $3`,
           [dealId, userId, giftId]
@@ -101,8 +145,11 @@ function initGuaranteeSocket(io, pool) {
     });
 
     // Подтверждение сделки пользователем
-    socket.on('confirm-deal', async ({ dealId, userId }) => {
+    socket.on('confirm-deal', async ({ dealId }) => {
       try {
+        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
+        const userId = socket.userId;
+
         console.log(`✅ Пользователь ${userId} подтверждает сделку ${dealId}`);
 
         const deal = await pool.query(
@@ -161,8 +208,11 @@ function initGuaranteeSocket(io, pool) {
     });
 
     // Отмена сделки
-    socket.on('cancel-deal', async ({ dealId, userId }) => {
+    socket.on('cancel-deal', async ({ dealId }) => {
       try {
+        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
+        const userId = socket.userId;
+
         console.log(`❌ Отмена сделки ${dealId} пользователем ${userId}`);
 
         await pool.query(
