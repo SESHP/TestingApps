@@ -2,6 +2,26 @@
 // API эндпоинты для гарант-сервиса
 
 const crypto = require('crypto');
+const { validateTelegramData } = require('./utils/telegramAuth');
+
+// Middleware для аутентификации в контексте guarantee API
+function authenticateDealRequest(req, res, next) {
+  const initData = req.headers['x-telegram-init-data'] || req.body.initData;
+  const botToken = process.env.BOT_TOKEN;
+
+  const userData = validateTelegramData(initData, botToken);
+
+  if (!userData) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid Telegram authentication data'
+    });
+  }
+
+  req.user = userData;
+  req.userId = userData.id;
+  next();
+}
 
 function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -32,13 +52,11 @@ async function generateUniqueInviteCode(pool) {
 
 function setupGuaranteeAPI(app, pool, io) {
   // Создание новой сделки
-  app.post('/api/deals/create', async (req, res) => {
+  // БЕЗОПАСНОСТЬ: Требуем аутентификацию
+  app.post('/api/deals/create', authenticateDealRequest, async (req, res) => {
     try {
-      const { creatorId } = req.body;
-
-      if (!creatorId) {
-        return res.status(400).json({ error: 'Не указан ID создателя' });
-      }
+      // БЕЗОПАСНОСТЬ: Используем userId из аутентификации, а не из body
+      const creatorId = req.userId;
 
       const inviteCode = await generateUniqueInviteCode(pool);
 
@@ -63,11 +81,14 @@ function setupGuaranteeAPI(app, pool, io) {
   });
 
   // Присоединение к сделке
-  app.post('/api/deals/join', async (req, res) => {
+  // БЕЗОПАСНОСТЬ: Требуем аутентификацию
+  app.post('/api/deals/join', authenticateDealRequest, async (req, res) => {
     try {
-      const { inviteCode, participantId } = req.body;
+      const { inviteCode } = req.body;
+      // БЕЗОПАСНОСТЬ: Используем userId из аутентификации, а не из body
+      const participantId = req.userId;
 
-      if (!inviteCode || !participantId) {
+      if (!inviteCode) {
         return res.status(400).json({ error: 'Недостаточно данных' });
       }
 

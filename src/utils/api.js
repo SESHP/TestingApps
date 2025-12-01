@@ -1,6 +1,17 @@
 // src/utils/api.js
 
+import { getInitData } from './telegramUtils';
+
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+// Вспомогательная функция для создания headers с аутентификацией
+function getAuthHeaders() {
+  const initData = getInitData();
+  return {
+    'Content-Type': 'application/json',
+    'x-telegram-init-data': initData || 'dev'
+  };
+}
 
 /**
  * Инициализация пользователя
@@ -8,12 +19,10 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 export async function initUser(initData, referralCode = null) {
   try {
     console.log('🔄 Инициализация пользователя с реф.кодом:', referralCode);
-    
+
     const response = await fetch(`${API_URL}/api/user/init`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         initData: initData || 'dev',
         referralCode
@@ -39,7 +48,9 @@ export async function initUser(initData, referralCode = null) {
  */
 export async function getReferralStats(telegramId) {
   try {
-    const response = await fetch(`${API_URL}/api/user/${telegramId}/referrals`);
+    const response = await fetch(`${API_URL}/api/user/${telegramId}/referrals`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error('Ошибка получения статистики');
@@ -78,10 +89,8 @@ export async function createDeal(creatorId) {
   try {
     const response = await fetch(`${API_URL}/api/deals/create`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ creatorId })
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ creatorId })  // creatorId больше не используется на сервере
     });
 
     if (!response.ok) {
@@ -102,10 +111,8 @@ export async function joinDeal(inviteCode, participantId) {
   try {
     const response = await fetch(`${API_URL}/api/deals/join`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ inviteCode, participantId })
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ inviteCode })  // participantId больше не нужен
     });
 
     if (!response.ok) {
