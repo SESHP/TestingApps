@@ -62,15 +62,24 @@ function Guarantee() {
   }, []);
 
   // Загрузка информации о втором участнике
-  useEffect(() => {
+   useEffect(() => {
     const loadParticipantInfo = async () => {
       if (!currentDeal || !user) return;
+
+      // ✅ ИСПРАВЛЕНИЕ: Не загружаем если статус waiting
+      if (currentDeal.status === 'waiting') {
+        console.log('⏳ Сделка в статусе waiting, участник еще не присоединился');
+        return;
+      }
 
       const otherUserId = currentDeal.creator_id === user.id
         ? currentDeal.participant_id
         : currentDeal.creator_id;
 
-      if (!otherUserId) return;
+      if (!otherUserId) {
+        console.log('⚠️ ID другого участника не определен');
+        return;
+      }
 
       try {
         console.log('📥 Запрос информации о пользователе:', otherUserId);
@@ -80,12 +89,10 @@ function Guarantee() {
         console.log('📥 Получен ответ:', data);
         
         if (data.user) {
-          console.log('✅ Данные пользователя:', {
+          console.log('✅ Данные пользователя установлены:', {
             id: data.user.id,
             username: data.user.username,
-            firstName: data.user.firstName,
-            photoUrl: data.user.photoUrl,
-            hasPhoto: !!data.user.photoUrl
+            firstName: data.user.firstName
           });
           setParticipantUser(data.user);
         }
@@ -172,6 +179,7 @@ function Guarantee() {
   }, []);
 
   // Слушатели WebSocket
+  // Слушатели WebSocket
   useEffect(() => {
     if (!socket || !currentDeal) return;
 
@@ -185,18 +193,36 @@ function Guarantee() {
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
 
+      // Обновляем локальную сделку на active
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
         status: 'active'
       }));
 
+      // ✅ ИСПРАВЛЕНИЕ: Загружаем информацию о присоединившемся участнике
+      const loadNewParticipant = async () => {
+        try {
+          console.log('📥 Загрузка информации о новом участнике:', data.participantId);
+          const response = await fetch(`${API_URL}/api/users/${data.participantId}`);
+          const userData = await response.json();
+          
+          if (userData.user) {
+            console.log('✅ Получены данные нового участника:', userData.user);
+            setParticipantUser(userData.user);
+          }
+        } catch (error) {
+          console.error('❌ Ошибка загрузки участника:', error);
+        }
+      };
+
+      loadNewParticipant();
+
       showNotification('🎉 Участник присоединился! Теперь можете добавлять подарки', 'success');
     });
 
     socket.on('gifts-updated', (data) => {
       console.log('🎁 Подарки обновлены:', data);
-      console.log('🎁 Структура подарков:', JSON.stringify(data.gifts, null, 2));
       setDealGifts(data.gifts || {});
     });
 
@@ -211,22 +237,20 @@ function Guarantee() {
 
     socket.on('deal-completed', (data) => {
       console.log('🎉 Сделка завершена:', data);
-
-      showNotification('🎉 ' + (data.message || 'Обмен успешно завершен! Подарки обменены'), 'success');
-
+      showNotification('🎉 ' + (data.message || 'Обмен успешно завершен!'), 'success');
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
+      setParticipantUser(null); // ← Очищаем данные участника
     });
 
     socket.on('deal-cancelled', (data) => {
       console.log('❌ Сделка отменена:', data);
-
       showNotification('❌ Обмен был отменен', 'error');
-
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
+      setParticipantUser(null); // ← Очищаем данные участника
     });
 
     socket.on('error', (data) => {
@@ -812,10 +836,14 @@ function Guarantee() {
     const otherUserId = isCreator ? participantId : creatorId;
     const otherUserIdStr = String(otherUserId);
     
-    console.log('👤 Мой ID:', myUserId, 'Тип:', typeof myUserId);
-    console.log('👤 ID другого:', otherUserIdStr, 'Тип:', typeof otherUserIdStr);
-    console.log('📦 Ключи в dealGifts:', Object.keys(dealGifts));
-    console.log('📦 dealGifts полностью:', dealGifts);
+    console.log('🔍 DEBUG - Определение участников:');
+    console.log('  - Мой ID:', myUserId);
+    console.log('  - ID создателя:', creatorId);
+    console.log('  - ID участника:', participantId);
+    console.log('  - Я создатель?:', isCreator);
+    console.log('  - ID другого пользователя:', otherUserIdStr);
+    console.log('  - participantUser state:', participantUser);
+    console.log('  - user state:', user);
     
     const myGiftsInDeal = dealGifts[myUserId] || [];
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
