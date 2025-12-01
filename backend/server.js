@@ -21,6 +21,11 @@ const { sanitizeUserData, validateTelegramId, validatePagination } = require('./
 const app = express();
 let PORT = process.env.PORT || 3001;
 
+// ============ TRUST PROXY ============
+// ВАЖНО: Render.com, Heroku и другие платформы используют прокси
+// Нужно включить trust proxy для корректной работы rate limiting и определения IP
+app.set('trust proxy', 1); // trust first proxy
+
 // ============ SECURITY MIDDLEWARE ============
 
 // 1. Helmet - Security headers
