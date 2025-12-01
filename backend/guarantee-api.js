@@ -3,6 +3,9 @@
 
 const crypto = require('crypto');
 const { validateTelegramData } = require('./utils/telegramAuth');
+const { strictLimiter, readLimiter } = require('./middleware/rateLimiter');
+const { AppError } = require('./middleware/errorHandler');
+const { validateTelegramId, sanitizeUserData } = require('./utils/validation');
 
 // Middleware для аутентификации в контексте guarantee API
 function authenticateDealRequest(req, res, next) {
@@ -52,8 +55,8 @@ async function generateUniqueInviteCode(pool) {
 
 function setupGuaranteeAPI(app, pool, io) {
   // Создание новой сделки
-  // БЕЗОПАСНОСТЬ: Требуем аутентификацию
-  app.post('/api/deals/create', authenticateDealRequest, async (req, res) => {
+  // БЕЗОПАСНОСТЬ: Требуем аутентификацию + strict rate limiting
+  app.post('/api/deals/create', strictLimiter, authenticateDealRequest, async (req, res) => {
     try {
       // БЕЗОПАСНОСТЬ: Используем userId из аутентификации, а не из body
       const creatorId = req.userId;
@@ -81,15 +84,19 @@ function setupGuaranteeAPI(app, pool, io) {
   });
 
   // Присоединение к сделке
-  // БЕЗОПАСНОСТЬ: Требуем аутентификацию
-  app.post('/api/deals/join', authenticateDealRequest, async (req, res) => {
+  // БЕЗОПАСНОСТЬ: Требуем аутентификацию + strict rate limiting
+  app.post('/api/deals/join', strictLimiter, authenticateDealRequest, async (req, res) => {
     try {
       const { inviteCode } = req.body;
       // БЕЗОПАСНОСТЬ: Используем userId из аутентификации, а не из body
       const participantId = req.userId;
 
-      if (!inviteCode) {
-        return res.status(400).json({ error: 'Недостаточно данных' });
+      // ВАЛИДАЦИЯ: Проверяем inviteCode
+      if (!inviteCode || typeof inviteCode !== 'string' || inviteCode.length !== 8) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'inviteCode must be an 8-character string'
+        });
       }
 
       // Ищем сделку по коду
@@ -138,9 +145,18 @@ function setupGuaranteeAPI(app, pool, io) {
   });
 
   // Получить подарки в сделке
-  app.get('/api/deals/:dealId/gifts', async (req, res) => {
+  app.get('/api/deals/:dealId/gifts', readLimiter, async (req, res) => {
     try {
       const { dealId } = req.params;
+
+      // ВАЛИДАЦИЯ: Проверяем dealId
+      const dealIdNum = parseInt(dealId);
+      if (isNaN(dealIdNum) || dealIdNum <= 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'dealId must be a positive integer'
+        });
+      }
 
       const result = await pool.query(
         `SELECT dg.*, g.gift_title, g.model, g.background, g.symbol, g.raw_data
@@ -177,9 +193,18 @@ function setupGuaranteeAPI(app, pool, io) {
   });
 
   // Получить информацию о сделке
-  app.get('/api/deals/:dealId', async (req, res) => {
+  app.get('/api/deals/:dealId', readLimiter, async (req, res) => {
     try {
       const { dealId } = req.params;
+
+      // ВАЛИДАЦИЯ: Проверяем dealId
+      const dealIdNum = parseInt(dealId);
+      if (isNaN(dealIdNum) || dealIdNum <= 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'dealId must be a positive integer'
+        });
+      }
 
       const result = await pool.query(
         'SELECT * FROM deals WHERE id = $1',
@@ -199,9 +224,17 @@ function setupGuaranteeAPI(app, pool, io) {
   });
 
   // Получить активные сделки пользователя
-  app.get('/api/deals/user/:userId', async (req, res) => {
+  app.get('/api/deals/user/:userId', readLimiter, async (req, res) => {
     try {
       const { userId } = req.params;
+
+      // ВАЛИДАЦИЯ: Проверяем userId
+      if (!validateTelegramId(userId)) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'userId must be a valid Telegram user ID'
+        });
+      }
 
       const result = await pool.query(
         `SELECT * FROM deals 

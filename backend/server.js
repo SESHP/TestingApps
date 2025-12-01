@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const helmet = require('helmet');
 const { Pool } = require('pg');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
@@ -12,14 +13,61 @@ const { initGuaranteeSocket } = require('./guarantee-socket');
 const { setupGuaranteeAPI } = require('./guarantee-api');
 const { validateTelegramData } = require('./utils/telegramAuth');
 const { authenticateUser, optionalAuth, requireOwnUser } = require('./middleware/auth');
+const { generalLimiter, strictLimiter, authLimiter, readLimiter } = require('./middleware/rateLimiter');
+const { errorHandler, notFoundHandler, AppError } = require('./middleware/errorHandler');
+const { sanitizeUserData, validateTelegramId, validatePagination } = require('./utils/validation');
 
 // СНАЧАЛА создаем app
 const app = express();
 let PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// ============ SECURITY MIDDLEWARE ============
+
+// 1. Helmet - Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// 2. CORS - Ужесточенная политика
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://alged.vercel.app']
+  : ['http://localhost:3000', 'https://alged.vercel.app'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Разрешаем запросы без origin (мобильные приложения, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️  CORS blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'x-telegram-init-data']
+}));
+
+// 3. Body parser с ограничением размера
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// 4. Общий rate limiter для всех API
+app.use('/api/', generalLimiter);
 
 // ПОТОМ создаем server на основе app
 const server = http.createServer(app);
@@ -576,10 +624,26 @@ async function startGiftTracking() {
 // ============ API ENDPOINTS ============
 
 // User initialization
-app.post('/api/user/init', async (req, res) => {
+app.post('/api/user/init', authLimiter, async (req, res) => {
   const client = await pool.connect();
   try {
     const { initData, referralCode } = req.body;
+
+    // ВАЛИДАЦИЯ: Проверяем входные данные
+    if (!initData || typeof initData !== 'string') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'initData is required and must be a string'
+      });
+    }
+
+    // ВАЛИДАЦИЯ: Проверяем referralCode если он есть
+    if (referralCode && typeof referralCode !== 'string') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'referralCode must be a string'
+      });
+    }
 
     console.log('📥 Запрос инициализации:', {
       hasInitData: !!initData,
@@ -601,6 +665,9 @@ app.post('/api/user/init', async (req, res) => {
         message: 'Invalid or expired Telegram authentication data'
       });
     }
+
+    // БЕЗОПАСНОСТЬ: Санитизация пользовательских данных
+    userData = sanitizeUserData(userData);
 
     await client.query('BEGIN');
 
@@ -773,9 +840,18 @@ app.get('/api/referral/check/:code', async (req, res) => {
 });
 
 // Get all gifts
-app.get('/api/gifts', async (req, res) => {
+app.get('/api/gifts', readLimiter, async (req, res) => {
   try {
     const { limit = 50, offset = 0, fromId, withdrawn } = req.query;
+
+    // ВАЛИДАЦИЯ: Проверяем параметры пагинации
+    const validatedPagination = validatePagination(limit, offset);
+    if (!validatedPagination.valid) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: validatedPagination.error
+      });
+    }
 
     // Построение WHERE условий
     const conditions = [];
@@ -936,7 +1012,7 @@ app.get('/api/gifts/:id', async (req, res) => {
 });
 
 // Mark gift as withdrawn
-app.post('/api/gifts/:id/withdraw', async (req, res) => {
+app.post('/api/gifts/:id/withdraw', strictLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     const { toId } = req.body;
@@ -1420,12 +1496,31 @@ app.get('/api/gifts/files/list', async (req, res) => {
 });
 
 
-app.post('/api/gifts/withdraw', async (req, res) => {
+app.post('/api/gifts/withdraw', strictLimiter, async (req, res) => {
   try {
     const { giftId, toId } = req.body;
 
-    if (!giftId || !toId) {
-      return res.status(400).json({ error: 'Нет giftId или toId' });
+    // ВАЛИДАЦИЯ: Проверяем входные данные
+    if (!giftId || typeof giftId !== 'string') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'giftId is required and must be a string'
+      });
+    }
+
+    if (!toId || typeof toId !== 'string') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'toId is required and must be a string'
+      });
+    }
+
+    // ВАЛИДАЦИЯ: Проверяем что toId это валидный Telegram ID
+    if (!validateTelegramId(toId)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'toId must be a valid Telegram user ID'
+      });
     }
 
     const result = await pool.query(
@@ -1688,12 +1783,23 @@ app.get('/api/badges/stats', async (req, res) => {
 // ============ STARS PAYMENT ENDPOINTS ============
 
 // Создание Stars invoice
-app.post('/api/stars/create-invoice', async (req, res) => {
+app.post('/api/stars/create-invoice', strictLimiter, async (req, res) => {
   try {
     const { userId, amount } = req.body;
 
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'Неверные параметры' });
+    // ВАЛИДАЦИЯ: Проверяем входные данные
+    if (!validateTelegramId(userId)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'userId must be a valid Telegram user ID'
+      });
+    }
+
+    if (!amount || typeof amount !== 'number' || amount <= 0 || amount > 100000) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'amount must be a positive number between 1 and 100000'
+      });
     }
 
     // Проверяем пользователя
@@ -1911,6 +2017,15 @@ app.get('/api/debug/users', async (req, res) => {
     res.status(500).json({ error: 'Ошибка получения данных' });
   }
 });
+
+// ============ ERROR HANDLING MIDDLEWARE ============
+// ВАЖНО: Должно быть ПОСЛЕ всех route definitions
+
+// 404 handler - для несуществующих маршрутов
+app.use(notFoundHandler);
+
+// Централизованный error handler - ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ
+app.use(errorHandler);
 
 // ============ SERVER STARTUP ============
 
