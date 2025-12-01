@@ -20,7 +20,7 @@ function Guarantee() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [showDebugInfo, setShowDebugInfo] = useState(false); // Для отладки
+  const [participantUser, setParticipantUser] = useState(null); // Информация о втором участнике
 
   // Инициализация пользователя
   useEffect(() => {
@@ -35,11 +35,11 @@ function Guarantee() {
           id: telegramUser.id,
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name,
-          username: telegramUser.username
+          username: telegramUser.username,
+          photoUrl: telegramUser.photo_url // Аватар пользователя
         });
       }
 
-      // ДИАГНОСТИКА: Логируем initData
       const initData = getInitData();
       console.log('🔍 Guarantee.js Debug Info:', {
         hasWebApp: !!window.Telegram?.WebApp,
@@ -61,12 +61,38 @@ function Guarantee() {
     }
   }, []);
 
+  // Загрузка информации о втором участнике
+  useEffect(() => {
+    const loadParticipantInfo = async () => {
+      if (!currentDeal || !user) return;
+
+      const otherUserId = currentDeal.creator_id === user.id
+        ? currentDeal.participant_id
+        : currentDeal.creator_id;
+
+      if (!otherUserId) return;
+
+      try {
+        // Запрос к API для получения информации о пользователе
+        const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
+        const data = await response.json();
+        
+        if (data.user) {
+          setParticipantUser(data.user);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки информации об участнике:', error);
+      }
+    };
+
+    loadParticipantInfo();
+  }, [currentDeal, user]);
+
   // Загрузка сделки из URL при открытии
   useEffect(() => {
     const loadDealFromUrl = async () => {
       if (!user || !socket) return;
 
-      // Получаем dealId из URL параметров Telegram Mini App
       const tg = window.Telegram?.WebApp;
       const startParam = tg?.initDataUnsafe?.start_param;
 
@@ -83,11 +109,8 @@ function Guarantee() {
             setCurrentDeal(data.deal);
             setScreen('deal');
             
-            // ВАЖНО: Подключаемся к WebSocket комнате
-            // БЕЗОПАСНОСТЬ: userId теперь берется из аутентификации на сервере
             socket.emit('join-deal', { dealId: data.deal.id });
             
-            // Загружаем подарки сделки
             const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
             const giftsData = await giftsResponse.json();
             if (giftsData.gifts) {
@@ -107,7 +130,6 @@ function Guarantee() {
   useEffect(() => {
     console.log('🔌 Подключение к WebSocket:', API_URL);
 
-    // БЕЗОПАСНОСТЬ: Получаем initData для аутентификации
     const initData = getInitData();
 
     const newSocket = io(API_URL, {
@@ -116,7 +138,7 @@ function Guarantee() {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       auth: {
-        initData: initData || 'dev'  // Передаем initData для аутентификации
+        initData: initData || 'dev'
       }
     });
 
@@ -154,7 +176,6 @@ function Guarantee() {
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
 
-      // Обновляем локальную сделку на active
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
@@ -244,12 +265,10 @@ function Guarantee() {
     const notification = { id, message, type };
     setNotifications(prev => [...prev, notification]);
 
-    // Автоматически убираем уведомление через 4 секунды
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 4000);
 
-    // Haptic feedback для Telegram
     if (window.Telegram?.WebApp) {
       if (type === 'success') {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
@@ -275,9 +294,7 @@ function Guarantee() {
 
         const inviteCode = data.deal.invite_code;
 
-        // Автоматически копируем код - используем более надежный способ
         try {
-          // Создаем временный input элемент
           const tempInput = document.createElement('input');
           tempInput.value = inviteCode;
           tempInput.style.position = 'fixed';
@@ -293,7 +310,6 @@ function Guarantee() {
             console.log('✅ Код автоматически скопирован:', inviteCode);
             showNotification('Код приглашения скопирован!', 'success');
           } else {
-            // Fallback на современный API
             navigator.clipboard.writeText(inviteCode)
               .then(() => {
                 console.log('✅ Код скопирован через clipboard API');
@@ -308,7 +324,6 @@ function Guarantee() {
           showNotification('Код: ' + inviteCode, 'info');
         }
 
-        // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
         socket.emit('join-deal', { dealId: data.deal.id });
       }
     } catch (error) {
@@ -330,7 +345,6 @@ function Guarantee() {
         setScreen('deal');
         setInviteCodeInput('');
 
-        // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
         socket.emit('join-deal', { dealId: data.deal.id });
         showNotification('Успешно присоединились к обмену!', 'success');
       } else {
@@ -352,7 +366,6 @@ function Guarantee() {
 
     console.log('🎁 Добавление подарка:', selectedGift.id);
 
-    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('add-gift-to-deal', {
       dealId: currentDeal.id,
       giftId: selectedGift.id
@@ -369,7 +382,6 @@ function Guarantee() {
   const handleRemoveGift = (giftId) => {
     if (!currentDeal || !socket) return;
 
-    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('remove-gift-from-deal', {
       dealId: currentDeal.id,
       giftId: giftId
@@ -392,7 +404,6 @@ function Guarantee() {
       return;
     }
 
-    // СРАЗУ ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
     const isCreator = String(currentDeal.creator_id) === myUserId;
     setCurrentDeal(prev => ({
       ...prev,
@@ -400,7 +411,6 @@ function Guarantee() {
       participant_confirmed: !isCreator ? true : prev.participant_confirmed
     }));
 
-    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('confirm-deal', {
       dealId: currentDeal.id
     });
@@ -411,7 +421,6 @@ function Guarantee() {
   const handleCancelDeal = () => {
     if (!currentDeal || !socket) return;
 
-    // БЕЗОПАСНОСТЬ: userId берется из аутентификации на сервере
     socket.emit('cancel-deal', {
       dealId: currentDeal.id
     });
@@ -439,7 +448,6 @@ function Guarantee() {
     useEffect(() => {
       if (!containerRef.current) return;
 
-      // Загрузка анимации из локального файла
       animInstance.current = lottie.loadAnimation({
         container: containerRef.current,
         renderer: 'svg',
@@ -468,10 +476,12 @@ function Guarantee() {
     );
   };
 
-  // Компонент для рендера подарков с Lottie
+  // Компонент для рендера подарков с Lottie - с контролем анимации
   const GiftPreview = ({ gift, size = 'medium' }) => {
     const modelLottieRef = useRef(null);
     const modelInstance = useRef(null);
+    const [isHovered, setIsHovered] = useState(false);
+    const [hasPlayedOnce, setHasPlayedOnce] = useState(false);
 
     useEffect(() => {
       loadModel();
@@ -482,8 +492,18 @@ function Guarantee() {
       };
     }, [gift.id]);
 
+    // Контроль анимации при наведении
+    useEffect(() => {
+      if (!modelInstance.current) return;
+
+      if (isHovered) {
+        modelInstance.current.play();
+      } else if (hasPlayedOnce) {
+        modelInstance.current.pause();
+      }
+    }, [isHovered, hasPlayedOnce]);
+
     const loadModel = async () => {
-      // Проверяем откуда пришел gift - из myGifts или из dealGifts
       const giftData = gift.rawData?.gift || gift.raw_data?.gift;
       
       if (!giftData || !modelLottieRef.current) {
@@ -507,9 +527,14 @@ function Guarantee() {
             modelInstance.current = lottie.loadAnimation({
               container: modelLottieRef.current,
               renderer: 'svg',
-              loop: true,
+              loop: false, // Отключаем бесконечный loop
               autoplay: true,
               animationData: animationData
+            });
+
+            // После первого проигрывания ставим флаг
+            modelInstance.current.addEventListener('complete', () => {
+              setHasPlayedOnce(true);
             });
           }
         } catch (err) {
@@ -528,7 +553,7 @@ function Guarantee() {
     
     if (!giftData) {
       return (
-        <div className={`gift-preview-placeholder ${size}`}>
+        <div className={`gift-preview-placeholder gift-preview-${size}`}>
           <span className="gift-symbol">🎁</span>
         </div>
       );
@@ -544,7 +569,12 @@ function Guarantee() {
     };
 
     return (
-      <div className={`gift-preview-lottie ${size}`} style={backgroundStyle}>
+      <div 
+        className={`gift-preview-lottie gift-preview-${size}`} 
+        style={backgroundStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div 
           ref={modelLottieRef} 
           style={{
@@ -591,6 +621,37 @@ function Guarantee() {
             ✕
           </button>
         )}
+      </div>
+    );
+  };
+
+  // Компонент для отображения информации об участнике
+  const ParticipantHeader = ({ isMe, userData, confirmed }) => {
+    const getInitials = (firstName, lastName) => {
+      const first = firstName?.charAt(0) || '';
+      const last = lastName?.charAt(0) || '';
+      return (first + last).toUpperCase() || '?';
+    };
+
+    const displayName = userData?.firstName || 'Участник';
+    const username = userData?.username ? `@${userData.username}` : '';
+
+    return (
+      <div className="window-header">
+        <div className="participant-info">
+          <div className="participant-avatar">
+            {userData?.photoUrl ? (
+              <img src={userData.photoUrl} alt={displayName} />
+            ) : (
+              <span>{getInitials(userData?.firstName, userData?.lastName)}</span>
+            )}
+          </div>
+          <div>
+            <div className="participant-name">{displayName}</div>
+            {username && <div className="participant-username">{username}</div>}
+          </div>
+        </div>
+        {confirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
       </div>
     );
   };
@@ -650,7 +711,6 @@ function Guarantee() {
           </div>
         </div>
 
-        {/* Уведомления */}
         <div className="notifications-container">
           {notifications.map(notification => (
             <div
@@ -695,7 +755,6 @@ function Guarantee() {
           </button>
         </div>
 
-        {/* Уведомления */}
         <div className="notifications-container">
           {notifications.map(notification => (
             <div
@@ -714,7 +773,6 @@ function Guarantee() {
 
   // Экран сделки
   if (screen === 'deal' && currentDeal) {
-    // ФИКС: приводим ID к строке для сравнения
     const myUserId = String(user.id);
     const creatorId = String(currentDeal.creator_id);
     const participantId = String(currentDeal.participant_id);
@@ -739,7 +797,6 @@ function Guarantee() {
 
     return (
       <div className="guarantee-container">
-        {/* Экран ожидания участника */}
         {currentDeal.status === 'waiting' && (
           <div className="waiting-participant-screen">
             <div className="waiting-animation">
@@ -747,7 +804,6 @@ function Guarantee() {
             </div>
             <h2 className="waiting-title">Ожидание участника<span className="animated-dots"></span></h2>
 
-            {/* КОД ПРИГЛАШЕНИЯ ВСТРОЕН ПРЯМО СЮДА */}
             {isCreator && (
               <div className="invite-code-inline" onClick={handleCopyCode}>
                 <div className="invite-code-label">Код приглашения</div>
@@ -786,16 +842,15 @@ function Guarantee() {
           </div>
         )}
 
-        {/* Окна участников */}
         {currentDeal.status === 'active' && (
           <>
             <div className="deal-windows">
-              {/* Мое окно */}
               <div className="participant-window my-window">
-                <div className="window-header">
-                  <span className="participant-name">Вы</span>
-                  {myConfirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
-                </div>
+                <ParticipantHeader 
+                  isMe={true}
+                  userData={user}
+                  confirmed={myConfirmed}
+                />
                 <div className="window-gifts">
                   {myGiftsInDeal.length === 0 ? (
                     <div className="empty-gifts">Добавьте подарки из инвентаря</div>
@@ -812,12 +867,12 @@ function Guarantee() {
                 </div>
               </div>
 
-              {/* Окно участника */}
               <div className="participant-window other-window">
-                <div className="window-header">
-                  <span className="participant-name">Участник</span>
-                  {otherConfirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
-                </div>
+                <ParticipantHeader 
+                  isMe={false}
+                  userData={participantUser}
+                  confirmed={otherConfirmed}
+                />
                 <div className="window-gifts">
                   {otherGiftsInDeal.length === 0 ? (
                     <div className="empty-gifts">Ожидание подарков...</div>
@@ -830,7 +885,6 @@ function Guarantee() {
               </div>
             </div>
 
-            {/* Инвентарь */}
             {!myConfirmed && (
               <div className="deal-inventory">
                 <h3 className="inventory-title">Мой инвентарь</h3>
@@ -846,7 +900,6 @@ function Guarantee() {
               </div>
             )}
 
-            {/* Кнопки управления */}
             <div className="deal-actions">
               <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
                 Отменить обмен
@@ -858,7 +911,7 @@ function Guarantee() {
                   onClick={handleConfirmDeal}
                   disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
                 >
-                  Подтвердить обмен
+                  ✓ Подтвердить обмен
                 </button>
               ) : (
                 <div className="waiting-message">Ожидание подтверждения...</div>
@@ -867,7 +920,6 @@ function Guarantee() {
           </>
         )}
 
-        {/* Модальное окно */}
         {showGiftModal && selectedGift && (
           <div className="modal-overlay" onClick={() => setShowGiftModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -888,7 +940,6 @@ function Guarantee() {
           </div>
         )}
 
-        {/* Уведомления */}
         <div className="notifications-container">
           {notifications.map(notification => (
             <div
@@ -909,7 +960,6 @@ function Guarantee() {
     <div className="guarantee-container">
       <div className="loading">Загрузка...</div>
 
-      {/* Уведомления */}
       <div className="notifications-container">
         {notifications.map(notification => (
           <div
