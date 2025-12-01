@@ -1976,6 +1976,49 @@ app.get('/api/stars/balance/:userId', async (req, res) => {
   }
 });
 
+// Добавь этот эндпоинт в твой server.js после других user endpoints
+
+// Get user info by telegram ID
+app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
+  try {
+    const { telegramId } = req.params;
+
+    // ВАЛИДАЦИЯ: Проверяем что telegramId это число
+    if (!validateTelegramId(telegramId)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'telegramId must be a valid Telegram user ID'
+      });
+    }
+
+    const result = await pool.query(
+      'SELECT telegram_id, username, first_name, last_name FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const user = result.rows[0];
+    
+    // БЕЗОПАСНОСТЬ: Санитизация данных перед отправкой
+    res.json({
+      user: {
+        id: user.telegram_id,
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name
+        // photoUrl можно добавить если ты сохраняешь его в БД
+      }
+    });
+
+  } catch (error) {
+    console.error('Ошибка при получении информации о пользователе:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 
 // Health check
 app.get('/health', (req, res) => {

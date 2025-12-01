@@ -20,7 +20,7 @@ function Guarantee() {
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [selectedGift, setSelectedGift] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [participantUser, setParticipantUser] = useState(null); // Информация о втором участнике
+  const [participantUser, setParticipantUser] = useState(null);
 
   // Инициализация пользователя
   useEffect(() => {
@@ -36,7 +36,7 @@ function Guarantee() {
           firstName: telegramUser.first_name,
           lastName: telegramUser.last_name,
           username: telegramUser.username,
-          photoUrl: telegramUser.photo_url // Аватар пользователя
+          photoUrl: telegramUser.photo_url
         });
       }
 
@@ -73,7 +73,6 @@ function Guarantee() {
       if (!otherUserId) return;
 
       try {
-        // Запрос к API для получения информации о пользователе
         const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
         const data = await response.json();
         
@@ -527,12 +526,11 @@ function Guarantee() {
             modelInstance.current = lottie.loadAnimation({
               container: modelLottieRef.current,
               renderer: 'svg',
-              loop: false, // Отключаем бесконечный loop
+              loop: false,
               autoplay: true,
               animationData: animationData
             });
 
-            // После первого проигрывания ставим флаг
             modelInstance.current.addEventListener('complete', () => {
               setHasPlayedOnce(true);
             });
@@ -646,7 +644,7 @@ function Guarantee() {
               <span>{getInitials(userData?.firstName, userData?.lastName)}</span>
             )}
           </div>
-          <div>
+          <div className="participant-text">
             <div className="participant-name">{displayName}</div>
             {username && <div className="participant-username">{username}</div>}
           </div>
@@ -911,7 +909,8 @@ function Guarantee() {
                   onClick={handleConfirmDeal}
                   disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
                 >
-                  ✓ Подтвердить обмен
+                  <span className="confirm-icon">✓</span>
+                  <span>Подтвердить обмен</span>
                 </button>
               ) : (
                 <div className="waiting-message">Ожидание подтверждения...</div>
