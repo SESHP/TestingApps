@@ -45,7 +45,7 @@ app.use(helmet({
   }
 }));
 
-// 2. CORS - Ужесточенная политика
+// 2. CORS - Ужесточенная политика с поддержкой Vercel Preview URLs
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://alged.vercel.app']
   : ['http://localhost:3000', 'https://alged.vercel.app'];
@@ -55,15 +55,23 @@ app.use(cors({
     // Разрешаем запросы без origin (мобильные приложения, Postman)
     if (!origin) return callback(null, true);
 
+    // Проверяем точное совпадение с allowedOrigins
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`⚠️  CORS blocked request from: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+
+    // Разрешаем Vercel Preview URLs (*.vercel.app)
+    if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+      console.log(`✅ Vercel Preview URL allowed: ${origin}`);
+      return callback(null, true);
+    }
+
+    // Блокируем все остальные
+    console.warn(`⚠️  CORS blocked request from: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-telegram-init-data']
 }));
 
