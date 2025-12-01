@@ -2018,15 +2018,6 @@ app.get('/api/debug/users', async (req, res) => {
   }
 });
 
-// ============ ERROR HANDLING MIDDLEWARE ============
-// ВАЖНО: Должно быть ПОСЛЕ всех route definitions
-
-// 404 handler - для несуществующих маршрутов
-app.use(notFoundHandler);
-
-// Централизованный error handler - ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ
-app.use(errorHandler);
-
 // ============ SERVER STARTUP ============
 
 process.on('SIGTERM', async () => {
@@ -2063,6 +2054,16 @@ async function startServer() {
     // Инициализация API эндпоинтов для гаранта
     console.log('📡 Инициализация Guarantee API...');
     setupGuaranteeAPI(app, pool, io);
+
+    // ============ ERROR HANDLING MIDDLEWARE ============
+    // ВАЖНО: Должно быть ПОСЛЕ всех route definitions (включая Guarantee API)
+
+    // 404 handler - для несуществующих маршрутов
+    app.use(notFoundHandler);
+
+    // Централизованный error handler - ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ
+    app.use(errorHandler);
+    console.log('✅ Error handlers зарегистрированы');
 
     // Запуск отслеживания подарков
     console.log('🎁 Запуск отслеживания подарков...');
