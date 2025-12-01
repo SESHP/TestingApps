@@ -7,9 +7,18 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 // Вспомогательная функция для создания headers с аутентификацией
 function getAuthHeaders() {
   const initData = getInitData();
+  const finalInitData = initData || 'dev';
+
+  console.log('🔐 getAuthHeaders:', {
+    initDataLength: initData?.length,
+    hasInitData: !!initData,
+    finalInitData: finalInitData === 'dev' ? 'dev' : `${finalInitData.substring(0, 50)}...`,
+    isTelegram: !!window.Telegram?.WebApp
+  });
+
   return {
     'Content-Type': 'application/json',
-    'x-telegram-init-data': initData || 'dev'
+    'x-telegram-init-data': finalInitData
   };
 }
 
