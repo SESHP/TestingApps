@@ -63,46 +63,62 @@ function Guarantee() {
 
   // Загрузка информации о втором участнике
    useEffect(() => {
-    const loadParticipantInfo = async () => {
-      if (!currentDeal || !user) return;
+  const loadParticipantInfo = async () => {
+    console.group('📥 loadParticipantInfo вызван');
+    console.log('currentDeal:', currentDeal);
+    console.log('user:', user);
+    
+    if (!currentDeal || !user) {
+      console.log('❌ Нет currentDeal или user, выход');
+      console.groupEnd();
+      return;
+    }
 
-      // ✅ ИСПРАВЛЕНИЕ: Не загружаем если статус waiting
-      if (currentDeal.status === 'waiting') {
-        console.log('⏳ Сделка в статусе waiting, участник еще не присоединился');
-        return;
+    if (currentDeal.status === 'waiting') {
+      console.log('⏳ Статус waiting, выход');
+      console.groupEnd();
+      return;
+    }
+
+    const isCreator = currentDeal.creator_id === user.id;
+    const otherUserId = isCreator 
+      ? currentDeal.participant_id 
+      : currentDeal.creator_id;
+
+    console.log('Я создатель?:', isCreator);
+    console.log('Мой ID:', user.id);
+    console.log('Creator ID:', currentDeal.creator_id);
+    console.log('Participant ID:', currentDeal.participant_id);
+    console.log('➡️ Другой пользователь ID:', otherUserId);
+
+    if (!otherUserId) {
+      console.log('❌ otherUserId не определен, выход');
+      console.groupEnd();
+      return;
+    }
+
+    try {
+      console.log('🌐 Запрос к API: /api/users/' + otherUserId);
+      const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
+      const data = await response.json();
+      
+      console.log('📦 Ответ от API:', data);
+      
+      if (data.user) {
+        console.log('✅ Устанавливаем participantUser:', data.user);
+        setParticipantUser(data.user);
+      } else {
+        console.log('❌ data.user отсутствует');
       }
+    } catch (error) {
+      console.error('❌ Ошибка запроса:', error);
+    }
+    
+    console.groupEnd();
+  };
 
-      const otherUserId = currentDeal.creator_id === user.id
-        ? currentDeal.participant_id
-        : currentDeal.creator_id;
-
-      if (!otherUserId) {
-        console.log('⚠️ ID другого участника не определен');
-        return;
-      }
-
-      try {
-        console.log('📥 Запрос информации о пользователе:', otherUserId);
-        const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
-        const data = await response.json();
-        
-        console.log('📥 Получен ответ:', data);
-        
-        if (data.user) {
-          console.log('✅ Данные пользователя установлены:', {
-            id: data.user.id,
-            username: data.user.username,
-            firstName: data.user.firstName
-          });
-          setParticipantUser(data.user);
-        }
-      } catch (error) {
-        console.error('❌ Ошибка загрузки информации об участнике:', error);
-      }
-    };
-
-    loadParticipantInfo();
-  }, [currentDeal, user]);
+  loadParticipantInfo();
+}, [currentDeal, user, API_URL]); // Добавил API_URL в dependencies
 
   // Загрузка сделки из URL при открытии
   useEffect(() => {
@@ -831,19 +847,24 @@ function Guarantee() {
     const myUserId = String(user.id);
     const creatorId = String(currentDeal.creator_id);
     const participantId = String(currentDeal.participant_id);
-
     const isCreator = creatorId === myUserId;
     const otherUserId = isCreator ? participantId : creatorId;
-    const otherUserIdStr = String(otherUserId);
     
-    console.log('🔍 DEBUG - Определение участников:');
-    console.log('  - Мой ID:', myUserId);
-    console.log('  - ID создателя:', creatorId);
-    console.log('  - ID участника:', participantId);
-    console.log('  - Я создатель?:', isCreator);
-    console.log('  - ID другого пользователя:', otherUserIdStr);
-    console.log('  - participantUser state:', participantUser);
-    console.log('  - user state:', user);
+    console.group('🔍 FULL DEBUG - Определение участников');
+    console.log('Current Deal:', currentDeal);
+    console.log('My User:', user);
+    console.log('Participant User State:', participantUser);
+    console.log('---');
+    console.log('Мой ID (string):', myUserId);
+    console.log('Creator ID (string):', creatorId);
+    console.log('Participant ID (string):', participantId);
+    console.log('---');
+    console.log('Я создатель?:', isCreator);
+    console.log('ID другого пользователя:', otherUserId);
+    console.log('---');
+    console.log('Данные для "МОЕ ОКНО":', user);
+    console.log('Данные для "ОКНО УЧАСТНИКА":', participantUser);
+    console.groupEnd();
     
     const myGiftsInDeal = dealGifts[myUserId] || [];
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];

@@ -642,7 +642,6 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
   try {
     const { initData, referralCode } = req.body;
 
-    // ВАЛИДАЦИЯ: Проверяем входные данные
     if (!initData || typeof initData !== 'string') {
       return res.status(400).json({
         error: 'Bad Request',
@@ -650,7 +649,6 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
       });
     }
 
-    // ВАЛИДАЦИЯ: Проверяем referralCode если он есть
     if (referralCode && typeof referralCode !== 'string') {
       return res.status(400).json({
         error: 'Bad Request',
@@ -663,12 +661,10 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
       referralCode: referralCode || 'none'
     });
 
-    // БЕЗОПАСНОСТЬ: Используем безопасную валидацию с проверкой HMAC
     let userData;
     if (initData && initData !== 'dev') {
       userData = validateTelegramData(initData, process.env.BOT_TOKEN);
     } else {
-      // Dev режим - используется только для разработки
       userData = getTestUserData(referralCode);
     }
 
@@ -679,7 +675,6 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
       });
     }
 
-    // БЕЗОПАСНОСТЬ: Санитизация пользовательских данных
     userData = sanitizeUserData(userData);
 
     await client.query('BEGIN');
@@ -692,6 +687,7 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
     let user = userResult.rows[0];
 
     if (!user) {
+      // Новый пользователь - создаем
       const newReferralCode = await generateUniqueReferralCode();
 
       let referrerId = null;
@@ -720,6 +716,33 @@ app.post('/api/user/init', authLimiter, async (req, res) => {
           'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
           [referrerId, userData.id]
         );
+      }
+    } else {
+      // ✅ ДОБАВЛЕНО: Пользователь существует - обновляем username, first_name, last_name если изменились
+      const needsUpdate = 
+        user.username !== userData.username || 
+        user.first_name !== userData.first_name || 
+        user.last_name !== userData.last_name;
+
+      if (needsUpdate) {
+        console.log('🔄 Обновление данных пользователя:', {
+          old: { username: user.username, first_name: user.first_name, last_name: user.last_name },
+          new: { username: userData.username, first_name: userData.first_name, last_name: userData.last_name }
+        });
+
+        const updateResult = await client.query(
+          `UPDATE users 
+           SET username = $2, 
+               first_name = $3, 
+               last_name = $4,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE telegram_id = $1
+           RETURNING *`,
+          [userData.id, userData.username, userData.first_name, userData.last_name]
+        );
+
+        user = updateResult.rows[0];
+        console.log('✅ Данные пользователя обновлены');
       }
     }
 
@@ -2022,7 +2045,6 @@ app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
   try {
     const { telegramId } = req.params;
 
-    // ВАЛИДАЦИЯ: Проверяем что telegramId это число
     if (!validateTelegramId(telegramId)) {
       return res.status(400).json({
         error: 'Bad Request',
@@ -2041,17 +2063,69 @@ app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
 
     const user = result.rows[0];
     
-    // Получаем фото профиля через Bot API
-    const photoUrl = await getUserProfilePhoto(telegramId);
+    // Получаем свежие данные через Bot API
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    let updatedUsername = user.username;
+    let updatedFirstName = user.first_name;
+    let updatedLastName = user.last_name;
+    let photoUrl = null;
+
+    if (BOT_TOKEN) {
+      try {
+        // ✅ ДОБАВЛЕНО: Получаем актуальные данные через getChat
+        const chatResponse = await fetch(
+          `https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${telegramId}`
+        );
+        const chatData = await chatResponse.json();
+
+        if (chatData.ok) {
+          updatedUsername = chatData.result.username || user.username;
+          updatedFirstName = chatData.result.first_name || user.first_name;
+          updatedLastName = chatData.result.last_name || user.last_name;
+
+          // Проверяем, изменились ли данные
+          const needsUpdate = 
+            updatedUsername !== user.username || 
+            updatedFirstName !== user.first_name || 
+            updatedLastName !== user.last_name;
+
+          if (needsUpdate) {
+            console.log('🔄 Обновление данных пользователя:', {
+              telegramId,
+              old: { username: user.username, first_name: user.first_name, last_name: user.last_name },
+              new: { username: updatedUsername, first_name: updatedFirstName, last_name: updatedLastName }
+            });
+
+            // Обновляем в БД
+            await pool.query(
+              `UPDATE users 
+               SET username = $2, 
+                   first_name = $3, 
+                   last_name = $4,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE telegram_id = $1`,
+              [telegramId, updatedUsername, updatedFirstName, updatedLastName]
+            );
+
+            console.log('✅ Данные пользователя обновлены в БД');
+          }
+        }
+
+        // Получаем фото профиля
+        photoUrl = await getUserProfilePhoto(telegramId);
+      } catch (apiError) {
+        console.error('⚠️ Ошибка получения данных через Bot API:', apiError);
+        // Используем данные из БД
+      }
+    }
     
-    // БЕЗОПАСНОСТЬ: Санитизация данных перед отправкой
     res.json({
       user: {
         id: user.telegram_id,
-        username: user.username,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        photoUrl: photoUrl // Возвращаем URL фото
+        username: updatedUsername,
+        firstName: updatedFirstName,
+        lastName: updatedLastName,
+        photoUrl: photoUrl
       }
     });
 
@@ -2060,6 +2134,41 @@ app.get('/api/users/:telegramId', readLimiter, async (req, res) => {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
+
+// Не забудь добавить функцию getUserProfilePhoto если ее еще нет:
+async function getUserProfilePhoto(userId) {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return null;
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`
+    );
+    
+    const data = await response.json();
+    
+    if (data.ok && data.result.total_count > 0) {
+      const photo = data.result.photos[0][0];
+      const fileId = photo.file_id;
+      
+      const fileResponse = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`
+      );
+      
+      const fileData = await fileResponse.json();
+      
+      if (fileData.ok) {
+        const filePath = fileData.result.file_path;
+        return `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Ошибка получения фото профиля:', error);
+    return null;
+  }
+}
 
 
 
