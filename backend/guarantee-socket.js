@@ -45,7 +45,7 @@ function initGuaranteeSocket(io, pool) {
           return;
         }
 
-        socket.join(`deal_${dealId}`);
+        socket.join(`deal-${dealId}`);
         userSockets.set(userId.toString(), socket.id);
         
         const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
@@ -58,7 +58,7 @@ function initGuaranteeSocket(io, pool) {
           const dealGifts = await getDealGifts(pool, dealId);
           socket.emit('gifts-updated', { dealId, gifts: dealGifts });
           
-          socket.to(`deal_${dealId}`).emit('user-joined', { userId });
+          socket.to(`deal-${dealId}`).emit('user-joined', { userId });
         }
       } catch (error) {
         console.error('❌ Ошибка присоединения к сделке:', error);
@@ -90,7 +90,7 @@ function initGuaranteeSocket(io, pool) {
         );
 
         const dealGifts = await getDealGifts(pool, dealId);
-        io.to(`deal_${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
+        io.to(`deal-${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
 
       } catch (error) {
         console.error('❌ Ошибка добавления подарка:', error);
@@ -110,7 +110,7 @@ function initGuaranteeSocket(io, pool) {
         );
 
         const dealGifts = await getDealGifts(pool, dealId);
-        io.to(`deal_${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
+        io.to(`deal-${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
 
       } catch (error) {
         console.error('❌ Ошибка удаления подарка:', error);
@@ -139,7 +139,7 @@ function initGuaranteeSocket(io, pool) {
         const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
         const updatedDeal = updated.rows[0];
         
-        io.to(`deal_${dealId}`).emit('lock-updated', {
+        io.to(`deal-${dealId}`).emit('lock-updated', {
           creatorLocked: updatedDeal.creator_locked,
           participantLocked: updatedDeal.participant_locked
         });
@@ -147,7 +147,7 @@ function initGuaranteeSocket(io, pool) {
         // Если оба заблокировали - переходим в режим проверки
         if (updatedDeal.creator_locked && updatedDeal.participant_locked) {
           await pool.query(`UPDATE deals SET status = 'verification' WHERE id = $1`, [dealId]);
-          io.to(`deal_${dealId}`).emit('verification-stage');
+          io.to(`deal-${dealId}`).emit('verification-stage');
         }
       } catch (error) {
         console.error('❌ Ошибка блокировки:', error);
@@ -181,7 +181,7 @@ function initGuaranteeSocket(io, pool) {
              WHERE id = $1`,
             [dealId]
           );
-          io.to(`deal_${dealId}`).emit('verification-cancelled');
+          io.to(`deal-${dealId}`).emit('verification-cancelled');
           return;
         }
         
@@ -194,7 +194,7 @@ function initGuaranteeSocket(io, pool) {
         const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
         const updatedDeal = updated.rows[0];
         
-        io.to(`deal_${dealId}`).emit('confirmation-updated', {
+        io.to(`deal-${dealId}`).emit('confirmation-updated', {
           creatorConfirmed: updatedDeal.creator_confirmed,
           participantConfirmed: updatedDeal.participant_confirmed
         });
@@ -222,7 +222,7 @@ function initGuaranteeSocket(io, pool) {
         );
 
         await pool.query('DELETE FROM deal_gifts WHERE deal_id = $1', [dealId]);
-        io.to(`deal_${dealId}`).emit('deal-cancelled', { dealId, cancelledBy: userId });
+        io.to(`deal-${dealId}`).emit('deal-cancelled', { dealId, cancelledBy: userId });
 
       } catch (error) {
         console.error('❌ Ошибка отмены сделки:', error);
@@ -320,7 +320,7 @@ async function executeDeal(pool, io, dealId) {
 
     await client.query('COMMIT');
 
-    io.to(`deal_${dealId}`).emit('deal-completed', {
+    io.to(`deal-${dealId}`).emit('deal-completed', {
       dealId,
       message: 'Обмен успешно завершен!'
     });
@@ -330,7 +330,7 @@ async function executeDeal(pool, io, dealId) {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error(`❌ Ошибка выполнения сделки ${dealId}:`, error);
-    io.to(`deal_${dealId}`).emit('deal-error', {
+    io.to(`deal-${dealId}`).emit('deal-error', {
       dealId,
       message: 'Ошибка выполнения обмена'
     });
