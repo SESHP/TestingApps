@@ -9,6 +9,9 @@ import { createDeal, joinDeal } from '../utils/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
+// ✅ КЛЮЧ ДЛЯ СОХРАНЕНИЯ СОСТОЯНИЯ
+const DEAL_STATE_KEY = 'guarantee_active_deal';
+
 function Guarantee() {
   const [screen, setScreen] = useState('main');
   const [currentDeal, setCurrentDeal] = useState(null);
@@ -24,6 +27,25 @@ function Guarantee() {
   const [verificationStage, setVerificationStage] = useState(false);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const isRestoringRef = useRef(false);
+
+  // ✅ СОХРАНЕНИЕ СОСТОЯНИЯ СДЕЛКИ В LOCALSTORAGE
+  useEffect(() => {
+    if (currentDeal) {
+      console.log('💾 Сохранение состояния сделки:', currentDeal.id);
+      localStorage.setItem(DEAL_STATE_KEY, JSON.stringify({
+        dealId: currentDeal.id,
+        timestamp: Date.now()
+      }));
+    } else {
+      // Удаляем только если явно очищаем сделку (не при размонтировании)
+      const savedDeal = localStorage.getItem(DEAL_STATE_KEY);
+      if (savedDeal && screen === 'main') {
+        console.log('🗑️ Очистка сохраненной сделки');
+        localStorage.removeItem(DEAL_STATE_KEY);
+      }
+    }
+  }, [currentDeal, screen]);
 
   // Инициализация пользователя
   useEffect(() => {
@@ -66,7 +88,13 @@ function Guarantee() {
 
   // ✅ ФУНКЦИЯ ВОССТАНОВЛЕНИЯ СОСТОЯНИЯ СДЕЛКИ
   const restoreDealState = async (dealId) => {
+    if (isRestoringRef.current) {
+      console.log('⏸️ Восстановление уже выполняется, пропускаем...');
+      return false;
+    }
+
     try {
+      isRestoringRef.current = true;
       console.log('🔄 Восстановление состояния сделки:', dealId);
       
       // Загружаем информацию о сделке
@@ -74,8 +102,22 @@ function Guarantee() {
       const dealData = await dealResponse.json();
       
       if (dealData.deal) {
+        // Проверяем, что сделка еще активна
+        if (dealData.deal.status === 'completed' || dealData.deal.status === 'cancelled') {
+          console.log('⚠️ Сделка завершена или отменена, очищаем состояние');
+          localStorage.removeItem(DEAL_STATE_KEY);
+          setScreen('main');
+          setCurrentDeal(null);
+          setDealGifts({});
+          setParticipantUser(null);
+          setVerificationStage(false);
+          isRestoringRef.current = false;
+          return false;
+        }
+
         console.log('✅ Состояние сделки восстановлено:', dealData.deal);
         setCurrentDeal(dealData.deal);
+        setScreen('deal');
         
         // Определяем стадию верификации
         if (dealData.deal.status === 'verification') {
@@ -107,20 +149,51 @@ function Guarantee() {
           }
         }
         
+        isRestoringRef.current = false;
         return true;
       }
+      
+      isRestoringRef.current = false;
       return false;
     } catch (error) {
       console.error('❌ Ошибка восстановления состояния сделки:', error);
+      isRestoringRef.current = false;
       return false;
     }
   };
+
+  // ✅ ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ПРИ ЗАГРУЗКЕ КОМПОНЕНТА
+  useEffect(() => {
+    if (!user) return;
+
+    const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
+    if (savedDealState) {
+      try {
+        const { dealId, timestamp } = JSON.parse(savedDealState);
+        
+        // Проверяем, что состояние не старее 24 часов
+        const hoursSinceUpdate = (Date.now() - timestamp) / (1000 * 60 * 60);
+        
+        if (hoursSinceUpdate < 24) {
+          console.log('🔄 Найдена сохраненная сделка, восстанавливаем:', dealId);
+          restoreDealState(dealId);
+        } else {
+          console.log('⏰ Сохраненная сделка устарела, удаляем');
+          localStorage.removeItem(DEAL_STATE_KEY);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка парсинга сохраненного состояния:', error);
+        localStorage.removeItem(DEAL_STATE_KEY);
+      }
+    }
+  }, [user]);
 
   // Загрузка информации о втором участнике
   useEffect(() => {
     const loadParticipantInfo = async () => {
       if (!currentDeal || !user) return;
       if (currentDeal.status === 'waiting') return;
+      if (participantUser) return; // Уже загружен
 
       const isCreator = currentDeal.creator_id === user.id;
       const otherUserId = isCreator 
@@ -142,12 +215,13 @@ function Guarantee() {
     };
 
     loadParticipantInfo();
-  }, [currentDeal, user]);
+  }, [currentDeal, user, participantUser]);
 
   // Загрузка сделки из URL при открытии
   useEffect(() => {
     const loadDealFromUrl = async () => {
       if (!user || !socket) return;
+      if (currentDeal) return; // Уже есть активная сделка
 
       const tg = window.Telegram?.WebApp;
       const startParam = tg?.initDataUnsafe?.start_param;
@@ -160,7 +234,6 @@ function Guarantee() {
           const restored = await restoreDealState(dealId);
           
           if (restored) {
-            setScreen('deal');
             socket.emit('join-deal', { dealId: dealId });
           }
         } catch (error) {
@@ -175,20 +248,49 @@ function Guarantee() {
   // ✅ ОБРАБОТКА ВОССТАНОВЛЕНИЯ ПРИ ВОЗВРАЩЕНИИ НА ВКЛАДКУ
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && currentDeal && socket) {
-        console.log('👁️ Вкладка стала активной, восстанавливаем состояние...');
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ Вкладка стала активной');
         
-        // Проверяем соединение
-        if (!socket.connected) {
-          console.log('🔄 Переподключение WebSocket...');
-          socket.connect();
+        // Проверяем сохраненное состояние
+        const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
+        if (savedDealState) {
+          try {
+            const { dealId } = JSON.parse(savedDealState);
+            console.log('🔄 Восстанавливаем сделку:', dealId);
+            
+            // Проверяем соединение
+            if (socket && !socket.connected) {
+              console.log('🔄 Переподключение WebSocket...');
+              socket.connect();
+              
+              // Ждем подключения
+              await new Promise((resolve) => {
+                const checkConnection = setInterval(() => {
+                  if (socket.connected) {
+                    clearInterval(checkConnection);
+                    resolve();
+                  }
+                }, 100);
+                
+                // Timeout через 5 секунд
+                setTimeout(() => {
+                  clearInterval(checkConnection);
+                  resolve();
+                }, 5000);
+              });
+            }
+            
+            // Восстанавливаем состояние
+            const restored = await restoreDealState(dealId);
+            
+            if (restored && socket && socket.connected) {
+              // Переприсоединяемся к комнате сделки
+              socket.emit('join-deal', { dealId: dealId });
+            }
+          } catch (error) {
+            console.error('❌ Ошибка восстановления при возвращении на вкладку:', error);
+          }
         }
-        
-        // Восстанавливаем состояние сделки
-        await restoreDealState(currentDeal.id);
-        
-        // Переприсоединяемся к комнате сделки
-        socket.emit('join-deal', { dealId: currentDeal.id });
       }
     };
 
@@ -197,7 +299,7 @@ function Guarantee() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [currentDeal, socket, user]);
+  }, [socket]);
 
   // Инициализация WebSocket
   useEffect(() => {
@@ -217,16 +319,24 @@ function Guarantee() {
       }
     });
 
-    newSocket.on('connect', () => {
+    newSocket.on('connect', async () => {
       console.log('✅ WebSocket подключен:', newSocket.id);
       reconnectAttempts.current = 0;
       
       // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПРИ RECONNECT
-      if (currentDeal) {
-        console.log('🔄 Восстановление после переподключения...');
-        restoreDealState(currentDeal.id).then(() => {
-          newSocket.emit('join-deal', { dealId: currentDeal.id });
-        });
+      const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
+      if (savedDealState) {
+        try {
+          const { dealId } = JSON.parse(savedDealState);
+          console.log('🔄 Восстановление после переподключения:', dealId);
+          
+          const restored = await restoreDealState(dealId);
+          if (restored) {
+            newSocket.emit('join-deal', { dealId: dealId });
+          }
+        } catch (error) {
+          console.error('❌ Ошибка восстановления при connect:', error);
+        }
       }
     });
 
@@ -245,20 +355,28 @@ function Guarantee() {
       
       if (reconnectAttempts.current >= maxReconnectAttempts) {
         console.error('❌ Превышено максимальное количество попыток переподключения');
-        showNotification('Ошибка подключения. Обновите страницу.', 'error');
+        showNotification('Ошибка подключения. Перезагрузите страницу.', 'error');
       }
     });
 
-    newSocket.on('reconnect', (attemptNumber) => {
+    newSocket.on('reconnect', async (attemptNumber) => {
       console.log('✅ WebSocket переподключен после попытки:', attemptNumber);
       reconnectAttempts.current = 0;
       
       // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПОСЛЕ УСПЕШНОГО RECONNECT
-      if (currentDeal) {
-        console.log('🔄 Восстановление состояния после reconnect...');
-        restoreDealState(currentDeal.id).then(() => {
-          newSocket.emit('join-deal', { dealId: currentDeal.id });
-        });
+      const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
+      if (savedDealState) {
+        try {
+          const { dealId } = JSON.parse(savedDealState);
+          console.log('🔄 Восстановление состояния после reconnect:', dealId);
+          
+          const restored = await restoreDealState(dealId);
+          if (restored) {
+            newSocket.emit('join-deal', { dealId: dealId });
+          }
+        } catch (error) {
+          console.error('❌ Ошибка восстановления при reconnect:', error);
+        }
       }
     });
 
@@ -281,7 +399,7 @@ function Guarantee() {
       console.log('🔌 Закрытие WebSocket соединения');
       newSocket.close();
     };
-  }, []); // ✅ Убираем currentDeal из зависимостей, чтобы не пересоздавать socket
+  }, []);
 
   // Слушатели WebSocket
   useEffect(() => {
@@ -367,6 +485,10 @@ function Guarantee() {
     socket.on('deal-completed', (data) => {
       console.log('🎉 Сделка завершена:', data);
       showNotification('🎉 ' + (data.message || 'Обмен успешно завершен!'), 'success');
+      
+      // Очищаем сохраненное состояние
+      localStorage.removeItem(DEAL_STATE_KEY);
+      
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -377,6 +499,10 @@ function Guarantee() {
     socket.on('deal-cancelled', (data) => {
       console.log('❌ Сделка отменена:', data);
       showNotification('❌ Обмен был отменен', 'error');
+      
+      // Очищаем сохраненное состояние
+      localStorage.removeItem(DEAL_STATE_KEY);
+      
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -602,6 +728,9 @@ function Guarantee() {
     }
   };
 
+  // Остальные компоненты остаются без изменений...
+  // (HourglassLottie, GiftPreview, GiftCardInventory, GiftCardMini, ParticipantHeader)
+  
   // Компонент с Lottie анимацией песочных часов
   const HourglassLottie = () => {
     const containerRef = useRef(null);
