@@ -120,40 +120,47 @@ function initGuaranteeSocket(io, pool) {
 
     // Блокировка подарков
     socket.on('lock-gifts', async ({ dealId }) => {
-      try {
-        const userId = socket.userId;
-        console.log(`🔒 Блокировка подарков в сделке ${dealId} от ${userId}`);
+  try {
+    const userId = socket.userId;
+    console.log(`🔒 Блокировка подарков в сделке ${dealId} от ${userId}`);
 
-        const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
-        if (result.rows.length === 0) {
-          socket.emit('error', { message: 'Сделка не найдена' });
-          return;
-        }
+    const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+    if (result.rows.length === 0) {
+      socket.emit('error', { message: 'Сделка не найдена' });
+      return;
+    }
 
-        const deal = result.rows[0];
-        const isCreator = deal.creator_id === userId;
-        const field = isCreator ? 'creator_locked' : 'participant_locked';
-        
-        await pool.query(`UPDATE deals SET ${field} = TRUE WHERE id = $1`, [dealId]);
-        
-        const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
-        const updatedDeal = updated.rows[0];
-        
-        io.to(`deal-${dealId}`).emit('lock-updated', {
-          creatorLocked: updatedDeal.creator_locked,
-          participantLocked: updatedDeal.participant_locked
-        });
-        
-        // Если оба заблокировали - переходим в режим проверки
-        if (updatedDeal.creator_locked && updatedDeal.participant_locked) {
-          await pool.query(`UPDATE deals SET status = 'verification' WHERE id = $1`, [dealId]);
-          io.to(`deal-${dealId}`).emit('verification-stage');
-        }
-      } catch (error) {
-        console.error('❌ Ошибка блокировки:', error);
-        socket.emit('error', { message: 'Ошибка блокировки' });
-      }
+    const deal = result.rows[0];
+    
+    // ИСПРАВЛЕНИЕ: Приводим к одному типу (BigInt)
+    const isCreator = BigInt(deal.creator_id) === BigInt(userId);
+    const field = isCreator ? 'creator_locked' : 'participant_locked';
+    
+    console.log(`📊 DEBUG: deal.creator_id=${deal.creator_id}, userId=${userId}, isCreator=${isCreator}, field=${field}`);
+    
+    await pool.query(`UPDATE deals SET ${field} = TRUE WHERE id = $1`, [dealId]);
+    
+    const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+    const updatedDeal = updated.rows[0];
+    
+    console.log(`✅ Обновлено: creator_locked=${updatedDeal.creator_locked}, participant_locked=${updatedDeal.participant_locked}`);
+    
+    io.to(`deal-${dealId}`).emit('lock-updated', {
+      creatorLocked: updatedDeal.creator_locked,
+      participantLocked: updatedDeal.participant_locked
     });
+    
+    // Если оба заблокировали - переходим в режим проверки
+    if (updatedDeal.creator_locked && updatedDeal.participant_locked) {
+      await pool.query(`UPDATE deals SET status = 'verification' WHERE id = $1`, [dealId]);
+      console.log(`🔍 Переход к проверке сделки ${dealId}`);
+      io.to(`deal-${dealId}`).emit('verification-stage');
+    }
+  } catch (error) {
+    console.error('❌ Ошибка блокировки:', error);
+    socket.emit('error', { message: 'Ошибка блокировки' });
+  }
+});
 
     // Проверка обмена
     socket.on('verify-deal', async ({ dealId, approved }) => {
@@ -170,24 +177,25 @@ function initGuaranteeSocket(io, pool) {
         const deal = result.rows[0];
         
         if (!approved) {
-          // Отмена - разблокировать
           await pool.query(
             `UPDATE deals 
-             SET status = 'active', 
-                 creator_locked = FALSE, 
-                 participant_locked = FALSE,
-                 creator_confirmed = FALSE,
-                 participant_confirmed = FALSE
-             WHERE id = $1`,
+            SET status = 'active', 
+                creator_locked = FALSE, 
+                participant_locked = FALSE,
+                creator_confirmed = FALSE,
+                participant_confirmed = FALSE
+            WHERE id = $1`,
             [dealId]
           );
           io.to(`deal-${dealId}`).emit('verification-cancelled');
           return;
         }
         
-        // Одобрение
-        const isCreator = deal.creator_id === userId;
+        // ИСПРАВЛЕНИЕ: Приводим к одному типу
+        const isCreator = BigInt(deal.creator_id) === BigInt(userId);
         const field = isCreator ? 'creator_confirmed' : 'participant_confirmed';
+        
+        console.log(`📊 DEBUG: deal.creator_id=${deal.creator_id}, userId=${userId}, isCreator=${isCreator}, field=${field}`);
         
         await pool.query(`UPDATE deals SET ${field} = TRUE WHERE id = $1`, [dealId]);
         
@@ -199,7 +207,6 @@ function initGuaranteeSocket(io, pool) {
           participantConfirmed: updatedDeal.participant_confirmed
         });
         
-        // Если оба одобрили - выполняем обмен
         if (updatedDeal.creator_confirmed && updatedDeal.participant_confirmed) {
           await executeDeal(pool, io, dealId);
         }
