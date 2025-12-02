@@ -22,6 +22,8 @@ function Guarantee() {
   const [notifications, setNotifications] = useState([]);
   const [participantUser, setParticipantUser] = useState(null);
   const [verificationStage, setVerificationStage] = useState(false);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
 
   // Инициализация пользователя
   useEffect(() => {
@@ -62,6 +64,58 @@ function Guarantee() {
     }
   }, []);
 
+  // ✅ ФУНКЦИЯ ВОССТАНОВЛЕНИЯ СОСТОЯНИЯ СДЕЛКИ
+  const restoreDealState = async (dealId) => {
+    try {
+      console.log('🔄 Восстановление состояния сделки:', dealId);
+      
+      // Загружаем информацию о сделке
+      const dealResponse = await fetch(`${API_URL}/api/deals/${dealId}`);
+      const dealData = await dealResponse.json();
+      
+      if (dealData.deal) {
+        console.log('✅ Состояние сделки восстановлено:', dealData.deal);
+        setCurrentDeal(dealData.deal);
+        
+        // Определяем стадию верификации
+        if (dealData.deal.status === 'verification') {
+          setVerificationStage(true);
+        } else {
+          setVerificationStage(false);
+        }
+        
+        // Загружаем подарки сделки
+        const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
+        const giftsData = await giftsResponse.json();
+        if (giftsData.gifts) {
+          setDealGifts(giftsData.gifts);
+        }
+        
+        // Загружаем информацию о втором участнике
+        if (dealData.deal.status !== 'waiting') {
+          const isCreator = dealData.deal.creator_id === user.id;
+          const otherUserId = isCreator 
+            ? dealData.deal.participant_id 
+            : dealData.deal.creator_id;
+          
+          if (otherUserId) {
+            const userResponse = await fetch(`${API_URL}/api/users/${otherUserId}`);
+            const userData = await userResponse.json();
+            if (userData.user) {
+              setParticipantUser(userData.user);
+            }
+          }
+        }
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('❌ Ошибка восстановления состояния сделки:', error);
+      return false;
+    }
+  };
+
   // Загрузка информации о втором участнике
   useEffect(() => {
     const loadParticipantInfo = async () => {
@@ -88,7 +142,7 @@ function Guarantee() {
     };
 
     loadParticipantInfo();
-  }, [currentDeal, user, API_URL]);
+  }, [currentDeal, user]);
 
   // Загрузка сделки из URL при открытии
   useEffect(() => {
@@ -103,21 +157,11 @@ function Guarantee() {
         
         try {
           console.log('🔍 Загрузка сделки из URL:', dealId);
-          const response = await fetch(`${API_URL}/api/deals/${dealId}`);
-          const data = await response.json();
+          const restored = await restoreDealState(dealId);
           
-          if (data.deal) {
-            console.log('✅ Сделка загружена:', data.deal);
-            setCurrentDeal(data.deal);
+          if (restored) {
             setScreen('deal');
-            
-            socket.emit('join-deal', { dealId: data.deal.id });
-            
-            const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
-            const giftsData = await giftsResponse.json();
-            if (giftsData.gifts) {
-              setDealGifts(giftsData.gifts);
-            }
+            socket.emit('join-deal', { dealId: dealId });
           }
         } catch (error) {
           console.error('❌ Ошибка загрузки сделки:', error);
@@ -128,6 +172,33 @@ function Guarantee() {
     loadDealFromUrl();
   }, [user, socket]);
 
+  // ✅ ОБРАБОТКА ВОССТАНОВЛЕНИЯ ПРИ ВОЗВРАЩЕНИИ НА ВКЛАДКУ
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && currentDeal && socket) {
+        console.log('👁️ Вкладка стала активной, восстанавливаем состояние...');
+        
+        // Проверяем соединение
+        if (!socket.connected) {
+          console.log('🔄 Переподключение WebSocket...');
+          socket.connect();
+        }
+        
+        // Восстанавливаем состояние сделки
+        await restoreDealState(currentDeal.id);
+        
+        // Переприсоединяемся к комнате сделки
+        socket.emit('join-deal', { dealId: currentDeal.id });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentDeal, socket, user]);
+
   // Инициализация WebSocket
   useEffect(() => {
     console.log('🔌 Подключение к WebSocket:', API_URL);
@@ -137,8 +208,10 @@ function Guarantee() {
     const newSocket = io(API_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
       auth: {
         initData: initData || 'dev'
       }
@@ -146,14 +219,60 @@ function Guarantee() {
 
     newSocket.on('connect', () => {
       console.log('✅ WebSocket подключен:', newSocket.id);
+      reconnectAttempts.current = 0;
+      
+      // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПРИ RECONNECT
+      if (currentDeal) {
+        console.log('🔄 Восстановление после переподключения...');
+        restoreDealState(currentDeal.id).then(() => {
+          newSocket.emit('join-deal', { dealId: currentDeal.id });
+        });
+      }
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ WebSocket отключен');
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ WebSocket отключен:', reason);
+      
+      if (reason === 'io server disconnect') {
+        // Сервер отключил - пробуем переподключиться
+        newSocket.connect();
+      }
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('❌ Ошибка подключения WebSocket:', error);
+      reconnectAttempts.current++;
+      
+      if (reconnectAttempts.current >= maxReconnectAttempts) {
+        console.error('❌ Превышено максимальное количество попыток переподключения');
+        showNotification('Ошибка подключения. Обновите страницу.', 'error');
+      }
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('✅ WebSocket переподключен после попытки:', attemptNumber);
+      reconnectAttempts.current = 0;
+      
+      // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПОСЛЕ УСПЕШНОГО RECONNECT
+      if (currentDeal) {
+        console.log('🔄 Восстановление состояния после reconnect...');
+        restoreDealState(currentDeal.id).then(() => {
+          newSocket.emit('join-deal', { dealId: currentDeal.id });
+        });
+      }
+    });
+
+    newSocket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('🔄 Попытка переподключения:', attemptNumber);
+    });
+
+    newSocket.on('reconnect_error', (error) => {
+      console.error('❌ Ошибка переподключения:', error);
+    });
+
+    newSocket.on('reconnect_failed', () => {
+      console.error('❌ Не удалось переподключиться');
+      showNotification('Не удалось восстановить соединение', 'error');
     });
 
     setSocket(newSocket);
@@ -162,7 +281,7 @@ function Guarantee() {
       console.log('🔌 Закрытие WebSocket соединения');
       newSocket.close();
     };
-  }, []);
+  }, []); // ✅ Убираем currentDeal из зависимостей, чтобы не пересоздавать socket
 
   // Слушатели WebSocket
   useEffect(() => {

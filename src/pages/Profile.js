@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic, getReferralCode } from '../utils/telegramUtils';
-
+import { io } from 'socket.io-client';
 import { initPlatformDetection } from '../utils/platformDetect';
 
 import { initUser, getReferralStats } from '../utils/api';
@@ -12,6 +12,8 @@ import BadgeModal from '../components/BadgeModal';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -32,6 +34,68 @@ function Profile() {
   const particlesRef = useRef([]);
   const animationIdRef = useRef(null);
   const cooldownTimerRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // ✅ ИНИЦИАЛИЗАЦИЯ WEBSOCKET ДЛЯ ПОЛУЧЕНИЯ ОБНОВЛЕНИЙ СТАТИСТИКИ
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔌 Подключение к WebSocket для обновлений профиля:', API_URL);
+
+    const initData = getInitData();
+
+    const socket = io(API_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      auth: {
+        initData: initData || 'dev'
+      }
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ WebSocket подключен для профиля:', socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ WebSocket отключен');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('❌ Ошибка подключения WebSocket:', error);
+    });
+
+    // ✅ СЛУШАЕМ ОБНОВЛЕНИЯ СТАТИСТИКИ
+    socket.on('user-stats-updated', (data) => {
+      console.log('📊 Получено обновление статистики:', data);
+      
+      setUserData(prev => ({
+        ...prev,
+        totalDeals: data.totalDeals,
+        rating: data.rating
+      }));
+
+      // Показываем уведомление
+      notificationHaptic('success');
+      
+      // Можно добавить визуальную анимацию обновления
+      const statsElements = document.querySelectorAll('.stat-value-profile');
+      statsElements.forEach(el => {
+        el.style.animation = 'none';
+        setTimeout(() => {
+          el.style.animation = 'balanceChange 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        }, 10);
+      });
+    });
+
+    socketRef.current = socket;
+
+    return () => {
+      console.log('🔌 Закрытие WebSocket соединения профиля');
+      socket.close();
+    };
+  }, [user]);
 
   // Загрузка пользователя и инициализация
   useEffect(() => {

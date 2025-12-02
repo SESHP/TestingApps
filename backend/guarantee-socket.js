@@ -320,16 +320,49 @@ async function executeDeal(pool, io, dealId) {
       );
     }
 
+    // Обновляем статус сделки
     await client.query(
       `UPDATE deals SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [dealId]
     );
 
+    // ✅ ОБНОВЛЯЕМ СЧЕТЧИК СДЕЛОК ДЛЯ ОБОИХ УЧАСТНИКОВ
+    await client.query(
+      `UPDATE users 
+       SET total_deals = total_deals + 1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE telegram_id IN ($1, $2)`,
+      [deal.creator_id, deal.participant_id]
+    );
+
+    console.log(`✅ Счетчики сделок обновлены для пользователей ${deal.creator_id} и ${deal.participant_id}`);
+
+    // ✅ ПОЛУЧАЕМ ОБНОВЛЕННЫЕ ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ
+    const updatedUsersResult = await client.query(
+      `SELECT telegram_id, total_deals, rating 
+       FROM users 
+       WHERE telegram_id IN ($1, $2)`,
+      [deal.creator_id, deal.participant_id]
+    );
+
     await client.query('COMMIT');
 
+    // Отправляем событие завершения сделки
     io.to(`deal-${dealId}`).emit('deal-completed', {
       dealId,
       message: 'Обмен успешно завершен!'
+    });
+
+    // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННУЮ СТАТИСТИКУ КАЖДОМУ УЧАСТНИКУ
+    updatedUsersResult.rows.forEach(user => {
+      const userSocketId = userSockets.get(String(user.telegram_id));
+      if (userSocketId) {
+        io.to(userSocketId).emit('user-stats-updated', {
+          totalDeals: user.total_deals,
+          rating: parseFloat(user.rating)
+        });
+        console.log(`📊 Отправлена обновленная статистика пользователю ${user.telegram_id}`);
+      }
     });
 
     console.log(`✅ Сделка ${dealId} успешно завершена`);
