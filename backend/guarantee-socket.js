@@ -145,65 +145,84 @@ function initGuaranteeSocket(io, pool) {
     });
 
     // Подтверждение сделки пользователем
-    socket.on('confirm-deal', async ({ dealId }) => {
+    socket.on('lock-gifts', async ({ dealId }) => {
       try {
-        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
-        const userId = socket.userId;
-
-        console.log(`✅ Пользователь ${userId} подтверждает сделку ${dealId}`);
-
-        const deal = await pool.query(
-          'SELECT * FROM deals WHERE id = $1',
+        const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        const deal = result.rows[0];
+        
+        const isCreator = deal.creator_id === socket.userId;
+        const field = isCreator ? 'creator_locked' : 'participant_locked';
+        
+        await pool.query(
+          `UPDATE deals SET ${field} = TRUE WHERE id = $1`,
           [dealId]
         );
+        
+        const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        const updatedDeal = updated.rows[0];
+        
+        io.to(`deal_${dealId}`).emit('lock-updated', {
+          creatorLocked: updatedDeal.creator_locked,
+          participantLocked: updatedDeal.participant_locked
+        });
+        
+        // Если оба заблокировали - переходим в режим проверки
+        if (updatedDeal.creator_locked && updatedDeal.participant_locked) {
+          await pool.query(
+            `UPDATE deals SET status = 'verification' WHERE id = $1`,
+            [dealId]
+          );
+          io.to(`deal_${dealId}`).emit('verification-stage');
+        }
+      } catch (error) {
+        socket.emit('error', { message: 'Ошибка блокировки' });
+      }
+    });
 
-        if (deal.rows.length === 0) {
-          socket.emit('error', { message: 'Сделка не найдена' });
+    socket.on('verify-deal', async ({ dealId, approved }) => {
+      try {
+        const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        const deal = result.rows[0];
+        
+        if (!approved) {
+          // Отмена - разблокировать
+          await pool.query(
+            `UPDATE deals 
+            SET status = 'active', 
+                creator_locked = FALSE, 
+                participant_locked = FALSE,
+                creator_confirmed = FALSE,
+                participant_confirmed = FALSE
+            WHERE id = $1`,
+            [dealId]
+          );
+          io.to(`deal_${dealId}`).emit('verification-cancelled');
           return;
         }
-
-        const currentDeal = deal.rows[0];
-
-        // ФИКС: приводим к строкам для сравнения
-        const userIdStr = String(userId);
-        const creatorIdStr = String(currentDeal.creator_id);
-        const participantIdStr = String(currentDeal.participant_id);
-
-        // Определяем, кто подтверждает (creator или participant)
-        if (userIdStr === creatorIdStr) {
-          await pool.query(
-            'UPDATE deals SET creator_confirmed = TRUE WHERE id = $1',
-            [dealId]
-          );
-        } else if (userIdStr === participantIdStr) {
-          await pool.query(
-            'UPDATE deals SET participant_confirmed = TRUE WHERE id = $1',
-            [dealId]
-          );
-        }
-
-        // Проверяем, подтвердили ли оба
-        const updatedDeal = await pool.query(
-          'SELECT * FROM deals WHERE id = $1',
+        
+        // Одобрение
+        const isCreator = deal.creator_id === socket.userId;
+        const field = isCreator ? 'creator_confirmed' : 'participant_confirmed';
+        
+        await pool.query(
+          `UPDATE deals SET ${field} = TRUE WHERE id = $1`,
           [dealId]
         );
-
-        const updated = updatedDeal.rows[0];
-
-        io.to(`deal-${dealId}`).emit('confirmation-updated', {
-          dealId,
-          creatorConfirmed: updated.creator_confirmed,
-          participantConfirmed: updated.participant_confirmed
+        
+        const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        const updatedDeal = updated.rows[0];
+        
+        io.to(`deal_${dealId}`).emit('confirmation-updated', {
+          creatorConfirmed: updatedDeal.creator_confirmed,
+          participantConfirmed: updatedDeal.participant_confirmed
         });
-
-        // Если оба подтвердили - выполняем обмен
-        if (updated.creator_confirmed && updated.participant_confirmed) {
-          await executeDeal(pool, io, dealId);
+        
+        // Если оба одобрили - выполняем обмен
+        if (updatedDeal.creator_confirmed && updatedDeal.participant_confirmed) {
+          // ... существующий код обмена подарков ...
         }
-
       } catch (error) {
-        console.error('❌ Ошибка подтверждения сделки:', error);
-        socket.emit('error', { message: 'Ошибка подтверждения сделки' });
+        socket.emit('error', { message: 'Ошибка проверки' });
       }
     });
 

@@ -21,6 +21,7 @@ function Guarantee() {
   const [selectedGift, setSelectedGift] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [participantUser, setParticipantUser] = useState(null);
+  const [verificationStage, setVerificationStage] = useState(false);
 
   // Инициализация пользователя
   useEffect(() => {
@@ -62,63 +63,32 @@ function Guarantee() {
   }, []);
 
   // Загрузка информации о втором участнике
-   useEffect(() => {
-  const loadParticipantInfo = async () => {
-    console.group('📥 loadParticipantInfo вызван');
-    console.log('currentDeal:', currentDeal);
-    console.log('user:', user);
-    
-    if (!currentDeal || !user) {
-      console.log('❌ Нет currentDeal или user, выход');
-      console.groupEnd();
-      return;
-    }
+  useEffect(() => {
+    const loadParticipantInfo = async () => {
+      if (!currentDeal || !user) return;
+      if (currentDeal.status === 'waiting') return;
 
-    if (currentDeal.status === 'waiting') {
-      console.log('⏳ Статус waiting, выход');
-      console.groupEnd();
-      return;
-    }
+      const isCreator = currentDeal.creator_id === user.id;
+      const otherUserId = isCreator 
+        ? currentDeal.participant_id 
+        : currentDeal.creator_id;
 
-    const isCreator = currentDeal.creator_id === user.id;
-    const otherUserId = isCreator 
-      ? currentDeal.participant_id 
-      : currentDeal.creator_id;
+      if (!otherUserId) return;
 
-    console.log('Я создатель?:', isCreator);
-    console.log('Мой ID:', user.id);
-    console.log('Creator ID:', currentDeal.creator_id);
-    console.log('Participant ID:', currentDeal.participant_id);
-    console.log('➡️ Другой пользователь ID:', otherUserId);
-
-    if (!otherUserId) {
-      console.log('❌ otherUserId не определен, выход');
-      console.groupEnd();
-      return;
-    }
-
-    try {
-      console.log('🌐 Запрос к API: /api/users/' + otherUserId);
-      const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
-      const data = await response.json();
-      
-      console.log('📦 Ответ от API:', data);
-      
-      if (data.user) {
-        console.log('✅ Устанавливаем participantUser:', data.user);
-        setParticipantUser(data.user);
-      } else {
-        console.log('❌ data.user отсутствует');
+      try {
+        const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
+        const data = await response.json();
+        
+        if (data.user) {
+          setParticipantUser(data.user);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка запроса:', error);
       }
-    } catch (error) {
-      console.error('❌ Ошибка запроса:', error);
-    }
-    
-    console.groupEnd();
-  };
+    };
 
-  loadParticipantInfo();
-}, [currentDeal, user, API_URL]); // Добавил API_URL в dependencies
+    loadParticipantInfo();
+  }, [currentDeal, user, API_URL]);
 
   // Загрузка сделки из URL при открытии
   useEffect(() => {
@@ -195,7 +165,6 @@ function Guarantee() {
   }, []);
 
   // Слушатели WebSocket
-  // Слушатели WebSocket
   useEffect(() => {
     if (!socket || !currentDeal) return;
 
@@ -209,14 +178,12 @@ function Guarantee() {
     socket.on('participant-joined', (data) => {
       console.log('✅ Участник присоединился:', data);
 
-      // Обновляем локальную сделку на active
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
         status: 'active'
       }));
 
-      // ✅ ИСПРАВЛЕНИЕ: Загружаем информацию о присоединившемся участнике
       const loadNewParticipant = async () => {
         try {
           console.log('📥 Загрузка информации о новом участнике:', data.participantId);
@@ -233,13 +200,40 @@ function Guarantee() {
       };
 
       loadNewParticipant();
-
       showNotification('🎉 Участник присоединился! Теперь можете добавлять подарки', 'success');
     });
 
     socket.on('gifts-updated', (data) => {
       console.log('🎁 Подарки обновлены:', data);
       setDealGifts(data.gifts || {});
+    });
+
+    socket.on('lock-updated', (data) => {
+      console.log('🔒 Блокировка обновлена:', data);
+      setCurrentDeal(prev => ({
+        ...prev,
+        creator_locked: data.creatorLocked,
+        participant_locked: data.participantLocked
+      }));
+    });
+
+    socket.on('verification-stage', () => {
+      console.log('🔍 Переход к проверке');
+      setVerificationStage(true);
+      showNotification('Проверьте компоненты обмена', 'info');
+    });
+
+    socket.on('verification-cancelled', () => {
+      console.log('↩️ Проверка отменена');
+      setVerificationStage(false);
+      setCurrentDeal(prev => ({
+        ...prev,
+        creator_locked: false,
+        participant_locked: false,
+        creator_confirmed: false,
+        participant_confirmed: false
+      }));
+      showNotification('Обмен возвращен к редактированию', 'info');
     });
 
     socket.on('confirmation-updated', (data) => {
@@ -257,7 +251,8 @@ function Guarantee() {
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
-      setParticipantUser(null); // ← Очищаем данные участника
+      setParticipantUser(null);
+      setVerificationStage(false);
     });
 
     socket.on('deal-cancelled', (data) => {
@@ -266,7 +261,8 @@ function Guarantee() {
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
-      setParticipantUser(null); // ← Очищаем данные участника
+      setParticipantUser(null);
+      setVerificationStage(false);
     });
 
     socket.on('error', (data) => {
@@ -279,6 +275,9 @@ function Guarantee() {
       socket.off('deal-state');
       socket.off('participant-joined');
       socket.off('gifts-updated');
+      socket.off('lock-updated');
+      socket.off('verification-stage');
+      socket.off('verification-cancelled');
       socket.off('confirmation-updated');
       socket.off('deal-completed');
       socket.off('deal-cancelled');
@@ -437,7 +436,7 @@ function Guarantee() {
     });
   };
 
-  const handleConfirmDeal = () => {
+  const handleLockGifts = () => {
     if (!currentDeal || !socket) return;
 
     const myUserId = String(user.id);
@@ -453,18 +452,13 @@ function Guarantee() {
       return;
     }
 
-    const isCreator = String(currentDeal.creator_id) === myUserId;
-    setCurrentDeal(prev => ({
-      ...prev,
-      creator_confirmed: isCreator ? true : prev.creator_confirmed,
-      participant_confirmed: !isCreator ? true : prev.participant_confirmed
-    }));
+    socket.emit('lock-gifts', { dealId: currentDeal.id });
+    showNotification('Подарки заблокированы', 'success');
+  };
 
-    socket.emit('confirm-deal', {
-      dealId: currentDeal.id
-    });
-
-    showNotification('Ваше подтверждение отправлено', 'success');
+  const handleVerifyDeal = (approved) => {
+    if (!socket) return;
+    socket.emit('verify-deal', { dealId: currentDeal.id, approved });
   };
 
   const handleCancelDeal = () => {
@@ -556,7 +550,6 @@ function Guarantee() {
       const giftData = gift.rawData?.gift || gift.raw_data?.gift;
       
       if (!giftData || !modelLottieRef.current) {
-        console.log('⚠️ Нет rawData для подарка:', gift.id);
         return;
       }
 
@@ -685,15 +678,6 @@ function Guarantee() {
     const username = userData?.username ? `@${userData.username}` : '';
     const photoUrl = userData?.photoUrl;
 
-    // Debug логи
-    console.log('👤 ParticipantHeader render:', {
-      isMe,
-      displayName,
-      username,
-      photoUrl,
-      hasPhoto: !!photoUrl
-    });
-
     return (
       <div className="window-header">
         <div className="participant-info">
@@ -703,9 +687,7 @@ function Guarantee() {
                 <img 
                   src={photoUrl} 
                   alt={displayName}
-                  onLoad={() => console.log('✅ Аватарка загружена:', photoUrl)}
                   onError={(e) => {
-                    console.error('❌ Ошибка загрузки аватарки:', photoUrl);
                     e.target.style.display = 'none';
                   }}
                 />
@@ -849,29 +831,13 @@ function Guarantee() {
     const participantId = String(currentDeal.participant_id);
     const isCreator = creatorId === myUserId;
     const otherUserId = isCreator ? participantId : creatorId;
-    
-    console.group('🔍 FULL DEBUG - Определение участников');
-    console.log('Current Deal:', currentDeal);
-    console.log('My User:', user);
-    console.log('Participant User State:', participantUser);
-    console.log('---');
-    console.log('Мой ID (string):', myUserId);
-    console.log('Creator ID (string):', creatorId);
-    console.log('Participant ID (string):', participantId);
-    console.log('---');
-    console.log('Я создатель?:', isCreator);
-    console.log('ID другого пользователя:', otherUserId);
-    console.log('---');
-    console.log('Данные для "МОЕ ОКНО":', user);
-    console.log('Данные для "ОКНО УЧАСТНИКА":', participantUser);
-    console.groupEnd();
+    const otherUserIdStr = String(otherUserId);
     
     const myGiftsInDeal = dealGifts[myUserId] || [];
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
     
-    console.log('🎁 Мои подарки в сделке:', myGiftsInDeal.length);
-    console.log('🎁 Подарки другого:', otherGiftsInDeal.length);
-    
+    const myLocked = isCreator ? currentDeal.creator_locked : currentDeal.participant_locked;
+    const otherLocked = isCreator ? currentDeal.participant_locked : currentDeal.creator_locked;
     const myConfirmed = isCreator ? currentDeal.creator_confirmed : currentDeal.participant_confirmed;
     const otherConfirmed = isCreator ? currentDeal.participant_confirmed : currentDeal.creator_confirmed;
 
@@ -922,10 +888,10 @@ function Guarantee() {
           </div>
         )}
 
-        {currentDeal.status === 'active' && (
+        {(currentDeal.status === 'active' || currentDeal.status === 'verification') && (
           <>
             <div className="deal-windows">
-              <div className="participant-window my-window">
+              <div className={`participant-window my-window ${verificationStage ? 'verification-mode' : ''}`}>
                 <ParticipantHeader 
                   isMe={true}
                   userData={user}
@@ -939,7 +905,7 @@ function Guarantee() {
                       <GiftCardMini 
                         key={gift.id} 
                         gift={gift} 
-                        canRemove={!myConfirmed}
+                        canRemove={!myLocked && !verificationStage}
                         onRemove={handleRemoveGift}
                       />
                     ))
@@ -947,7 +913,7 @@ function Guarantee() {
                 </div>
               </div>
 
-              <div className="participant-window other-window">
+              <div className={`participant-window other-window ${verificationStage ? 'verification-mode' : ''}`}>
                 <ParticipantHeader 
                   isMe={false}
                   userData={participantUser}
@@ -965,7 +931,7 @@ function Guarantee() {
               </div>
             </div>
 
-            {!myConfirmed && (
+            {!myLocked && !verificationStage && (
               <div className="deal-inventory">
                 <h3 className="inventory-title">Мой инвентарь</h3>
                 <div className="inventory-grid">
@@ -980,24 +946,46 @@ function Guarantee() {
               </div>
             )}
 
-            <div className="deal-actions">
-              <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
-                Отменить обмен
-              </button>
-
-              {!myConfirmed ? (
-                <button 
-                  className="guarantee-btn confirm-btn"
-                  onClick={handleConfirmDeal}
-                  disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
-                >
-                  <span className="confirm-icon">✓</span>
-                  <span>Подтвердить обмен</span>
+            {verificationStage ? (
+              <div className="verification-section">
+                <h3 className="verification-title">Проверьте компоненты обмена</h3>
+                <div className="verification-actions">
+                  <button 
+                    className="guarantee-btn verify-error"
+                    onClick={() => handleVerifyDeal(false)}
+                  >
+                    ❌ Есть ошибка
+                  </button>
+                  <button 
+                    className="guarantee-btn verify-success"
+                    onClick={() => handleVerifyDeal(true)}
+                    disabled={myConfirmed}
+                  >
+                    {myConfirmed ? '⏳ Ожидание...' : '✓ Все верно'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="deal-actions">
+                <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
+                  Отменить обмен
                 </button>
-              ) : (
-                <div className="waiting-message">Ожидание подтверждения...</div>
-              )}
-            </div>
+                
+                {!myLocked ? (
+                  <button 
+                    className="guarantee-btn confirm-btn"
+                    onClick={handleLockGifts}
+                    disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
+                  >
+                    🔒 Заблокировать подарки
+                  </button>
+                ) : (
+                  <div className="waiting-message">
+                    {otherLocked ? '⏳ Переход к проверке...' : '⏳ Ожидание блокировки...'}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 

@@ -218,6 +218,13 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_gifts_gift_id ON gifts(gift_id)
     `);
 
+
+    await client.query(`
+      ALTER TABLE deals 
+      ADD COLUMN IF NOT EXISTS creator_locked BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS participant_locked BOOLEAN DEFAULT FALSE
+    `);
+
     console.log('✅ База данных PostgreSQL инициализирована');
   } catch (error) {
     console.error('❌ Ошибка инициализации базы данных:', error);

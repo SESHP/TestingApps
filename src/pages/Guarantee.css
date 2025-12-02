@@ -1139,3 +1139,89 @@
 .inventory-grid::-webkit-scrollbar-thumb:hover {
   background: rgba(242, 125, 0, 0.7);
 }
+
+
+/* src/pages/Guarantee.css - добавить в конец */
+
+.verification-section {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.verification-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  color: #F27D00;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.verification-actions {
+  display: flex;
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.verify-error,
+.verify-success {
+  flex: 1;
+  padding: 18px 24px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.verify-error {
+  background: rgba(255, 59, 48, 0.15);
+  color: #FF3B30;
+  border: 2px solid rgba(255, 59, 48, 0.3);
+}
+
+.verify-error:hover {
+  background: rgba(255, 59, 48, 0.25);
+  transform: translateY(-1px);
+}
+
+.verify-success {
+  background: linear-gradient(135deg, #34C759, #30D158);
+  color: white;
+  box-shadow: 0 2px 16px rgba(52, 199, 89, 0.35);
+}
+
+.verify-success:hover:not(:disabled) {
+  box-shadow: 0 4px 24px rgba(52, 199, 89, 0.5);
+  transform: translateY(-1px);
+}
+
+.verify-success:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
+
+/* Анимация для окон при verification */
+.participant-window.verification-mode {
+  animation: expandWindow 0.5s ease-out;
+  transform: scale(1.05);
+  box-shadow: 0 8px 32px rgba(242, 125, 0, 0.3);
+}
+
+@keyframes expandWindow {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
