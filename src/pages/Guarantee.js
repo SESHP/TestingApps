@@ -103,7 +103,7 @@ function Guarantee() {
   }, []);
 
   // ✅ ФУНКЦИЯ ПОЛНОГО ВОССТАНОВЛЕНИЯ СДЕЛКИ
-  const fullRestoreDeal = async (dealId) => {
+  const fullRestoreDeal = async (dealId, userId) => {
     if (isRestoring) {
       console.log('⏸️ Восстановление уже идет');
       return false;
@@ -155,8 +155,8 @@ function Guarantee() {
       }
       
       // 4. Загружаем второго участника
-      if (deal.status !== 'waiting' && user) {
-        const isCreator = deal.creator_id === user.id;
+      if (deal.status !== 'waiting' && userId) {
+        const isCreator = deal.creator_id === userId;
         const otherUserId = isCreator ? deal.participant_id : deal.creator_id;
         
         if (otherUserId) {
@@ -191,8 +191,8 @@ function Guarantee() {
         
         if (hoursSince < 24 && deal && deal.id) {
           console.log('🔄 Найдена сохраненная сделка при монтировании:', deal.id);
-          fullRestoreDeal(deal.id).then((restored) => {
-            if (restored && socket.connected) {
+          fullRestoreDeal(deal.id, user.id).then((restored) => {
+            if (restored && socket && socket.connected) {
               socket.emit('join-deal', { dealId: deal.id });
             }
           });
@@ -214,7 +214,7 @@ function Guarantee() {
         console.log('👁️ Вкладка стала видимой');
         
         const saved = sessionStorage.getItem(DEAL_STATE_KEY);
-        if (saved) {
+        if (saved && user) {
           try {
             const { deal } = JSON.parse(saved);
             if (deal && deal.id) {
@@ -229,7 +229,7 @@ function Guarantee() {
                 
                 // Даем время на подключение
                 setTimeout(() => {
-                  fullRestoreDeal(deal.id).then((restored) => {
+                  fullRestoreDeal(deal.id, user.id).then((restored) => {
                     if (restored && socket.connected) {
                       console.log('🔌 Присоединяемся к комнате:', deal.id);
                       socket.emit('join-deal', { dealId: deal.id });
@@ -247,7 +247,7 @@ function Guarantee() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [socket]);
+  }, [socket, user]);
 
   // Инициализация WebSocket
   useEffect(() => {
@@ -273,12 +273,12 @@ function Guarantee() {
       
       // Восстанавливаем сделку при подключении
       const saved = sessionStorage.getItem(DEAL_STATE_KEY);
-      if (saved) {
+      if (saved && user) {
         try {
           const { deal } = JSON.parse(saved);
           if (deal && deal.id) {
             console.log('🔄 Восстанавливаем при connect:', deal.id);
-            fullRestoreDeal(deal.id).then((restored) => {
+            fullRestoreDeal(deal.id, user.id).then((restored) => {
               if (restored) {
                 console.log('🔌 Присоединяемся к комнате при connect:', deal.id);
                 newSocket.emit('join-deal', { dealId: deal.id });
@@ -300,12 +300,12 @@ function Guarantee() {
       
       // Восстанавливаем при переподключении
       const saved = sessionStorage.getItem(DEAL_STATE_KEY);
-      if (saved) {
+      if (saved && user) {
         try {
           const { deal } = JSON.parse(saved);
           if (deal && deal.id) {
             console.log('🔄 Восстанавливаем при reconnect:', deal.id);
-            fullRestoreDeal(deal.id).then((restored) => {
+            fullRestoreDeal(deal.id, user.id).then((restored) => {
               if (restored) {
                 console.log('🔌 Присоединяемся к комнате при reconnect:', deal.id);
                 newSocket.emit('join-deal', { dealId: deal.id });
@@ -341,7 +341,7 @@ function Guarantee() {
       console.log('🔌 Cleanup socket (НЕ закрываем!)');
       // НЕ закрываем socket, чтобы он переподключался!
     };
-  }, []);
+  }, [user]); // ✅ Добавил user в зависимости
 
   // Загрузка информации о втором участнике
   useEffect(() => {
@@ -658,7 +658,7 @@ function Guarantee() {
   };
 
   const handleLockGifts = () => {
-    if (!currentDeal || !socket) return;
+    if (!currentDeal || !socket || !user) return;
 
     const myUserId = String(user.id);
     const myGiftsInDeal = dealGifts[myUserId] || [];
@@ -691,6 +691,8 @@ function Guarantee() {
   };
 
   const handleCopyCode = () => {
+    if (!currentDeal) return;
+    
     const code = currentDeal.invite_code;
 
     if (navigator.clipboard) {
@@ -851,6 +853,8 @@ function Guarantee() {
   };
 
   const GiftCardInventory = ({ gift }) => {
+    if (!user) return null;
+    
     const myUserId = String(user.id);
     const isInDeal = dealGifts[myUserId]?.some(g => g.id === gift.id);
     
@@ -929,6 +933,15 @@ function Guarantee() {
       </div>
     );
   };
+
+  // ✅ ПРОВЕРКА НА NULL перед рендером
+  if (!user) {
+    return (
+      <div className="guarantee-container">
+        <div className="loading">Инициализация...</div>
+      </div>
+    );
+  }
 
   // Главный экран
   if (screen === 'main') {
@@ -1046,7 +1059,7 @@ function Guarantee() {
   }
 
   // Экран сделки
-  if (screen === 'deal' && currentDeal) {
+  if (screen === 'deal' && currentDeal && user) {
     const myUserId = String(user.id);
     const creatorId = String(currentDeal.creator_id);
     const participantId = String(currentDeal.participant_id);
