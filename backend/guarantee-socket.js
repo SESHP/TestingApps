@@ -1,10 +1,9 @@
-// backend/guarantee-socket.js
-// WebSocket логика для гарант-сервиса
+// backend/guarantee-socket.js - ПОЛНЫЙ КОД
 
 const { validateTelegramData } = require('./utils/telegramAuth');
 
-const activeDeals = new Map(); // dealId -> { deal данные }
-const userSockets = new Map(); // userId -> socketId
+const activeDeals = new Map();
+const userSockets = new Map();
 
 function initGuaranteeSocket(io, pool) {
   // БЕЗОПАСНОСТЬ: Middleware для аутентификации WebSocket соединений
@@ -20,7 +19,6 @@ function initGuaranteeSocket(io, pool) {
       return next(new Error('Authentication failed'));
     }
 
-    // Сохраняем проверенный userId в socket
     socket.userId = userData.id;
     socket.userData = userData;
     console.log(`✅ WebSocket аутентификация успешна: User ${userData.id}`);
@@ -34,12 +32,9 @@ function initGuaranteeSocket(io, pool) {
     // Присоединение пользователя к сделке
     socket.on('join-deal', async ({ dealId }) => {
       try {
-        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket, а не из параметров
         const userId = socket.userId;
-
         console.log(`👤 Пользователь ${userId} присоединяется к сделке ${dealId}`);
 
-        // Проверяем что пользователь является участником сделки
         const dealCheck = await pool.query(
           'SELECT * FROM deals WHERE id = $1 AND (creator_id = $2 OR participant_id = $2)',
           [dealId, userId]
@@ -53,17 +48,16 @@ function initGuaranteeSocket(io, pool) {
         socket.join(`deal-${dealId}`);
         userSockets.set(userId.toString(), socket.id);
         
-        // Получаем текущее состояние сделки из БД
-        const result = await pool.query(
-          'SELECT * FROM deals WHERE id = $1',
-          [dealId]
-        );
+        const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
         
         if (result.rows.length > 0) {
           const deal = result.rows[0];
           socket.emit('deal-state', deal);
           
-          // Уведомляем другого участника о подключении
+          // Отправляем текущие подарки
+          const dealGifts = await getDealGifts(pool, dealId);
+          socket.emit('gifts-updated', { dealId, gifts: dealGifts });
+          
           socket.to(`deal-${dealId}`).emit('user-joined', { userId });
         }
       } catch (error) {
@@ -75,12 +69,9 @@ function initGuaranteeSocket(io, pool) {
     // Добавление подарка в сделку
     socket.on('add-gift-to-deal', async ({ dealId, giftId }) => {
       try {
-        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket, а не из параметров
         const userId = socket.userId;
-
         console.log(`🎁 Добавление подарка ${giftId} в сделку ${dealId} от ${userId}`);
 
-        // БЕЗОПАСНОСТЬ: Проверяем что подарок принадлежит аутентифицированному пользователю и не выведен
         const giftCheck = await pool.query(
           `SELECT * FROM gifts WHERE id = $1 AND from_id = $2 AND is_withdrawn = FALSE`,
           [giftId, userId]
@@ -91,24 +82,15 @@ function initGuaranteeSocket(io, pool) {
           return;
         }
 
-        const gift = giftCheck.rows[0];
-
-        // Добавляем подарок в deal_gifts
         await pool.query(
           `INSERT INTO deal_gifts (deal_id, user_id, gift_id, added_at)
-           VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+           VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+           ON CONFLICT (deal_id, gift_id) DO NOTHING`,
           [dealId, userId, giftId]
         );
 
-        // Получаем обновленный список подарков
         const dealGifts = await getDealGifts(pool, dealId);
-
-        // Отправляем всем участникам сделки
-        io.to(`deal-${dealId}`).emit('gifts-updated', {
-          dealId,
-          userId,
-          gifts: dealGifts
-        });
+        io.to(`deal-${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
 
       } catch (error) {
         console.error('❌ Ошибка добавления подарка:', error);
@@ -119,24 +101,16 @@ function initGuaranteeSocket(io, pool) {
     // Удаление подарка из сделки
     socket.on('remove-gift-from-deal', async ({ dealId, giftId }) => {
       try {
-        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
         const userId = socket.userId;
-
         console.log(`🗑️ Удаление подарка ${giftId} из сделки ${dealId}`);
 
-        // БЕЗОПАСНОСТЬ: Удаляем только свои подарки
         await pool.query(
           `DELETE FROM deal_gifts WHERE deal_id = $1 AND user_id = $2 AND gift_id = $3`,
           [dealId, userId, giftId]
         );
 
         const dealGifts = await getDealGifts(pool, dealId);
-
-        io.to(`deal-${dealId}`).emit('gifts-updated', {
-          dealId,
-          userId,
-          gifts: dealGifts
-        });
+        io.to(`deal-${dealId}`).emit('gifts-updated', { dealId, userId, gifts: dealGifts });
 
       } catch (error) {
         console.error('❌ Ошибка удаления подарка:', error);
@@ -144,84 +118,93 @@ function initGuaranteeSocket(io, pool) {
       }
     });
 
-    // Подтверждение сделки пользователем
+    // Блокировка подарков
     socket.on('lock-gifts', async ({ dealId }) => {
       try {
+        const userId = socket.userId;
+        console.log(`🔒 Блокировка подарков в сделке ${dealId} от ${userId}`);
+
         const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        if (result.rows.length === 0) {
+          socket.emit('error', { message: 'Сделка не найдена' });
+          return;
+        }
+
         const deal = result.rows[0];
-        
-        const isCreator = deal.creator_id === socket.userId;
+        const isCreator = deal.creator_id === userId;
         const field = isCreator ? 'creator_locked' : 'participant_locked';
         
-        await pool.query(
-          `UPDATE deals SET ${field} = TRUE WHERE id = $1`,
-          [dealId]
-        );
+        await pool.query(`UPDATE deals SET ${field} = TRUE WHERE id = $1`, [dealId]);
         
         const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
         const updatedDeal = updated.rows[0];
         
-        io.to(`deal_${dealId}`).emit('lock-updated', {
+        io.to(`deal-${dealId}`).emit('lock-updated', {
           creatorLocked: updatedDeal.creator_locked,
           participantLocked: updatedDeal.participant_locked
         });
         
         // Если оба заблокировали - переходим в режим проверки
         if (updatedDeal.creator_locked && updatedDeal.participant_locked) {
-          await pool.query(
-            `UPDATE deals SET status = 'verification' WHERE id = $1`,
-            [dealId]
-          );
-          io.to(`deal_${dealId}`).emit('verification-stage');
+          await pool.query(`UPDATE deals SET status = 'verification' WHERE id = $1`, [dealId]);
+          io.to(`deal-${dealId}`).emit('verification-stage');
         }
       } catch (error) {
+        console.error('❌ Ошибка блокировки:', error);
         socket.emit('error', { message: 'Ошибка блокировки' });
       }
     });
 
+    // Проверка обмена
     socket.on('verify-deal', async ({ dealId, approved }) => {
       try {
+        const userId = socket.userId;
+        console.log(`🔍 Проверка сделки ${dealId} от ${userId}, одобрено: ${approved}`);
+
         const result = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
+        if (result.rows.length === 0) {
+          socket.emit('error', { message: 'Сделка не найдена' });
+          return;
+        }
+
         const deal = result.rows[0];
         
         if (!approved) {
           // Отмена - разблокировать
           await pool.query(
             `UPDATE deals 
-            SET status = 'active', 
-                creator_locked = FALSE, 
-                participant_locked = FALSE,
-                creator_confirmed = FALSE,
-                participant_confirmed = FALSE
-            WHERE id = $1`,
+             SET status = 'active', 
+                 creator_locked = FALSE, 
+                 participant_locked = FALSE,
+                 creator_confirmed = FALSE,
+                 participant_confirmed = FALSE
+             WHERE id = $1`,
             [dealId]
           );
-          io.to(`deal_${dealId}`).emit('verification-cancelled');
+          io.to(`deal-${dealId}`).emit('verification-cancelled');
           return;
         }
         
         // Одобрение
-        const isCreator = deal.creator_id === socket.userId;
+        const isCreator = deal.creator_id === userId;
         const field = isCreator ? 'creator_confirmed' : 'participant_confirmed';
         
-        await pool.query(
-          `UPDATE deals SET ${field} = TRUE WHERE id = $1`,
-          [dealId]
-        );
+        await pool.query(`UPDATE deals SET ${field} = TRUE WHERE id = $1`, [dealId]);
         
         const updated = await pool.query('SELECT * FROM deals WHERE id = $1', [dealId]);
         const updatedDeal = updated.rows[0];
         
-        io.to(`deal_${dealId}`).emit('confirmation-updated', {
+        io.to(`deal-${dealId}`).emit('confirmation-updated', {
           creatorConfirmed: updatedDeal.creator_confirmed,
           participantConfirmed: updatedDeal.participant_confirmed
         });
         
         // Если оба одобрили - выполняем обмен
         if (updatedDeal.creator_confirmed && updatedDeal.participant_confirmed) {
-          // ... существующий код обмена подарков ...
+          await executeDeal(pool, io, dealId);
         }
       } catch (error) {
+        console.error('❌ Ошибка проверки:', error);
         socket.emit('error', { message: 'Ошибка проверки' });
       }
     });
@@ -229,9 +212,7 @@ function initGuaranteeSocket(io, pool) {
     // Отмена сделки
     socket.on('cancel-deal', async ({ dealId }) => {
       try {
-        // БЕЗОПАСНОСТЬ: Используем проверенный userId из socket
         const userId = socket.userId;
-
         console.log(`❌ Отмена сделки ${dealId} пользователем ${userId}`);
 
         await pool.query(
@@ -240,12 +221,7 @@ function initGuaranteeSocket(io, pool) {
           [dealId, userId]
         );
 
-        // Удаляем все подарки из сделки
-        await pool.query(
-          'DELETE FROM deal_gifts WHERE deal_id = $1',
-          [dealId]
-        );
-
+        await pool.query('DELETE FROM deal_gifts WHERE deal_id = $1', [dealId]);
         io.to(`deal-${dealId}`).emit('deal-cancelled', { dealId, cancelledBy: userId });
 
       } catch (error) {
@@ -257,7 +233,6 @@ function initGuaranteeSocket(io, pool) {
     socket.on('disconnect', () => {
       console.log(`❌ Отключен клиент: ${socket.id}`);
       
-      // Удаляем из userSockets
       for (const [userId, socketId] of userSockets.entries()) {
         if (socketId === socket.id) {
           userSockets.delete(userId);
@@ -281,8 +256,7 @@ async function getDealGifts(pool, dealId) {
 
   const gifts = {};
   for (const row of result.rows) {
-    const userId = String(row.user_id); // Приводим к строке!
-    console.log(`📦 Подарок ${row.gift_id} принадлежит user_id: ${userId} (тип: ${typeof userId})`);
+    const userId = String(row.user_id);
     if (!gifts[userId]) {
       gifts[userId] = [];
     }
@@ -292,12 +266,11 @@ async function getDealGifts(pool, dealId) {
       model: row.model,
       background: row.background,
       symbol: row.symbol,
-      raw_data: row.raw_data, // snake_case как в базе
+      raw_data: row.raw_data,
       addedAt: row.added_at
     });
   }
 
-  console.log('📦 Итоговая структура dealGifts:', JSON.stringify(Object.keys(gifts)));
   return gifts;
 }
 
@@ -307,22 +280,15 @@ async function executeDeal(pool, io, dealId) {
   
   try {
     await client.query('BEGIN');
-
     console.log(`🔄 Выполнение сделки ${dealId}...`);
 
-    // Получаем сделку
-    const dealResult = await client.query(
-      'SELECT * FROM deals WHERE id = $1',
-      [dealId]
-    );
-
+    const dealResult = await client.query('SELECT * FROM deals WHERE id = $1', [dealId]);
     if (dealResult.rows.length === 0) {
       throw new Error('Сделка не найдена');
     }
 
     const deal = dealResult.rows[0];
 
-    // Получаем подарки обоих участников
     const giftsResult = await client.query(
       `SELECT * FROM deal_gifts WHERE deal_id = $1`,
       [dealId]
@@ -335,7 +301,7 @@ async function executeDeal(pool, io, dealId) {
     for (const giftRow of creatorGifts) {
       await client.query(
         `UPDATE gifts SET from_id = $1 WHERE id = $2`,
-        [deal.participant_id, giftRow.gift_id]
+        [String(deal.participant_id), giftRow.gift_id]
       );
     }
 
@@ -343,11 +309,10 @@ async function executeDeal(pool, io, dealId) {
     for (const giftRow of participantGifts) {
       await client.query(
         `UPDATE gifts SET from_id = $1 WHERE id = $2`,
-        [deal.creator_id, giftRow.gift_id]
+        [String(deal.creator_id), giftRow.gift_id]
       );
     }
 
-    // Обновляем статус сделки
     await client.query(
       `UPDATE deals SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [dealId]
@@ -355,7 +320,6 @@ async function executeDeal(pool, io, dealId) {
 
     await client.query('COMMIT');
 
-    // Уведомляем всех участников об успешном обмене
     io.to(`deal-${dealId}`).emit('deal-completed', {
       dealId,
       message: 'Обмен успешно завершен!'

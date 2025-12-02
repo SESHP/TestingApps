@@ -219,11 +219,16 @@ async function initDatabase() {
     `);
 
 
-    await client.query(`
-      ALTER TABLE deals 
-      ADD COLUMN IF NOT EXISTS creator_locked BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS participant_locked BOOLEAN DEFAULT FALSE
-    `);
+    try {
+      await client.query(`
+        ALTER TABLE deals
+        ADD COLUMN IF NOT EXISTS creator_locked BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS participant_locked BOOLEAN DEFAULT FALSE
+      `);
+      console.log('✅ Миграция полей блокировки выполнена');
+    } catch (migrationError) {
+      console.log('⚠️ Поля блокировки уже существуют');
+    }
 
     console.log('✅ База данных PostgreSQL инициализирована');
   } catch (error) {
