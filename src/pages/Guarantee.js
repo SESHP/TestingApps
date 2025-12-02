@@ -9,12 +9,32 @@ import { createDeal, joinDeal } from '../utils/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
-// ✅ КЛЮЧ ДЛЯ СОХРАНЕНИЯ СОСТОЯНИЯ
-const DEAL_STATE_KEY = 'guarantee_active_deal';
+// ✅ КЛЮЧИ ДЛЯ СОХРАНЕНИЯ
+const DEAL_STATE_KEY = 'guarantee_active_deal_v2';
+const SCREEN_STATE_KEY = 'guarantee_screen';
 
 function Guarantee() {
-  const [screen, setScreen] = useState('main');
-  const [currentDeal, setCurrentDeal] = useState(null);
+  // ✅ ИНИЦИАЛИЗИРУЕМ СОСТОЯНИЕ ИЗ sessionStorage СРАЗУ
+  const [screen, setScreen] = useState(() => {
+    const saved = sessionStorage.getItem(SCREEN_STATE_KEY);
+    return saved || 'main';
+  });
+  
+  const [currentDeal, setCurrentDeal] = useState(() => {
+    const saved = sessionStorage.getItem(DEAL_STATE_KEY);
+    if (saved) {
+      try {
+        const { deal } = JSON.parse(saved);
+        console.log('🔄 Восстановлена сделка из sessionStorage:', deal);
+        return deal;
+      } catch (e) {
+        console.error('❌ Ошибка парсинга сохраненной сделки:', e);
+        return null;
+      }
+    }
+    return null;
+  });
+  
   const [dealGifts, setDealGifts] = useState({});
   const [socket, setSocket] = useState(null);
   const [myGifts, setMyGifts] = useState([]);
@@ -25,27 +45,23 @@ function Guarantee() {
   const [notifications, setNotifications] = useState([]);
   const [participantUser, setParticipantUser] = useState(null);
   const [verificationStage, setVerificationStage] = useState(false);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
-  const isRestoringRef = useRef(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
-  // ✅ СОХРАНЕНИЕ СОСТОЯНИЯ СДЕЛКИ В LOCALSTORAGE
+  // ✅ СОХРАНЕНИЕ В sessionStorage ПРИ КАЖДОМ ИЗМЕНЕНИИ
   useEffect(() => {
     if (currentDeal) {
-      console.log('💾 Сохранение состояния сделки:', currentDeal.id);
-      localStorage.setItem(DEAL_STATE_KEY, JSON.stringify({
-        dealId: currentDeal.id,
+      const dataToSave = {
+        deal: currentDeal,
         timestamp: Date.now()
-      }));
-    } else {
-      // Удаляем только если явно очищаем сделку (не при размонтировании)
-      const savedDeal = localStorage.getItem(DEAL_STATE_KEY);
-      if (savedDeal && screen === 'main') {
-        console.log('🗑️ Очистка сохраненной сделки');
-        localStorage.removeItem(DEAL_STATE_KEY);
-      }
+      };
+      sessionStorage.setItem(DEAL_STATE_KEY, JSON.stringify(dataToSave));
+      console.log('💾 Сделка сохранена в sessionStorage:', currentDeal.id);
     }
-  }, [currentDeal, screen]);
+  }, [currentDeal]);
+
+  useEffect(() => {
+    sessionStorage.setItem(SCREEN_STATE_KEY, screen);
+  }, [screen]);
 
   // Инициализация пользователя
   useEffect(() => {
@@ -86,225 +102,156 @@ function Guarantee() {
     }
   }, []);
 
-  // ✅ ФУНКЦИЯ ВОССТАНОВЛЕНИЯ СОСТОЯНИЯ СДЕЛКИ
-  const restoreDealState = async (dealId) => {
-    if (isRestoringRef.current) {
-      console.log('⏸️ Восстановление уже выполняется, пропускаем...');
+  // ✅ ФУНКЦИЯ ПОЛНОГО ВОССТАНОВЛЕНИЯ СДЕЛКИ
+  const fullRestoreDeal = async (dealId) => {
+    if (isRestoring) {
+      console.log('⏸️ Восстановление уже идет');
       return false;
     }
 
     try {
-      isRestoringRef.current = true;
-      console.log('🔄 Восстановление состояния сделки:', dealId);
+      setIsRestoring(true);
+      console.log('🔄 ПОЛНОЕ восстановление сделки:', dealId);
       
-      // Загружаем информацию о сделке
+      // 1. Загружаем сделку
       const dealResponse = await fetch(`${API_URL}/api/deals/${dealId}`);
+      if (!dealResponse.ok) throw new Error('Deal not found');
+      
       const dealData = await dealResponse.json();
       
-      if (dealData.deal) {
-        // Проверяем, что сделка еще активна
-        if (dealData.deal.status === 'completed' || dealData.deal.status === 'cancelled') {
-          console.log('⚠️ Сделка завершена или отменена, очищаем состояние');
-          localStorage.removeItem(DEAL_STATE_KEY);
-          setScreen('main');
-          setCurrentDeal(null);
-          setDealGifts({});
-          setParticipantUser(null);
-          setVerificationStage(false);
-          isRestoringRef.current = false;
-          return false;
-        }
+      if (!dealData.deal) {
+        throw new Error('No deal data');
+      }
 
-        console.log('✅ Состояние сделки восстановлено:', dealData.deal);
-        setCurrentDeal(dealData.deal);
-        setScreen('deal');
-        
-        // Определяем стадию верификации
-        if (dealData.deal.status === 'verification') {
-          setVerificationStage(true);
-        } else {
-          setVerificationStage(false);
-        }
-        
-        // Загружаем подарки сделки
-        const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
-        const giftsData = await giftsResponse.json();
-        if (giftsData.gifts) {
-          setDealGifts(giftsData.gifts);
-        }
-        
-        // Загружаем информацию о втором участнике
-        if (dealData.deal.status !== 'waiting') {
-          const isCreator = dealData.deal.creator_id === user.id;
-          const otherUserId = isCreator 
-            ? dealData.deal.participant_id 
-            : dealData.deal.creator_id;
-          
-          if (otherUserId) {
-            const userResponse = await fetch(`${API_URL}/api/users/${otherUserId}`);
-            const userData = await userResponse.json();
-            if (userData.user) {
-              setParticipantUser(userData.user);
-            }
-          }
-        }
-        
-        isRestoringRef.current = false;
-        return true;
+      const deal = dealData.deal;
+      
+      // Проверяем статус
+      if (deal.status === 'completed' || deal.status === 'cancelled') {
+        console.log('⚠️ Сделка завершена, очищаем');
+        sessionStorage.removeItem(DEAL_STATE_KEY);
+        sessionStorage.removeItem(SCREEN_STATE_KEY);
+        setScreen('main');
+        setCurrentDeal(null);
+        setDealGifts({});
+        setParticipantUser(null);
+        setVerificationStage(false);
+        setIsRestoring(false);
+        return false;
+      }
+
+      console.log('✅ Сделка загружена:', deal);
+      setCurrentDeal(deal);
+      setScreen('deal');
+      
+      // 2. Определяем verification stage
+      setVerificationStage(deal.status === 'verification');
+      
+      // 3. Загружаем подарки
+      const giftsResponse = await fetch(`${API_URL}/api/deals/${dealId}/gifts`);
+      const giftsData = await giftsResponse.json();
+      if (giftsData.gifts) {
+        console.log('✅ Подарки загружены:', giftsData.gifts);
+        setDealGifts(giftsData.gifts);
       }
       
-      isRestoringRef.current = false;
-      return false;
+      // 4. Загружаем второго участника
+      if (deal.status !== 'waiting' && user) {
+        const isCreator = deal.creator_id === user.id;
+        const otherUserId = isCreator ? deal.participant_id : deal.creator_id;
+        
+        if (otherUserId) {
+          const userResponse = await fetch(`${API_URL}/api/users/${otherUserId}`);
+          const userData = await userResponse.json();
+          if (userData.user) {
+            console.log('✅ Участник загружен:', userData.user);
+            setParticipantUser(userData.user);
+          }
+        }
+      }
+      
+      setIsRestoring(false);
+      console.log('✅ ПОЛНОЕ восстановление завершено');
+      return true;
     } catch (error) {
-      console.error('❌ Ошибка восстановления состояния сделки:', error);
-      isRestoringRef.current = false;
+      console.error('❌ Ошибка полного восстановления:', error);
+      setIsRestoring(false);
       return false;
     }
   };
 
-  // ✅ ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ПРИ ЗАГРУЗКЕ КОМПОНЕНТА
+  // ✅ ВОССТАНОВЛЕНИЕ ПРИ МОНТИРОВАНИИ (если есть сохраненная сделка)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !socket) return;
 
-    const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
-    if (savedDealState) {
+    const saved = sessionStorage.getItem(DEAL_STATE_KEY);
+    if (saved && !isRestoring) {
       try {
-        const { dealId, timestamp } = JSON.parse(savedDealState);
+        const { deal, timestamp } = JSON.parse(saved);
+        const hoursSince = (Date.now() - timestamp) / (1000 * 60 * 60);
         
-        // Проверяем, что состояние не старее 24 часов
-        const hoursSinceUpdate = (Date.now() - timestamp) / (1000 * 60 * 60);
-        
-        if (hoursSinceUpdate < 24) {
-          console.log('🔄 Найдена сохраненная сделка, восстанавливаем:', dealId);
-          restoreDealState(dealId);
+        if (hoursSince < 24 && deal && deal.id) {
+          console.log('🔄 Найдена сохраненная сделка при монтировании:', deal.id);
+          fullRestoreDeal(deal.id).then((restored) => {
+            if (restored && socket.connected) {
+              socket.emit('join-deal', { dealId: deal.id });
+            }
+          });
         } else {
-          console.log('⏰ Сохраненная сделка устарела, удаляем');
-          localStorage.removeItem(DEAL_STATE_KEY);
+          console.log('⏰ Сохраненная сделка устарела');
+          sessionStorage.removeItem(DEAL_STATE_KEY);
+          sessionStorage.removeItem(SCREEN_STATE_KEY);
         }
-      } catch (error) {
-        console.error('❌ Ошибка парсинга сохраненного состояния:', error);
-        localStorage.removeItem(DEAL_STATE_KEY);
+      } catch (e) {
+        console.error('❌ Ошибка при восстановлении:', e);
       }
     }
-  }, [user]);
-
-  // Загрузка информации о втором участнике
-  useEffect(() => {
-    const loadParticipantInfo = async () => {
-      if (!currentDeal || !user) return;
-      if (currentDeal.status === 'waiting') return;
-      if (participantUser) return; // Уже загружен
-
-      const isCreator = currentDeal.creator_id === user.id;
-      const otherUserId = isCreator 
-        ? currentDeal.participant_id 
-        : currentDeal.creator_id;
-
-      if (!otherUserId) return;
-
-      try {
-        const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
-        const data = await response.json();
-        
-        if (data.user) {
-          setParticipantUser(data.user);
-        }
-      } catch (error) {
-        console.error('❌ Ошибка запроса:', error);
-      }
-    };
-
-    loadParticipantInfo();
-  }, [currentDeal, user, participantUser]);
-
-  // Загрузка сделки из URL при открытии
-  useEffect(() => {
-    const loadDealFromUrl = async () => {
-      if (!user || !socket) return;
-      if (currentDeal) return; // Уже есть активная сделка
-
-      const tg = window.Telegram?.WebApp;
-      const startParam = tg?.initDataUnsafe?.start_param;
-
-      if (startParam && startParam.startsWith('deal_')) {
-        const dealId = parseInt(startParam.replace('deal_', ''));
-        
-        try {
-          console.log('🔍 Загрузка сделки из URL:', dealId);
-          const restored = await restoreDealState(dealId);
-          
-          if (restored) {
-            socket.emit('join-deal', { dealId: dealId });
-          }
-        } catch (error) {
-          console.error('❌ Ошибка загрузки сделки:', error);
-        }
-      }
-    };
-
-    loadDealFromUrl();
   }, [user, socket]);
 
-  // ✅ ОБРАБОТКА ВОССТАНОВЛЕНИЯ ПРИ ВОЗВРАЩЕНИИ НА ВКЛАДКУ
+  // ✅ ОБРАБОТКА VISIBILITY CHANGE
   useEffect(() => {
-    const handleVisibilityChange = async () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('👁️ Вкладка стала активной');
+        console.log('👁️ Вкладка стала видимой');
         
-        // Проверяем сохраненное состояние
-        const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
-        if (savedDealState) {
+        const saved = sessionStorage.getItem(DEAL_STATE_KEY);
+        if (saved) {
           try {
-            const { dealId } = JSON.parse(savedDealState);
-            console.log('🔄 Восстанавливаем сделку:', dealId);
-            
-            // Проверяем соединение
-            if (socket && !socket.connected) {
-              console.log('🔄 Переподключение WebSocket...');
-              socket.connect();
+            const { deal } = JSON.parse(saved);
+            if (deal && deal.id) {
+              console.log('🔄 Восстанавливаем сделку:', deal.id);
               
-              // Ждем подключения
-              await new Promise((resolve) => {
-                const checkConnection = setInterval(() => {
-                  if (socket.connected) {
-                    clearInterval(checkConnection);
-                    resolve();
-                  }
-                }, 100);
+              // Проверяем socket
+              if (socket) {
+                if (!socket.connected) {
+                  console.log('🔌 Переподключаем socket...');
+                  socket.connect();
+                }
                 
-                // Timeout через 5 секунд
+                // Даем время на подключение
                 setTimeout(() => {
-                  clearInterval(checkConnection);
-                  resolve();
-                }, 5000);
-              });
+                  fullRestoreDeal(deal.id).then((restored) => {
+                    if (restored && socket.connected) {
+                      console.log('🔌 Присоединяемся к комнате:', deal.id);
+                      socket.emit('join-deal', { dealId: deal.id });
+                    }
+                  });
+                }, 500);
+              }
             }
-            
-            // Восстанавливаем состояние
-            const restored = await restoreDealState(dealId);
-            
-            if (restored && socket && socket.connected) {
-              // Переприсоединяемся к комнате сделки
-              socket.emit('join-deal', { dealId: dealId });
-            }
-          } catch (error) {
-            console.error('❌ Ошибка восстановления при возвращении на вкладку:', error);
+          } catch (e) {
+            console.error('❌ Ошибка visibility change:', e);
           }
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [socket]);
 
   // Инициализация WebSocket
   useEffect(() => {
-    console.log('🔌 Подключение к WebSocket:', API_URL);
-
+    console.log('🔌 Создание WebSocket подключения');
     const initData = getInitData();
 
     const newSocket = io(API_URL, {
@@ -314,70 +261,65 @@ function Guarantee() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
+      autoConnect: true,
+      forceNew: false,
       auth: {
         initData: initData || 'dev'
       }
     });
 
-    newSocket.on('connect', async () => {
-      console.log('✅ WebSocket подключен:', newSocket.id);
-      reconnectAttempts.current = 0;
+    newSocket.on('connect', () => {
+      console.log('✅ Socket подключен:', newSocket.id);
       
-      // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПРИ RECONNECT
-      const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
-      if (savedDealState) {
+      // Восстанавливаем сделку при подключении
+      const saved = sessionStorage.getItem(DEAL_STATE_KEY);
+      if (saved) {
         try {
-          const { dealId } = JSON.parse(savedDealState);
-          console.log('🔄 Восстановление после переподключения:', dealId);
-          
-          const restored = await restoreDealState(dealId);
-          if (restored) {
-            newSocket.emit('join-deal', { dealId: dealId });
+          const { deal } = JSON.parse(saved);
+          if (deal && deal.id) {
+            console.log('🔄 Восстанавливаем при connect:', deal.id);
+            fullRestoreDeal(deal.id).then((restored) => {
+              if (restored) {
+                console.log('🔌 Присоединяемся к комнате при connect:', deal.id);
+                newSocket.emit('join-deal', { dealId: deal.id });
+              }
+            });
           }
-        } catch (error) {
-          console.error('❌ Ошибка восстановления при connect:', error);
+        } catch (e) {
+          console.error('❌ Ошибка восстановления при connect:', e);
         }
       }
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('❌ WebSocket отключен:', reason);
+      console.log('❌ Socket отключен:', reason);
+    });
+
+    newSocket.on('reconnect', () => {
+      console.log('✅ Socket переподключен');
       
-      if (reason === 'io server disconnect') {
-        // Сервер отключил - пробуем переподключиться
-        newSocket.connect();
+      // Восстанавливаем при переподключении
+      const saved = sessionStorage.getItem(DEAL_STATE_KEY);
+      if (saved) {
+        try {
+          const { deal } = JSON.parse(saved);
+          if (deal && deal.id) {
+            console.log('🔄 Восстанавливаем при reconnect:', deal.id);
+            fullRestoreDeal(deal.id).then((restored) => {
+              if (restored) {
+                console.log('🔌 Присоединяемся к комнате при reconnect:', deal.id);
+                newSocket.emit('join-deal', { dealId: deal.id });
+              }
+            });
+          }
+        } catch (e) {
+          console.error('❌ Ошибка восстановления при reconnect:', e);
+        }
       }
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('❌ Ошибка подключения WebSocket:', error);
-      reconnectAttempts.current++;
-      
-      if (reconnectAttempts.current >= maxReconnectAttempts) {
-        console.error('❌ Превышено максимальное количество попыток переподключения');
-        showNotification('Ошибка подключения. Перезагрузите страницу.', 'error');
-      }
-    });
-
-    newSocket.on('reconnect', async (attemptNumber) => {
-      console.log('✅ WebSocket переподключен после попытки:', attemptNumber);
-      reconnectAttempts.current = 0;
-      
-      // ✅ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ПОСЛЕ УСПЕШНОГО RECONNECT
-      const savedDealState = localStorage.getItem(DEAL_STATE_KEY);
-      if (savedDealState) {
-        try {
-          const { dealId } = JSON.parse(savedDealState);
-          console.log('🔄 Восстановление состояния после reconnect:', dealId);
-          
-          const restored = await restoreDealState(dealId);
-          if (restored) {
-            newSocket.emit('join-deal', { dealId: dealId });
-          }
-        } catch (error) {
-          console.error('❌ Ошибка восстановления при reconnect:', error);
-        }
-      }
     });
 
     newSocket.on('reconnect_attempt', (attemptNumber) => {
@@ -396,72 +338,89 @@ function Guarantee() {
     setSocket(newSocket);
 
     return () => {
-      console.log('🔌 Закрытие WebSocket соединения');
-      newSocket.close();
+      console.log('🔌 Cleanup socket (НЕ закрываем!)');
+      // НЕ закрываем socket, чтобы он переподключался!
     };
   }, []);
 
+  // Загрузка информации о втором участнике
+  useEffect(() => {
+    const loadParticipantInfo = async () => {
+      if (!currentDeal || !user || participantUser) return;
+      if (currentDeal.status === 'waiting') return;
+
+      const isCreator = currentDeal.creator_id === user.id;
+      const otherUserId = isCreator ? currentDeal.participant_id : currentDeal.creator_id;
+
+      if (!otherUserId) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/users/${otherUserId}`);
+        const data = await response.json();
+        if (data.user) {
+          setParticipantUser(data.user);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки участника:', error);
+      }
+    };
+
+    loadParticipantInfo();
+  }, [currentDeal, user, participantUser]);
+
   // Слушатели WebSocket
   useEffect(() => {
-    if (!socket || !currentDeal) return;
+    if (!socket) return;
 
-    console.log('🔌 Настройка слушателей WebSocket для сделки:', currentDeal.id);
+    console.log('🔌 Настройка WebSocket listeners');
 
-    socket.on('deal-state', (deal) => {
-      console.log('✅ Получено обновление сделки:', deal);
+    const handleDealState = (deal) => {
+      console.log('✅ deal-state:', deal);
       setCurrentDeal(deal);
-    });
+    };
 
-    socket.on('participant-joined', (data) => {
-      console.log('✅ Участник присоединился:', data);
-
+    const handleParticipantJoined = (data) => {
+      console.log('✅ participant-joined:', data);
       setCurrentDeal(prev => ({
         ...prev,
         participant_id: data.participantId,
         status: 'active'
       }));
 
-      const loadNewParticipant = async () => {
-        try {
-          console.log('📥 Загрузка информации о новом участнике:', data.participantId);
-          const response = await fetch(`${API_URL}/api/users/${data.participantId}`);
-          const userData = await response.json();
-          
+      fetch(`${API_URL}/api/users/${data.participantId}`)
+        .then(res => res.json())
+        .then(userData => {
           if (userData.user) {
-            console.log('✅ Получены данные нового участника:', userData.user);
             setParticipantUser(userData.user);
           }
-        } catch (error) {
-          console.error('❌ Ошибка загрузки участника:', error);
-        }
-      };
+        })
+        .catch(err => console.error('❌ Ошибка загрузки участника:', err));
 
-      loadNewParticipant();
-      showNotification('🎉 Участник присоединился! Теперь можете добавлять подарки', 'success');
-    });
+      showNotification('🎉 Участник присоединился!', 'success');
+    };
 
-    socket.on('gifts-updated', (data) => {
-      console.log('🎁 Подарки обновлены:', data);
+    const handleGiftsUpdated = (data) => {
+      console.log('🎁 gifts-updated:', data);
       setDealGifts(data.gifts || {});
-    });
+    };
 
-    socket.on('lock-updated', (data) => {
-      console.log('🔒 Блокировка обновлена:', data);
+    const handleLockUpdated = (data) => {
+      console.log('🔒 lock-updated:', data);
       setCurrentDeal(prev => ({
         ...prev,
         creator_locked: data.creatorLocked,
         participant_locked: data.participantLocked
       }));
-    });
+    };
 
-    socket.on('verification-stage', () => {
-      console.log('🔍 Переход к проверке');
+    const handleVerificationStage = () => {
+      console.log('🔍 verification-stage');
       setVerificationStage(true);
       showNotification('Проверьте компоненты обмена', 'info');
-    });
+    };
 
-    socket.on('verification-cancelled', () => {
-      console.log('↩️ Проверка отменена');
+    const handleVerificationCancelled = () => {
+      console.log('↩️ verification-cancelled');
       setVerificationStage(false);
       setCurrentDeal(prev => ({
         ...prev,
@@ -471,64 +430,77 @@ function Guarantee() {
         participant_confirmed: false
       }));
       showNotification('Обмен возвращен к редактированию', 'info');
-    });
+    };
 
-    socket.on('confirmation-updated', (data) => {
-      console.log('✅ Подтверждение обновлено:', data);
+    const handleConfirmationUpdated = (data) => {
+      console.log('✅ confirmation-updated:', data);
       setCurrentDeal(prev => ({
         ...prev,
         creator_confirmed: data.creatorConfirmed,
         participant_confirmed: data.participantConfirmed
       }));
-    });
+    };
 
-    socket.on('deal-completed', (data) => {
-      console.log('🎉 Сделка завершена:', data);
-      showNotification('🎉 ' + (data.message || 'Обмен успешно завершен!'), 'success');
+    const handleDealCompleted = (data) => {
+      console.log('🎉 deal-completed:', data);
+      showNotification('🎉 Обмен завершен!', 'success');
       
-      // Очищаем сохраненное состояние
-      localStorage.removeItem(DEAL_STATE_KEY);
+      // ОЧИЩАЕМ sessionStorage
+      sessionStorage.removeItem(DEAL_STATE_KEY);
+      sessionStorage.removeItem(SCREEN_STATE_KEY);
       
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
       setParticipantUser(null);
       setVerificationStage(false);
-    });
+    };
 
-    socket.on('deal-cancelled', (data) => {
-      console.log('❌ Сделка отменена:', data);
-      showNotification('❌ Обмен был отменен', 'error');
+    const handleDealCancelled = (data) => {
+      console.log('❌ deal-cancelled:', data);
+      showNotification('❌ Обмен отменен', 'error');
       
-      // Очищаем сохраненное состояние
-      localStorage.removeItem(DEAL_STATE_KEY);
+      // ОЧИЩАЕМ sessionStorage
+      sessionStorage.removeItem(DEAL_STATE_KEY);
+      sessionStorage.removeItem(SCREEN_STATE_KEY);
       
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
       setParticipantUser(null);
       setVerificationStage(false);
-    });
+    };
 
-    socket.on('error', (data) => {
-      console.error('❌ Ошибка WebSocket:', data);
+    const handleError = (data) => {
+      console.error('❌ socket error:', data);
       showNotification(data.message || 'Произошла ошибка', 'error');
-    });
+    };
+
+    socket.on('deal-state', handleDealState);
+    socket.on('participant-joined', handleParticipantJoined);
+    socket.on('gifts-updated', handleGiftsUpdated);
+    socket.on('lock-updated', handleLockUpdated);
+    socket.on('verification-stage', handleVerificationStage);
+    socket.on('verification-cancelled', handleVerificationCancelled);
+    socket.on('confirmation-updated', handleConfirmationUpdated);
+    socket.on('deal-completed', handleDealCompleted);
+    socket.on('deal-cancelled', handleDealCancelled);
+    socket.on('error', handleError);
 
     return () => {
-      console.log('🔌 Отключение слушателей WebSocket');
-      socket.off('deal-state');
-      socket.off('participant-joined');
-      socket.off('gifts-updated');
-      socket.off('lock-updated');
-      socket.off('verification-stage');
-      socket.off('verification-cancelled');
-      socket.off('confirmation-updated');
-      socket.off('deal-completed');
-      socket.off('deal-cancelled');
-      socket.off('error');
+      console.log('🔌 Cleanup listeners');
+      socket.off('deal-state', handleDealState);
+      socket.off('participant-joined', handleParticipantJoined);
+      socket.off('gifts-updated', handleGiftsUpdated);
+      socket.off('lock-updated', handleLockUpdated);
+      socket.off('verification-stage', handleVerificationStage);
+      socket.off('verification-cancelled', handleVerificationCancelled);
+      socket.off('confirmation-updated', handleConfirmationUpdated);
+      socket.off('deal-completed', handleDealCompleted);
+      socket.off('deal-cancelled', handleDealCancelled);
+      socket.off('error', handleError);
     };
-  }, [socket, currentDeal]);
+  }, [socket]);
 
   // Загрузка подарков
   useEffect(() => {
@@ -617,7 +589,9 @@ function Guarantee() {
           showNotification('Код: ' + inviteCode, 'info');
         }
 
-        socket.emit('join-deal', { dealId: data.deal.id });
+        if (socket && socket.connected) {
+          socket.emit('join-deal', { dealId: data.deal.id });
+        }
       }
     } catch (error) {
       console.error('❌ Ошибка создания сделки:', error);
@@ -638,7 +612,9 @@ function Guarantee() {
         setScreen('deal');
         setInviteCodeInput('');
 
-        socket.emit('join-deal', { dealId: data.deal.id });
+        if (socket && socket.connected) {
+          socket.emit('join-deal', { dealId: data.deal.id });
+        }
         showNotification('Успешно присоединились к обмену!', 'success');
       } else {
         showNotification(data.error || 'Сделка не найдена', 'error');
@@ -728,9 +704,6 @@ function Guarantee() {
     }
   };
 
-  // Остальные компоненты остаются без изменений...
-  // (HourglassLottie, GiftPreview, GiftCardInventory, GiftCardMini, ParticipantHeader)
-  
   // Компонент с Lottie анимацией песочных часов
   const HourglassLottie = () => {
     const containerRef = useRef(null);
