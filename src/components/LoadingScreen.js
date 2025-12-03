@@ -195,8 +195,8 @@ const LoadingScreen = ({ onLoadComplete }) => {
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       
-      const maxWidth = 230;
-      const maxHeight = 230;
+      const maxWidth = 300;
+      const maxHeight = 300;
       const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
       const scaledWidth = img.width * scale;
       const scaledHeight = img.height * scale;
