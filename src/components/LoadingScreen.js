@@ -177,7 +177,7 @@ const LoadingScreen = ({ onLoadComplete }) => {
 
     const loadImage = () => {
       const img = new Image();
-      img.src = '/logo.svg'; // Путь к логотипу в public/
+      img.src = '/public/logo.svg'; // Путь к логотипу в public/
       
       img.onload = () => {
         initParticles(img);
