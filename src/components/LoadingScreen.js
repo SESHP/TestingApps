@@ -14,8 +14,12 @@ const LoadingScreen = ({ onLoadComplete }) => {
   const phrases = [
     "Собираем подарки...",
     "Подкручиваем реф коды...",
-    "Проверяем гарантии...",
     "Полируем интерфейс...",
+    "Поднимаем базу...",
+    "Убираем пыль с серверов...",
+    "Копим 10К старс...",
+    "Просим TON встать с колен...",
+    "Ждем альтсезон...",
     "Синхронизируем TON...",
     "Почти готово..."
   ];
@@ -30,9 +34,17 @@ const LoadingScreen = ({ onLoadComplete }) => {
   };
 
   useEffect(() => {
-    // Смена фраз
+    // Смена фраз (рандомно)
+    const getRandomPhrase = () => {
+      let newPhrase;
+      do {
+        newPhrase = Math.floor(Math.random() * phrases.length);
+      } while (newPhrase === currentPhrase && phrases.length > 1);
+      return newPhrase;
+    };
+
     const phraseInterval = setInterval(() => {
-      setCurrentPhrase(prev => (prev + 1) % phrases.length);
+      setCurrentPhrase(getRandomPhrase());
     }, 2000);
 
     // Имитация загрузки (можешь заменить на реальную логику)
@@ -165,7 +177,7 @@ const LoadingScreen = ({ onLoadComplete }) => {
 
     const loadImage = () => {
       const img = new Image();
-      img.src = '/logo.png'; // Путь к логотипу в public/
+      img.src = '/logo.svg'; // Путь к логотипу в public/
       
       img.onload = () => {
         initParticles(img);
