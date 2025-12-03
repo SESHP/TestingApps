@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Particle Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        canvas {
+            display: block;
+            cursor: none;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 25px;
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            font-size: 13px;
+            z-index: 10;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            min-width: 280px;
+        }
+
+        .controls h3 {
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #ff6600;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .control-group .value {
+            color: #ff6600;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .controls input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .controls input[type="range"]:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6600, #ff8833);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .controls input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .controls input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6600, #ff8833);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.5);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .controls button {
+            flex: 1;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #ff6600, #ff8833);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 102, 0, 0.3);
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 102, 0, 0.5);
+        }
+
+        .controls button:active {
+            transform: translateY(0);
+        }
+
+        .info {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
+        .cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 102, 0, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease;
+        }
+
+        .cursor-inner {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 102, 0, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="cursor" id="cursor"></div>
+    <div class="cursor-inner" id="cursorInner"></div>
+
+    <div class="controls">
+        <h3>⚙️ Настройки частиц</h3>
+        
+        <div class="control-group">
+            <label>
+                <span>Плотность</span>
+                <span class="value" id="densityValue">5</span>
+            </label>
+            <input type="range" id="densitySlider" min="3" max="10" value="5" step="1">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <span>Размер частиц</span>
+                <span class="value" id="sizeValue">3</span>
+            </label>
+            <input type="range" id="sizeSlider" min="0.1" max="6" value="3" step="0.1">
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <span>Радиус отталкивания</span>
+                <span class="value" id="repulseValue">120</span>
+            </label>
+            <input type="range" id="repulseSlider" min="50" max="300" value="120" step="10">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Скорость движения</span>
+                <span class="value" id="moveValue">0.5</span>
+            </label>
+            <input type="range" id="moveSlider" min="0" max="2" value="0.5" step="0.1">
+        </div>
+        
+        <div class="button-group">
+            <button id="resetBtn">🔄 Перезапустить</button>
+        </div>
+
+        <div class="info">
+            Наведите курсор на логотип
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const cursor = document.getElementById('cursor');
+        const cursorInner = document.getElementById('cursorInner');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let settings = {
+            density: 5,
+            particleSize: 3,
+            repulseRadius: 120,
+            moveSpeed: 0.5,
+            returnSpeed: 0.05,
+            friction: 0.9
+        };
+
+        let particles = [];
+        let mouse = { x: null, y: null };
+        let animationFrame;
+
+        class Particle {
+            constructor(x, y, color) {
+                // Начальная позиция - разлетаются из центра
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 50 + Math.random() * 200;
+                
+                this.x = centerX + Math.cos(angle) * distance;
+                this.y = centerY + Math.sin(angle) * distance;
+                this.targetX = x;
+                this.targetY = y;
+                this.originX = x;
+                this.originY = y;
+                
+                this.vx = 0;
+                this.vy = 0;
+                this.color = color;
+                this.size = 0;
+                this.targetSize = settings.particleSize;
+                
+                // Для анимации появления
+                this.appearProgress = 0;
+                this.appearDelay = Math.random() * 100;
+                this.appeared = false;
+                
+                // Для органичного движения
+                this.noiseOffset = Math.random() * 1000;
+                this.noiseSpeed = 0.005 + Math.random() * 0.005;
+                
+                // Для мерцания
+                this.flickerOffset = Math.random() * Math.PI * 2;
+                this.flickerSpeed = 0.02 + Math.random() * 0.03;
+            }
+
+            update(time) {
+                // Анимация появления
+                if (!this.appeared) {
+                    if (time > this.appearDelay) {
+                        this.appeared = true;
+                    } else {
+                        return;
+                    }
+                }
+
+                if (this.appearProgress < 1) {
+                    this.appearProgress += 0.02;
+                    this.size = this.targetSize * this.appearProgress;
+                }
+
+                // Взаимодействие с мышью
+                if (mouse.x !== null && mouse.y !== null) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < settings.repulseRadius) {
+                        const force = (settings.repulseRadius - distance) / settings.repulseRadius;
+                        const angle = Math.atan2(dy, dx);
+                        const pushForce = force * 4;
+                        
+                        this.vx -= Math.cos(angle) * pushForce;
+                        this.vy -= Math.sin(angle) * pushForce;
+                    }
+                }
+
+                // Органичное движение (Perlin noise simulation)
+                this.noiseOffset += this.noiseSpeed;
+                const noiseX = Math.sin(this.noiseOffset) * settings.moveSpeed * 0.3;
+                const noiseY = Math.cos(this.noiseOffset * 1.3) * settings.moveSpeed * 0.3;
+                this.vx += noiseX;
+                this.vy += noiseY;
+
+                // Возврат к исходной позиции
+                const returnX = (this.originX - this.x) * settings.returnSpeed;
+                const returnY = (this.originY - this.y) * settings.returnSpeed;
+                this.vx += returnX;
+                this.vy += returnY;
+
+                // Затухание
+                this.vx *= settings.friction;
+                this.vy *= settings.friction;
+
+                // Обновление позиции
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw(time) {
+                if (!this.appeared || this.size === 0) return;
+
+                // Мерцание
+                const flicker = 0.7 + Math.sin(time * this.flickerSpeed + this.flickerOffset) * 0.3;
+
+                // Градиентное свечение
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.size * 2.5
+                );
+
+                const rgb = this.color;
+                gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${flicker})`);
+                gradient.addColorStop(0.5, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${flicker * 0.5})`);
+                gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Яркое ядро
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${flicker})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function loadImage() {
+            const img = new Image();
+            // УКАЖИТЕ ПУТЬ К ВАШЕМУ ЛОГОТИПУ ЗДЕСЬ
+            img.src = 'logo_white.svg'; // Замените на путь к вашему изображению
+            
+            img.onload = function() {
+                initParticles(img);
+            };
+
+            img.onerror = function() {
+                console.error('Ошибка загрузки изображения. Укажите правильный путь к logo.png');
+            };
+        }
+
+        function initParticles(img) {
+            particles = [];
+            
+            // Создаем временный canvas для анализа изображения
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Масштабируем изображение (уменьшено для производительности)
+            const maxWidth = 400;
+            const maxHeight = 400;
+            const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            
+            tempCanvas.width = scaledWidth;
+            tempCanvas.height = scaledHeight;
+            tempCtx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+            
+            // Получаем данные пикселей
+            const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+            const pixels = imageData.data;
+            
+            // Позиция для центрирования на экране
+            const offsetX = (canvas.width - scaledWidth) / 2;
+            const offsetY = (canvas.height - scaledHeight) / 2;
+            
+            // Создаем частицы из пикселей изображения
+            const gap = settings.density;
+            
+            for (let y = 0; y < scaledHeight; y += gap) {
+                for (let x = 0; x < scaledWidth; x += gap) {
+                    const index = (y * scaledWidth + x) * 4;
+                    const alpha = pixels[index + 3];
+                    
+                    // Только непрозрачные пиксели
+                    if (alpha > 128) {
+                        const r = pixels[index];
+                        const g = pixels[index + 1];
+                        const b = pixels[index + 2];
+                        
+                        particles.push(new Particle(
+                            x + offsetX,
+                            y + offsetY,
+                            { r, g, b }
+                        ));
+                    }
+                }
+            }
+            
+            animate();
+        }
+
+        let startTime = Date.now();
+
+        function animate() {
+            const currentTime = Date.now() - startTime;
+            
+            // Эффект следа (более прозрачный для производительности)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach(particle => {
+                particle.update(currentTime);
+                particle.draw(currentTime);
+            });
+            
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        // Обработка мыши
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            
+            cursor.style.left = e.clientX - 10 + 'px';
+            cursor.style.top = e.clientY - 10 + 'px';
+            cursorInner.style.left = e.clientX - 4 + 'px';
+            cursorInner.style.top = e.clientY - 4 + 'px';
+        });
+
+        document.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Обработчики слайдеров
+        document.getElementById('densitySlider').addEventListener('input', (e) => {
+            settings.density = parseInt(e.target.value);
+            document.getElementById('densityValue').textContent = e.target.value;
+            cancelAnimationFrame(animationFrame);
+            startTime = Date.now();
+            loadImage();
+        });
+
+        document.getElementById('sizeSlider').addEventListener('input', (e) => {
+            settings.particleSize = parseFloat(e.target.value);
+            document.getElementById('sizeValue').textContent = e.target.value;
+            particles.forEach(p => p.targetSize = settings.particleSize);
+        });
+
+        document.getElementById('repulseSlider').addEventListener('input', (e) => {
+            settings.repulseRadius = parseInt(e.target.value);
+            document.getElementById('repulseValue').textContent = e.target.value;
+        });
+
+        document.getElementById('moveSlider').addEventListener('input', (e) => {
+            settings.moveSpeed = parseFloat(e.target.value);
+            document.getElementById('moveValue').textContent = e.target.value;
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            cancelAnimationFrame(animationFrame);
+            startTime = Date.now();
+            loadImage();
+        });
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cancelAnimationFrame(animationFrame);
+            startTime = Date.now();
+            loadImage();
+        });
+
+        // Запуск
+        loadImage();
+    </script>
+</body>
+</html>
