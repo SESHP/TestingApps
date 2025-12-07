@@ -3,29 +3,31 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { hapticFeedback } from '../utils/telegramUtils';
+import { useTranslation } from '../i18n/LanguageContext';
 import './BottomTabs.css';
 
 const BottomTabs = () => {
   const location = useLocation();
-  
+  const { t } = useTranslation();
+
   const handleTabClick = () => {
-    hapticFeedback('light'); // Вибрация при клике
+    hapticFeedback('light');
   };
 
   const tabs = [
     {
       path: '/profile',
-      label: 'Профиль',
+      label: t('profile'),
       icon: 'profile'
     },
     {
       path: '/inventory',
-      label: 'Инвентарь',
+      label: t('inventory'),
       icon: 'inventory'
     },
     {
       path: '/guarantee',
-      label: 'Гарант',
+      label: t('guarantee'),
       icon: 'guarantee'
     }
   ];

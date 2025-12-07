@@ -4,11 +4,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser, getFullName, getInitData, hapticFeedback, notificationHaptic, getReferralCode } from '../utils/telegramUtils';
 import { io } from 'socket.io-client';
 import { initPlatformDetection } from '../utils/platformDetect';
+import { useTranslation } from '../i18n/LanguageContext';
 
 import { initUser, getReferralStats } from '../utils/api';
 import DepositModal from '../components/DepositModal';
 import Badge, { calculateBadge } from '../components/Badge';
 import BadgeModal from '../components/BadgeModal';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
@@ -16,6 +18,7 @@ import starsIcon from '../assets/icons/stars-icon.svg';
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
 function Profile() {
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [referralStats, setReferralStats] = useState({
@@ -438,7 +441,7 @@ function Profile() {
     return (
       <div className="profile-container">
         <div className="profile-content">
-          <p>Загрузка...</p>
+          <p>{t('loading')}</p>
         </div>
       </div>
     );
@@ -452,9 +455,9 @@ function Profile() {
         <div className="profile-header">
           <div className="profile-header-left">
             {user && user.photoUrl ? (
-              <img 
-                src={user.photoUrl} 
-                alt="Аватар" 
+              <img
+                src={user.photoUrl}
+                alt="Avatar"
                 className="profile-avatar"
               />
             ) : (
@@ -464,12 +467,12 @@ function Profile() {
             )}
             <div className="profile-header-text">
               <h2 className="profile-username">
-                {user ? getFullName(user) : 'Гость'}
+                {user ? getFullName(user) : t('guest')}
               </h2>
               {/* ПЛАШКА BADGE внутри profile-header-text */}
               <div className="profile-badge-container">
-                <Badge 
-                  badgeType={currentBadge} 
+                <Badge
+                  badgeType={currentBadge}
                   onClick={handleBadgeClick}
                   size="medium"
                 />
@@ -479,12 +482,13 @@ function Profile() {
 
           {/* Единая плашка в стиле Apple Liquid Glass */}
           <div className="profile-header-right">
+            <LanguageSwitcher />
             <div className="balance-panel">
               {/* Переключатель валюты */}
-              <button 
+              <button
                 className="currency-switch-btn"
                 onClick={handleCurrencySwitch}
-                aria-label="Переключить валюту"
+                aria-label={t('switchCurrency')}
               >
                 <div className={`switch-indicator ${selectedCurrency === 'stars' ? 'right' : ''}`} />
                 <div className={`currency-option ${selectedCurrency === 'ton' ? 'active' : ''}`}>
@@ -515,10 +519,10 @@ function Profile() {
               <div className="balance-divider" />
 
               {/* Кнопка депозита */}
-              <button 
+              <button
                 className="deposit-btn"
                 onClick={handleDeposit}
-                aria-label="Пополнить баланс"
+                aria-label={t('depositBalance')}
               >
                 <span className="deposit-icon">+</span>
               </button>
@@ -529,35 +533,35 @@ function Profile() {
         {/* Статистика */}
         <div className="profile-stats">
           <div className="stat-item-profile">
-            <span className="stat-label">Сделок</span>
+            <span className="stat-label">{t('deals')}</span>
             <span className="stat-value-profile">{userData?.totalDeals || 0}</span>
           </div>
           <div className="stat-item-profile">
-            <span className="stat-label">Рейтинг</span>
+            <span className="stat-label">{t('rating')}</span>
             <span className="stat-value-profile">{userData?.rating?.toFixed(1) || '0.0'}</span>
           </div>
         </div>
 
         {/* Реферальная секция */}
         <div className="referral-section">
-          <h3 className="referral-title">Реферальная программа</h3>
+          <h3 className="referral-title">{t('referralProgram')}</h3>
           <div className="referral-stats">
             <div className="referral-item">
-              <span className="referral-label">Приглашено</span>
+              <span className="referral-label">{t('invited')}</span>
               <span className="referral-value">{referralStats.totalReferrals}</span>
             </div>
             <div className="referral-item">
-              <span className="referral-label">Заработано TON</span>
+              <span className="referral-label">{t('earnedTON')}</span>
               <span className="referral-value">{referralStats.totalEarned.toFixed(2)}</span>
             </div>
           </div>
-          
+
           {/* Реферальный код */}
           {userData?.referralCode && (
             <div className="referral-code-container">
-              <div className="referral-code-label">Ваш реферальный код:</div>
-              <div 
-                className={`referral-code-box ${isDisabled ? 'disabled' : ''}`} 
+              <div className="referral-code-label">{t('yourReferralCode')}</div>
+              <div
+                className={`referral-code-box ${isDisabled ? 'disabled' : ''}`}
                 onClick={handleCopyReferralLink}
               >
                 <span className="referral-code">{userData.referralCode}</span>
@@ -569,7 +573,7 @@ function Profile() {
           )}
 
           <p className="referral-description">
-            Пригласи друзей и получай 5% TON с каждой их сделки.
+            {t('inviteFriends')}
           </p>
         </div>
       </div>
