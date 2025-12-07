@@ -2,12 +2,22 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
-import { useTranslation } from '../i18n/LanguageContext';
 import './Inventory.css';
 import lottie from 'lottie-web';
 
+// Функция для склонения слова "подарок"
+const getPluralForm = (count) => {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const titles = ['Подарок', 'Подарка', 'Подарков'];
+
+  return titles[
+    (count % 100 > 4 && count % 100 < 20)
+      ? 2
+      : cases[Math.min(count % 10, 5)]
+  ];
+};
+
 const Inventory = () => {
-  const { t, getPluralForm } = useTranslation();
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,14 +54,14 @@ const Inventory = () => {
 
     const handleTouchMove = (e) => {
       if (!isTouching) return;
-      
+
       const touchY = e.touches[0].clientY;
       const distance = touchY - touchStartY;
-      
+
       if (distance > 0 && window.scrollY === 0) {
         setIsPulling(true);
         setPullDistance(Math.min(distance, 100));
-        
+
         if (distance > 10) {
           e.preventDefault();
         }
@@ -83,12 +93,12 @@ const Inventory = () => {
     try {
       const user = getTelegramUser();
       const telegramUserId = user?.id?.toString() || 'test_user';
-      
+
       setUserId(telegramUserId);
       await loadUserGifts(telegramUserId);
     } catch (err) {
       console.error('Ошибка инициализации инвентаря:', err);
-      setError(t('failedToLoadInventory'));
+      setError('Не удалось загрузить инвентарь');
       setLoading(false);
     }
   };
@@ -97,12 +107,12 @@ const Inventory = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const apiUrl = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${apiUrl}/api/gifts?fromId=${telegramUserId}&withdrawn=false`);
 
       if (!response.ok) {
-        throw new Error(`${t('loadError')}: ${response.status}`);
+        throw new Error(`Ошибка загрузки: ${response.status}`);
       }
 
       const data = await response.json();
@@ -110,7 +120,7 @@ const Inventory = () => {
 
     } catch (err) {
       console.error('Ошибка загрузки подарков:', err);
-      setError(`${t('failedToLoadGifts')} ${err.message}`);
+      setError(`Не удалось загрузить подарки: ${err.message}`);
       setGifts([]);
     } finally {
       setLoading(false);
@@ -144,7 +154,7 @@ const Inventory = () => {
       <div className="inventory-container">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p>{t('loadingGifts')}</p>
+          <p>Загрузка подарков...</p>
         </div>
       </div>
     );
@@ -154,7 +164,7 @@ const Inventory = () => {
     <div className="inventory-container" ref={containerRef}>
       {/* Liquid Glass плашка с счетчиком */}
       <div className="gift-counter">
-        {gifts.length} {getPluralForm(gifts.length, 'gifts')}
+        {gifts.length} {getPluralForm(gifts.length)}
       </div>
 
       {error && (
@@ -168,17 +178,17 @@ const Inventory = () => {
         {gifts.length === 0 ? (
           <div className="inventory-empty">
             <div className="empty-icon">🎁</div>
-            <p className="empty-text">{t('yourInventoryEmpty')}</p>
+            <p className="empty-text">Ваш инвентарь пуст</p>
             <p className="empty-subtext">
-              {t('sendGiftTo')}
+              Отправьте подарок на @FNPK3, чтобы он появился здесь
             </p>
           </div>
         ) : (
           <div className="gifts-grid">
             {gifts.map((gift) => (
-              <GiftCard 
-                key={gift.id} 
-                gift={gift} 
+              <GiftCard
+                key={gift.id}
+                gift={gift}
                 onClick={() => handleGiftClick(gift)}
               />
             ))}
@@ -187,8 +197,8 @@ const Inventory = () => {
       </div>
 
       {selectedGift && (
-        <GiftModal 
-          gift={selectedGift} 
+        <GiftModal
+          gift={selectedGift}
           onClose={handleCloseModal}
           userId={userId}
           onWithdrawSuccess={handleWithdrawSuccess}
@@ -219,12 +229,12 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
     try {
       const response = await fetch(`${apiUrl}/api/telegram/file/${patternAttr.document.id}`);
       if (!response.ok) return;
-      
+
       const animationData = await response.json();
 
       patternRefs.current.forEach((ref, index) => {
         if (!ref) return;
-        
+
         if (instances.current[index]) {
           instances.current[index].destroy();
         }
@@ -245,7 +255,7 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
   if (!patternAttr) return null;
 
   const isModal = size === 'large';
-  
+
   // Создаем сетку в шахматном порядке
   const patterns = [];
   const gridSize = isModal ? 7 : 5;
@@ -253,26 +263,26 @@ const PatternGrid = ({ patternAttr, size = 'small' }) => {
   const centerRadius = isModal ? 35 : 30;
   const maxSize = isModal ? 25 : 20;
   const minSize = isModal ? 12 : 10;
-  
+
   let patternIndex = 0;
-  
+
   for (let row = 0; row <= gridSize; row++) {
     for (let col = 0; col <= gridSize; col++) {
       if ((row + col) % 2 !== 0) continue;
-      
+
       const x = step * (col + 1);
       const y = step * (row + 1);
-      
+
       const dx = x - 50;
       const dy = y - 50;
       const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
-      
+
       if (distanceFromCenter < centerRadius) continue;
-      
+
       const maxDistance = Math.sqrt(50 * 50 + 50 * 50);
       const normalizedDistance = (distanceFromCenter - centerRadius) / (maxDistance - centerRadius);
       const patternSize = maxSize - (maxSize - minSize) * normalizedDistance;
-      
+
       patterns.push({
         id: patternIndex++,
         x: x,
@@ -321,18 +331,18 @@ const GiftCard = ({ gift, onClick }) => {
 
     const attributes = gift.rawData.gift.attributes || [];
     const apiUrl = process.env.REACT_APP_API_URL || '';
-    
+
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
     if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
       try {
         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
         if (response.ok) {
           const animationData = await response.json();
-          
+
           if (modelInstance.current) {
             modelInstance.current.destroy();
           }
-          
+
           modelInstance.current = lottie.loadAnimation({
             container: modelLottieRef.current,
             renderer: 'svg',
@@ -367,7 +377,7 @@ const GiftCard = ({ gift, onClick }) => {
     const backdropAttr = attributes.find(attr => attr.className === 'StarGiftAttributeBackdrop');
     const patternAttr = attributes.find(attr => attr.className === 'StarGiftAttributePattern');
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
-    
+
     const backgroundStyle = backdropAttr ? {
       background: `radial-gradient(circle at center, ${formatColor(backdropAttr.centerColor)} 0%, ${formatColor(backdropAttr.edgeColor)} 100%)`
     } : {
@@ -377,9 +387,9 @@ const GiftCard = ({ gift, onClick }) => {
     return (
       <div className="gift-preview" style={backgroundStyle}>
         <PatternGrid patternAttr={patternAttr} size="small" />
-        
-        <div 
-          ref={modelLottieRef} 
+
+        <div
+          ref={modelLottieRef}
           className="gift-lottie-preview"
           style={{
             position: 'relative',
@@ -397,7 +407,7 @@ const GiftCard = ({ gift, onClick }) => {
       {renderGiftPreview()}
       <div className="gift-info">
         <h3 className="gift-name">{gift.giftTitle}</h3>
-        {gift.model && gift.model !== t('unknownModel') && (
+        {gift.model && gift.model !== 'Неизвестная модель' && (
           <p className="gift-model">{gift.model}</p>
         )}
       </div>
@@ -407,7 +417,6 @@ const GiftCard = ({ gift, onClick }) => {
 
 // Компонент модального окна
 const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
-  const { t } = useTranslation();
   const modelLottieRef = useRef(null);
   const modelInstance = useRef(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -428,18 +437,18 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
     const attributes = gift.rawData.gift.attributes || [];
     const apiUrl = process.env.REACT_APP_API_URL || '';
-    
+
     const modelAttr = attributes.find(attr => attr.className === 'StarGiftAttributeModel');
     if (modelAttr?.document?.mimeType === 'application/x-tgsticker') {
       try {
         const response = await fetch(`${apiUrl}/api/telegram/file/${modelAttr.document.id}`);
         if (response.ok) {
           const animationData = await response.json();
-          
+
           if (modelInstance.current) {
             modelInstance.current.destroy();
           }
-          
+
           modelInstance.current = lottie.loadAnimation({
             container: modelLottieRef.current,
             renderer: 'svg',
@@ -457,7 +466,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
   const handleWithdraw = async () => {
   if (!userId || !gift.giftId) {
-    setWithdrawError(t('failedToWithdraw'));
+    setWithdrawError('Недостаточно данных для вывода');
     return;
   }
 
@@ -466,12 +475,12 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     setWithdrawError(null);
 
     const apiUrl = process.env.REACT_APP_API_URL || '';
-    
+
     console.log('Отправка запроса:', {
       giftId: gift.giftId,
       toId: userId
     });
-    
+
     const response = await fetch(`${apiUrl}/api/gifts/withdraw`, {
       method: 'POST',
       headers: {
@@ -484,7 +493,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     });
 
     const result = await response.json();
-    
+
     console.log('Ответ сервера:', {
       status: response.status,
       ok: response.ok,
@@ -492,7 +501,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     });
 
     if (!response.ok) {
-      throw new Error(result.error || result.details || t('failedToWithdraw'));
+      throw new Error(result.error || result.details || 'Не удалось вывести подарок');
     }
 
     if (result.success) {
@@ -501,12 +510,12 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
         onWithdrawSuccess();
       }, 1500);
     } else {
-      throw new Error(t('failedToWithdraw'));
+      throw new Error('Не удалось вывести подарок');
     }
 
   } catch (err) {
     console.error('Ошибка вывода подарка:', err);
-    setWithdrawError(err.message || t('failedToWithdraw'));
+    setWithdrawError(err.message || 'Не удалось вывести подарок');
   } finally {
     setWithdrawing(false);
   }
@@ -542,9 +551,9 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     return (
       <div className="modal-gift-container" style={backgroundStyle}>
         <PatternGrid patternAttr={patternAttr} size="large" />
-        
-        <div 
-          ref={modelLottieRef} 
+
+        <div
+          ref={modelLottieRef}
           className="modal-gift-lottie"
           style={{
             position: 'relative',
@@ -568,19 +577,19 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     <div className="gift-modal-overlay" onClick={onClose}>
       <div className="gift-modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>✕</button>
-        
+
         {renderMainContent()}
 
         <div className="modal-info">
           <h2 className="modal-title">{gift.giftTitle}</h2>
 
           {isCollectible && (
-            <div className="modal-badge collectible">{t('collectible')}</div>
+            <div className="modal-badge collectible">Коллекционный</div>
           )}
 
           {modelAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">{t('model')}</span>
+              <span className="modal-attr-label">Модель:</span>
               <span className="modal-attr-value">{modelAttr.name}</span>
               {modelAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -592,7 +601,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {backdropAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">{t('background')}</span>
+              <span className="modal-attr-label">Фон:</span>
               <span className="modal-attr-value">{backdropAttr.name}</span>
               {backdropAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -604,7 +613,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {patternAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">{t('pattern')}</span>
+              <span className="modal-attr-label">Паттерн:</span>
               <span className="modal-attr-value">{patternAttr.name}</span>
               {patternAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -625,7 +634,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
           {withdrawSuccess && (
             <div className="withdraw-success">
               <span className="success-icon">✓</span>
-              <span>{t('giftWithdrawnSuccess')}</span>
+              <span>Подарок успешно выведен!</span>
             </div>
           )}
 
@@ -638,17 +647,17 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
             {withdrawing ? (
               <>
                 <div className="button-spinner"></div>
-                <span>{t('withdrawing')}</span>
+                <span>Вывод...</span>
               </>
             ) : withdrawSuccess ? (
               <>
                 <span className="success-icon">✓</span>
-                <span>{t('withdrawn')}</span>
+                <span>Выведено</span>
               </>
             ) : (
               <>
                 <span className="button-icon">💸</span>
-                <span>{t('withdrawGift')}</span>
+                <span>Вывести подарок</span>
               </>
             )}
           </button>
