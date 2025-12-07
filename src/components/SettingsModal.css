@@ -13,6 +13,7 @@
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn 0.2s ease-out;
+  padding-bottom: 70px;
 }
 
 @keyframes fadeIn {
@@ -29,7 +30,7 @@
   border-radius: 24px 24px 0 0;
   width: 100%;
   max-width: 600px;
-  max-height: 80vh;
+  max-height: calc(100vh - 150px);
   overflow: hidden;
   box-shadow:
     0 -4px 24px rgba(0, 0, 0, 0.4),
@@ -90,7 +91,7 @@
 .settings-content {
   padding: 16px 24px 32px;
   overflow-y: auto;
-  max-height: calc(80vh - 80px);
+  max-height: calc(100vh - 230px);
 }
 
 .settings-section {
@@ -149,8 +150,12 @@
 
 /* Mobile responsive */
 @media (max-width: 480px) {
+  .settings-modal-overlay {
+    padding-bottom: 65px;
+  }
+
   .settings-modal {
-    max-height: 85vh;
+    max-height: calc(100vh - 140px);
   }
 
   .settings-header {
@@ -163,7 +168,7 @@
 
   .settings-content {
     padding: 12px 20px 24px;
-    max-height: calc(85vh - 68px);
+    max-height: calc(100vh - 210px);
   }
 
   .settings-item {
