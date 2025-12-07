@@ -942,47 +942,108 @@ html.platform-macos-desktop .balance-panel {
     padding: calc(var(--safe-area-top) + 100px) 16px 20px 16px;
   }
 
+  /* ДВУХСТРОЧНЫЙ HEADER НА МОБИЛЬНЫХ */
   .profile-header {
-    gap: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
     margin-bottom: 16px;
   }
 
+  /* Первая строка: аватар + имя + badge */
   .profile-header-left {
-    gap: 10px;
-    margin-right: 16px;
-    max-width: calc(100% - 190px);
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+    margin-right: 0;
   }
 
   .profile-avatar,
   .profile-avatar-placeholder {
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
   }
 
   .profile-header-text {
-    height: 50px;
-    gap: 3px;
+    height: auto;
+    gap: 6px;
+    flex: 1;
   }
 
   .profile-username {
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 600;
   }
 
-  /* Немного уменьшаем плашку на мобильных */
   .profile-badge-container .badge {
-    padding: 3px 7px !important;
-    font-size: 8px !important;
-    letter-spacing: 0.4px !important;
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    letter-spacing: 0.5px !important;
     border-width: 1.5px !important;
   }
 
   .profile-badge-container .badge-name {
-    font-size: 8px !important;
-    letter-spacing: 0.4px !important;
+    font-size: 9px !important;
+    letter-spacing: 0.5px !important;
   }
 
+  /* Вторая строка: баланс + settings */
+  .profile-header-right {
+    width: 100%;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  /* Баланс занимает больше места */
   .balance-panel {
-    padding: 5px;
+    flex: 1;
+    max-width: none;
+    padding: 8px;
+    justify-content: space-between;
+  }
+
+  /* Settings кнопка */
+  .settings-btn {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
+  /* Элементы внутри баланса */
+  .currency-switch-btn {
+    min-width: 80px;
+  }
+
+  .currency-option {
+    width: 32px;
+    height: 32px;
+  }
+
+  .currency-icon-img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .balance-container {
+    min-width: 60px;
+  }
+
+  .balance-icon-img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .balance-amount {
+    font-size: 13px;
+  }
+
+  .deposit-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .deposit-icon {
+    font-size: 20px;
   }
 
   .referral-section {
