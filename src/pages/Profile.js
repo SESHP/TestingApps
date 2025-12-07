@@ -10,7 +10,7 @@ import { initUser, getReferralStats } from '../utils/api';
 import DepositModal from '../components/DepositModal';
 import Badge, { calculateBadge } from '../components/Badge';
 import BadgeModal from '../components/BadgeModal';
-import LanguageSwitcher from '../components/LanguageSwitcher';
+import SettingsModal from '../components/SettingsModal';
 import './Profile.css';
 import tonIcon from '../assets/icons/ton-icon.svg';
 import starsIcon from '../assets/icons/stars-icon.svg';
@@ -32,6 +32,7 @@ function Profile() {
   const [selectedCurrency, setSelectedCurrency] = useState('ton');
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [currentBadge, setCurrentBadge] = useState('GUEST');
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
@@ -163,6 +164,12 @@ function Profile() {
   const handleBadgeClick = () => {
     hapticFeedback('medium');
     setIsBadgeModalOpen(true);
+  };
+
+  // Обработчик открытия настроек
+  const handleSettingsClick = () => {
+    hapticFeedback('light');
+    setIsSettingsModalOpen(true);
   };
 
   // Копирование реферальной ссылки
@@ -482,7 +489,6 @@ function Profile() {
 
           {/* Единая плашка в стиле Apple Liquid Glass */}
           <div className="profile-header-right">
-            <LanguageSwitcher />
             <div className="balance-panel">
               {/* Переключатель валюты */}
               <button
@@ -527,6 +533,19 @@ function Profile() {
                 <span className="deposit-icon">+</span>
               </button>
             </div>
+
+            {/* Кнопка Settings (бургер-меню) */}
+            <button
+              className="settings-btn"
+              onClick={handleSettingsClick}
+              aria-label="Настройки"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="10" cy="3" r="1.5" fill="currentColor"/>
+                <circle cx="10" cy="10" r="1.5" fill="currentColor"/>
+                <circle cx="10" cy="17" r="1.5" fill="currentColor"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -592,6 +611,12 @@ function Profile() {
         onClose={() => setIsBadgeModalOpen(false)}
         currentBadge={currentBadge}
         userData={userData}
+      />
+
+      {/* МОДАЛЬНОЕ ОКНО НАСТРОЕК */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );
