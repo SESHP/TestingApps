@@ -2,22 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
+import { useTranslation } from '../i18n/LanguageContext';
 import './Inventory.css';
 import lottie from 'lottie-web';
 
-// Функция для склонения слова "подарок"
-const getPluralForm = (count) => {
-  const cases = [2, 0, 1, 1, 1, 2];
-  const titles = ['Подарок', 'Подарка', 'Подарков'];
-
-  return titles[
-    (count % 100 > 4 && count % 100 < 20)
-      ? 2
-      : cases[Math.min(count % 10, 5)]
-  ];
-};
-
 const Inventory = () => {
+  const { t, getPluralForm } = useTranslation();
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -417,6 +407,7 @@ const GiftCard = ({ gift, onClick }) => {
 
 // Компонент модального окна
 const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
+  const { t } = useTranslation();
   const modelLottieRef = useRef(null);
   const modelInstance = useRef(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -584,12 +575,12 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
           <h2 className="modal-title">{gift.giftTitle}</h2>
 
           {isCollectible && (
-            <div className="modal-badge collectible">Коллекционный</div>
+            <div className="modal-badge collectible">{t('collectible')}</div>
           )}
 
           {modelAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Модель:</span>
+              <span className="modal-attr-label">{t('model')}</span>
               <span className="modal-attr-value">{modelAttr.name}</span>
               {modelAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -601,7 +592,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {backdropAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Фон:</span>
+              <span className="modal-attr-label">{t('background')}</span>
               <span className="modal-attr-value">{backdropAttr.name}</span>
               {backdropAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -613,7 +604,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {patternAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Паттерн:</span>
+              <span className="modal-attr-label">{t('pattern')}</span>
               <span className="modal-attr-value">{patternAttr.name}</span>
               {patternAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -634,7 +625,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
           {withdrawSuccess && (
             <div className="withdraw-success">
               <span className="success-icon">✓</span>
-              <span>Подарок успешно выведен!</span>
+              <span>{t('giftWithdrawnSuccess')}</span>
             </div>
           )}
 
@@ -647,17 +638,17 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
             {withdrawing ? (
               <>
                 <div className="button-spinner"></div>
-                <span>Вывод...</span>
+                <span>{t('withdrawing')}</span>
               </>
             ) : withdrawSuccess ? (
               <>
                 <span className="success-icon">✓</span>
-                <span>Выведено</span>
+                <span>{t('withdrawn')}</span>
               </>
             ) : (
               <>
                 <span className="button-icon">💸</span>
-                <span>Вывести подарок</span>
+                <span>{t('withdrawGift')}</span>
               </>
             )}
           </button>

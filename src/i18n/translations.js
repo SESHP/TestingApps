@@ -166,6 +166,13 @@ export const translations = {
     loadingPhrase9: 'Syncing TON...',
     loadingPhrase10: 'Almost ready...',
 
+    // Additional Guarantee
+    initializing: 'Initializing...',
+    participant: 'Participant',
+    confirmed: 'Confirmed',
+    connectionRestoreFailed: 'Failed to restore connection',
+    failedToCopyCode: 'Failed to copy code',
+
     // Errors
     loadError: 'Failed to load',
     loadingError: 'Loading error:',
@@ -338,6 +345,13 @@ export const translations = {
     loadingPhrase8: 'Ждем альтсезон...',
     loadingPhrase9: 'Синхронизируем TON...',
     loadingPhrase10: 'Почти готово...',
+
+    // Additional Guarantee
+    initializing: 'Инициализация...',
+    participant: 'Участник',
+    confirmed: 'Подтверждено',
+    connectionRestoreFailed: 'Не удалось восстановить соединение',
+    failedToCopyCode: 'Не удалось скопировать код',
 
     // Errors
     loadError: 'Не удалось загрузить',

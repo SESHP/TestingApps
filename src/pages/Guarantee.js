@@ -6,6 +6,7 @@ import './Guarantee.css';
 import moneyAnimation from '../assets/icons/Money.json';
 import { getInitData } from '../utils/telegramUtils';
 import { createDeal, joinDeal } from '../utils/api';
+import { useTranslation } from '../i18n/LanguageContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://testingapps-ncf8.onrender.com';
 
@@ -14,6 +15,8 @@ const DEAL_STATE_KEY = 'guarantee_active_deal_v2';
 const SCREEN_STATE_KEY = 'guarantee_screen';
 
 function Guarantee() {
+  const { t } = useTranslation();
+
   // ✅ ИНИЦИАЛИЗИРУЕМ СОСТОЯНИЕ ИЗ sessionStorage СРАЗУ
   const [screen, setScreen] = useState(() => {
     const saved = sessionStorage.getItem(SCREEN_STATE_KEY);
@@ -332,7 +335,7 @@ function Guarantee() {
 
     newSocket.on('reconnect_failed', () => {
       console.error('❌ Не удалось переподключиться');
-      showNotification('Не удалось восстановить соединение', 'error');
+      showNotification(t('connectionRestoreFailed'), 'error');
     });
 
     setSocket(newSocket);
@@ -396,7 +399,7 @@ function Guarantee() {
         })
         .catch(err => console.error('❌ Ошибка загрузки участника:', err));
 
-      showNotification('🎉 Участник присоединился!', 'success');
+      showNotification('🎉 ' + t('participantJoined'), 'success');
     };
 
     const handleGiftsUpdated = (data) => {
@@ -416,7 +419,7 @@ function Guarantee() {
     const handleVerificationStage = () => {
       console.log('🔍 verification-stage');
       setVerificationStage(true);
-      showNotification('Проверьте компоненты обмена', 'info');
+      showNotification(t('verifyComponents'), 'info');
     };
 
     const handleVerificationCancelled = () => {
@@ -429,7 +432,7 @@ function Guarantee() {
         creator_confirmed: false,
         participant_confirmed: false
       }));
-      showNotification('Обмен возвращен к редактированию', 'info');
+      showNotification(t('exchangeReturned'), 'info');
     };
 
     const handleConfirmationUpdated = (data) => {
@@ -443,12 +446,12 @@ function Guarantee() {
 
     const handleDealCompleted = (data) => {
       console.log('🎉 deal-completed:', data);
-      showNotification('🎉 Обмен завершен!', 'success');
-      
+      showNotification('🎉 ' + t('exchangeCompleted'), 'success');
+
       // ОЧИЩАЕМ sessionStorage
       sessionStorage.removeItem(DEAL_STATE_KEY);
       sessionStorage.removeItem(SCREEN_STATE_KEY);
-      
+
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -458,12 +461,12 @@ function Guarantee() {
 
     const handleDealCancelled = (data) => {
       console.log('❌ deal-cancelled:', data);
-      showNotification('❌ Обмен отменен', 'error');
-      
+      showNotification('❌ ' + t('exchangeCancelled'), 'error');
+
       // ОЧИЩАЕМ sessionStorage
       sessionStorage.removeItem(DEAL_STATE_KEY);
       sessionStorage.removeItem(SCREEN_STATE_KEY);
-      
+
       setScreen('main');
       setCurrentDeal(null);
       setDealGifts({});
@@ -473,7 +476,7 @@ function Guarantee() {
 
     const handleError = (data) => {
       console.error('❌ socket error:', data);
-      showNotification(data.message || 'Произошла ошибка', 'error');
+      showNotification(data.message || t('errorOccurred'), 'error');
     };
 
     socket.on('deal-state', handleDealState);
@@ -573,20 +576,20 @@ function Guarantee() {
 
           if (successful) {
             console.log('✅ Код автоматически скопирован:', inviteCode);
-            showNotification('Код приглашения скопирован!', 'success');
+            showNotification(t('codeCopied'), 'success');
           } else {
             navigator.clipboard.writeText(inviteCode)
               .then(() => {
                 console.log('✅ Код скопирован через clipboard API');
-                showNotification('Код приглашения скопирован!', 'success');
+                showNotification(t('codeCopied'), 'success');
               })
               .catch(() => {
-                showNotification('Код: ' + inviteCode, 'info');
+                showNotification(t('code') + ': ' + inviteCode, 'info');
               });
           }
         } catch (err) {
           console.error('❌ Ошибка автокопирования:', err);
-          showNotification('Код: ' + inviteCode, 'info');
+          showNotification(t('code') + ': ' + inviteCode, 'info');
         }
 
         if (socket && socket.connected) {
@@ -595,7 +598,7 @@ function Guarantee() {
       }
     } catch (error) {
       console.error('❌ Ошибка создания сделки:', error);
-      showNotification('Не удалось создать сделку', 'error');
+      showNotification(t('failedToCreate'), 'error');
     }
   };
 
@@ -615,13 +618,13 @@ function Guarantee() {
         if (socket && socket.connected) {
           socket.emit('join-deal', { dealId: data.deal.id });
         }
-        showNotification('Успешно присоединились к обмену!', 'success');
+        showNotification(t('successfullyJoined'), 'success');
       } else {
-        showNotification(data.error || 'Сделка не найдена', 'error');
+        showNotification(data.error || t('dealNotFound'), 'error');
       }
     } catch (error) {
       console.error('❌ Ошибка присоединения:', error);
-      showNotification('Не удалось присоединиться', 'error');
+      showNotification(t('failedToJoin'), 'error');
     }
   };
 
@@ -669,12 +672,12 @@ function Guarantee() {
     const otherGiftsInDeal = dealGifts[otherUserIdStr] || [];
 
     if (myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0) {
-      showNotification('Оба участника должны добавить хотя бы один подарок', 'error');
+      showNotification(t('bothMustAddGift'), 'error');
       return;
     }
 
     socket.emit('lock-gifts', { dealId: currentDeal.id });
-    showNotification('Подарки заблокированы', 'success');
+    showNotification(t('giftsLocked'), 'success');
   };
 
   const handleVerifyDeal = (approved) => {
@@ -692,16 +695,16 @@ function Guarantee() {
 
   const handleCopyCode = () => {
     if (!currentDeal) return;
-    
+
     const code = currentDeal.invite_code;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(code)
         .then(() => {
-          showNotification('✅ Код скопирован в буфер обмена!', 'success');
+          showNotification('✅ ' + t('codeCopied'), 'success');
         })
         .catch(() => {
-          showNotification('Не удалось скопировать код', 'error');
+          showNotification(t('failedToCopyCode'), 'error');
         });
     }
   };
@@ -899,7 +902,7 @@ function Guarantee() {
       return (first + last).toUpperCase() || '?';
     };
 
-    const displayName = userData?.firstName || 'Участник';
+    const displayName = userData?.firstName || t('participant');
     const username = userData?.username ? `@${userData.username}` : '';
     const photoUrl = userData?.photoUrl;
 
@@ -909,8 +912,8 @@ function Guarantee() {
           <div className="participant-avatar">
             {photoUrl ? (
               <>
-                <img 
-                  src={photoUrl} 
+                <img
+                  src={photoUrl}
                   alt={displayName}
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -929,7 +932,7 @@ function Guarantee() {
             {username && <div className="participant-username">{username}</div>}
           </div>
         </div>
-        {confirmed && <span className="confirmed-badge">✓ Подтверждено</span>}
+        {confirmed && <span className="confirmed-badge">✓ {t('confirmed')}</span>}
       </div>
     );
   };
@@ -938,7 +941,7 @@ function Guarantee() {
   if (!user) {
     return (
       <div className="guarantee-container">
-        <div className="loading">Инициализация...</div>
+        <div className="loading">{t('initializing')}</div>
       </div>
     );
   }
@@ -948,18 +951,18 @@ function Guarantee() {
     return (
       <div className="guarantee-container">
         <div className="guarantee-header-main">
-          <h1 className="guarantee-title-main">Гарант-сервис</h1>
-          <p className="guarantee-subtitle-main">Безопасный обмен подарками</p>
+          <h1 className="guarantee-title-main">{t('guaranteeService')}</h1>
+          <p className="guarantee-subtitle-main">{t('safeGiftExchange')}</p>
         </div>
 
         <div className="guarantee-actions-main">
           <button className="guarantee-btn-main primary" onClick={handleCreateDeal}>
-            <span className="btn-text-main">Создать обмен</span>
+            <span className="btn-text-main">{t('createExchange')}</span>
             <span className="btn-arrow">→</span>
           </button>
 
           <button className="guarantee-btn-main secondary" onClick={() => setScreen('join')}>
-            <span className="btn-text-main">Присоединиться к обмену</span>
+            <span className="btn-text-main">{t('joinExchange')}</span>
             <span className="btn-arrow">→</span>
           </button>
         </div>
@@ -968,32 +971,32 @@ function Guarantee() {
           <div className="feature-item">
             <div className="feature-number">1</div>
             <div className="feature-content">
-              <h3 className="feature-title">Создайте обмен</h3>
-              <p className="feature-description">Получите уникальный код для приглашения</p>
+              <h3 className="feature-title">{t('feature1Title')}</h3>
+              <p className="feature-description">{t('feature1Description')}</p>
             </div>
           </div>
 
           <div className="feature-item">
             <div className="feature-number">2</div>
             <div className="feature-content">
-              <h3 className="feature-title">Пригласите участника</h3>
-              <p className="feature-description">Отправьте код другому пользователю</p>
+              <h3 className="feature-title">{t('feature2Title')}</h3>
+              <p className="feature-description">{t('feature2Description')}</p>
             </div>
           </div>
 
           <div className="feature-item">
             <div className="feature-number">3</div>
             <div className="feature-content">
-              <h3 className="feature-title">Добавьте подарки</h3>
-              <p className="feature-description">Выберите подарки для обмена из инвентаря</p>
+              <h3 className="feature-title">{t('feature3Title')}</h3>
+              <p className="feature-description">{t('feature3Description')}</p>
             </div>
           </div>
 
           <div className="feature-item">
             <div className="feature-number">4</div>
             <div className="feature-content">
-              <h3 className="feature-title">Подтвердите обмен</h3>
-              <p className="feature-description">Оба участника подтверждают условия</p>
+              <h3 className="feature-title">{t('feature4Title')}</h3>
+              <p className="feature-description">{t('feature4Description')}</p>
             </div>
           </div>
         </div>
@@ -1019,8 +1022,8 @@ function Guarantee() {
     return (
       <div className="guarantee-container">
         <div className="guarantee-header">
-          <h1 className="guarantee-title">🔗 Присоединиться</h1>
-          <p className="guarantee-subtitle">Введите код обмена</p>
+          <h1 className="guarantee-title">🔗 {t('join')}</h1>
+          <p className="guarantee-subtitle">{t('enterExchangeCode')}</p>
         </div>
 
         <div className="join-form">
@@ -1034,11 +1037,11 @@ function Guarantee() {
           />
 
           <button className="guarantee-btn join-btn" onClick={handleJoinDeal}>
-            Присоединиться
+            {t('join')}
           </button>
 
           <button className="guarantee-btn back-btn" onClick={() => setScreen('main')}>
-            Назад
+            {t('back')}
           </button>
         </div>
 
@@ -1082,42 +1085,42 @@ function Guarantee() {
             <div className="waiting-animation">
               <HourglassLottie />
             </div>
-            <h2 className="waiting-title">Ожидание участника<span className="animated-dots"></span></h2>
+            <h2 className="waiting-title">{t('waitingForParticipant')}<span className="animated-dots"></span></h2>
 
             {isCreator && (
               <div className="invite-code-inline" onClick={handleCopyCode}>
-                <div className="invite-code-label">Код приглашения</div>
+                <div className="invite-code-label">{t('invitationCode')}</div>
                 <div className="invite-code-value">{currentDeal.invite_code}</div>
-                <div className="invite-code-tap">Нажмите, чтобы скопировать</div>
+                <div className="invite-code-tap">{t('clickToCopy')}</div>
               </div>
             )}
 
             <p className="waiting-description">
               {isCreator
-                ? 'Отправьте этот код другому пользователю. Как только он присоединится, вы сможете начать обмен.'
-                : 'Ожидание подключения к обмену...'}
+                ? t('sendCodeToUser')
+                : t('waitingForConnection')}
             </p>
 
             <div className="waiting-steps">
               <div className="waiting-step completed">
                 <span className="step-icon">✓</span>
-                <span className="step-text">Обмен создан</span>
+                <span className="step-text">{t('exchangeCreated')}</span>
               </div>
               <div className="waiting-step pending">
                 <span className="step-icon">⏳</span>
-                <span className="step-text">Ожидание участника</span>
+                <span className="step-text">{t('waitingParticipant')}</span>
               </div>
               <div className="waiting-step pending">
                 <span className="step-icon">○</span>
-                <span className="step-text">Добавление подарков</span>
+                <span className="step-text">{t('addingGifts')}</span>
               </div>
               <div className="waiting-step pending">
                 <span className="step-icon">○</span>
-                <span className="step-text">Подтверждение обмена</span>
+                <span className="step-text">{t('confirmingExchange')}</span>
               </div>
             </div>
             <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
-              Отменить обмен
+              {t('cancelExchange')}
             </button>
           </div>
         )}
@@ -1133,12 +1136,12 @@ function Guarantee() {
                 />
                 <div className="window-gifts">
                   {myGiftsInDeal.length === 0 ? (
-                    <div className="empty-gifts">Добавьте подарки из инвентаря</div>
+                    <div className="empty-gifts">{t('addGiftsFromInventory')}</div>
                   ) : (
                     myGiftsInDeal.map(gift => (
-                      <GiftCardMini 
-                        key={gift.id} 
-                        gift={gift} 
+                      <GiftCardMini
+                        key={gift.id}
+                        gift={gift}
                         canRemove={!myLocked && !verificationStage}
                         onRemove={handleRemoveGift}
                       />
@@ -1148,14 +1151,14 @@ function Guarantee() {
               </div>
 
               <div className={`participant-window other-window ${verificationStage ? 'verification-mode' : ''}`}>
-                <ParticipantHeader 
+                <ParticipantHeader
                   isMe={false}
                   userData={participantUser}
                   confirmed={otherConfirmed}
                 />
                 <div className="window-gifts">
                   {otherGiftsInDeal.length === 0 ? (
-                    <div className="empty-gifts">Ожидание подарков...</div>
+                    <div className="empty-gifts">{t('waitingForGifts')}</div>
                   ) : (
                     otherGiftsInDeal.map(gift => (
                       <GiftCardMini key={gift.id} gift={gift} canRemove={false} />
@@ -1167,10 +1170,10 @@ function Guarantee() {
 
             {!myLocked && !verificationStage && (
               <div className="deal-inventory">
-                <h3 className="inventory-title">Мой инвентарь</h3>
+                <h3 className="inventory-title">{t('myInventory')}</h3>
                 <div className="inventory-grid">
                   {myGifts.length === 0 ? (
-                    <div className="empty-inventory">У вас нет доступных подарков</div>
+                    <div className="empty-inventory">{t('noGiftsAvailable')}</div>
                   ) : (
                     myGifts.map(gift => (
                       <GiftCardInventory key={gift.id} gift={gift} />
@@ -1182,40 +1185,40 @@ function Guarantee() {
 
             {verificationStage ? (
               <div className="verification-section">
-                <h3 className="verification-title">Проверьте компоненты обмена</h3>
+                <h3 className="verification-title">{t('verifyComponents')}</h3>
                 <div className="verification-actions">
-                  <button 
+                  <button
                     className="guarantee-btn verify-error"
                     onClick={() => handleVerifyDeal(false)}
                   >
-                    ❌ Есть ошибка
+                    ❌ {t('hasError')}
                   </button>
-                  <button 
+                  <button
                     className="guarantee-btn verify-success"
                     onClick={() => handleVerifyDeal(true)}
                     disabled={myConfirmed}
                   >
-                    {myConfirmed ? '⏳ Ожидание...' : '✓ Все верно'}
+                    {myConfirmed ? '⏳ ' + t('waiting') : '✓ ' + t('allCorrect')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="deal-actions">
                 <button className="guarantee-btn cancel-btn" onClick={handleCancelDeal}>
-                  Отменить обмен
+                  {t('cancelExchange')}
                 </button>
-                
+
                 {!myLocked ? (
-                  <button 
+                  <button
                     className="guarantee-btn confirm-btn"
                     onClick={handleLockGifts}
                     disabled={myGiftsInDeal.length === 0 || otherGiftsInDeal.length === 0}
                   >
-                    🔒 Заблокировать подарки
+                    🔒 {t('lockGifts')}
                   </button>
                 ) : (
                   <div className="waiting-message">
-                    {otherLocked ? '⏳ Переход к проверке...' : '⏳ Ожидание блокировки...'}
+                    {otherLocked ? '⏳ ' + t('transitionToVerification') : '⏳ ' + t('waitingForLock')}
                   </div>
                 )}
               </div>
@@ -1226,17 +1229,17 @@ function Guarantee() {
         {showGiftModal && selectedGift && (
           <div className="modal-overlay" onClick={() => setShowGiftModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h3>Добавить подарок?</h3>
+              <h3>{t('addGift')}</h3>
               <div className="modal-gift">
                 <GiftPreview gift={selectedGift} size="large" />
                 <p className="modal-gift-title">{selectedGift.giftTitle || selectedGift.gift_title}</p>
               </div>
               <div className="modal-actions">
                 <button className="modal-btn cancel" onClick={() => setShowGiftModal(false)}>
-                  Отмена
+                  {t('cancel')}
                 </button>
                 <button className="modal-btn confirm" onClick={confirmAddGift}>
-                  Добавить
+                  {t('add')}
                 </button>
               </div>
             </div>
@@ -1261,7 +1264,7 @@ function Guarantee() {
 
   return (
     <div className="guarantee-container">
-      <div className="loading">Загрузка...</div>
+      <div className="loading">{t('loading')}</div>
 
       <div className="notifications-container">
         {notifications.map(notification => (
