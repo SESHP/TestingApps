@@ -2,22 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getTelegramUser } from '../utils/telegramUtils';
+import { useTranslation } from '../i18n/LanguageContext';
 import './Inventory.css';
 import lottie from 'lottie-web';
 
-// Функция для склонения слова "подарок"
-const getPluralForm = (count) => {
-  const cases = [2, 0, 1, 1, 1, 2];
-  const titles = ['Подарок', 'Подарка', 'Подарков'];
-  
-  return titles[
-    (count % 100 > 4 && count % 100 < 20) 
-      ? 2 
-      : cases[Math.min(count % 10, 5)]
-  ];
-};
-
 const Inventory = () => {
+  const { t, getPluralForm } = useTranslation();
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,7 +16,7 @@ const Inventory = () => {
   const [selectedGift, setSelectedGift] = useState(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
-  
+
   const containerRef = useRef(null);
   const startY = useRef(0);
   const currentY = useRef(0);
@@ -98,7 +88,7 @@ const Inventory = () => {
       await loadUserGifts(telegramUserId);
     } catch (err) {
       console.error('Ошибка инициализации инвентаря:', err);
-      setError('Не удалось загрузить инвентарь');
+      setError(t('failedToLoadInventory'));
       setLoading(false);
     }
   };
@@ -110,17 +100,17 @@ const Inventory = () => {
       
       const apiUrl = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${apiUrl}/api/gifts?fromId=${telegramUserId}&withdrawn=false`);
-      
+
       if (!response.ok) {
-        throw new Error(`Ошибка загрузки: ${response.status}`);
+        throw new Error(`${t('loadError')}: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setGifts(data.gifts || []);
-      
+
     } catch (err) {
       console.error('Ошибка загрузки подарков:', err);
-      setError(`Не удалось загрузить подарки: ${err.message}`);
+      setError(`${t('failedToLoadGifts')} ${err.message}`);
       setGifts([]);
     } finally {
       setLoading(false);
@@ -154,7 +144,7 @@ const Inventory = () => {
       <div className="inventory-container">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p>Загрузка подарков...</p>
+          <p>{t('loadingGifts')}</p>
         </div>
       </div>
     );
@@ -164,7 +154,7 @@ const Inventory = () => {
     <div className="inventory-container" ref={containerRef}>
       {/* Liquid Glass плашка с счетчиком */}
       <div className="gift-counter">
-        {gifts.length} {getPluralForm(gifts.length)}
+        {gifts.length} {getPluralForm(gifts.length, 'gifts')}
       </div>
 
       {error && (
@@ -178,9 +168,9 @@ const Inventory = () => {
         {gifts.length === 0 ? (
           <div className="inventory-empty">
             <div className="empty-icon">🎁</div>
-            <p className="empty-text">Ваш инвентарь пуст</p>
+            <p className="empty-text">{t('yourInventoryEmpty')}</p>
             <p className="empty-subtext">
-              Отправьте подарок на @FNPK3, чтобы он появился здесь
+              {t('sendGiftTo')}
             </p>
           </div>
         ) : (
@@ -407,7 +397,7 @@ const GiftCard = ({ gift, onClick }) => {
       {renderGiftPreview()}
       <div className="gift-info">
         <h3 className="gift-name">{gift.giftTitle}</h3>
-        {gift.model && gift.model !== 'Неизвестная модель' && (
+        {gift.model && gift.model !== t('unknownModel') && (
           <p className="gift-model">{gift.model}</p>
         )}
       </div>
@@ -417,6 +407,7 @@ const GiftCard = ({ gift, onClick }) => {
 
 // Компонент модального окна
 const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
+  const { t } = useTranslation();
   const modelLottieRef = useRef(null);
   const modelInstance = useRef(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -466,7 +457,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
   const handleWithdraw = async () => {
   if (!userId || !gift.giftId) {
-    setWithdrawError('Недостаточно данных для вывода');
+    setWithdrawError(t('failedToWithdraw'));
     return;
   }
 
@@ -501,21 +492,21 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
     });
 
     if (!response.ok) {
-      throw new Error(result.error || result.details || 'Не удалось вывести подарок');
+      throw new Error(result.error || result.details || t('failedToWithdraw'));
     }
-    
+
     if (result.success) {
       setWithdrawSuccess(true);
       setTimeout(() => {
         onWithdrawSuccess();
       }, 1500);
     } else {
-      throw new Error('Не удалось вывести подарок');
+      throw new Error(t('failedToWithdraw'));
     }
 
   } catch (err) {
     console.error('Ошибка вывода подарка:', err);
-    setWithdrawError(err.message || 'Не удалось вывести подарок');
+    setWithdrawError(err.message || t('failedToWithdraw'));
   } finally {
     setWithdrawing(false);
   }
@@ -582,14 +573,14 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
         <div className="modal-info">
           <h2 className="modal-title">{gift.giftTitle}</h2>
-          
+
           {isCollectible && (
-            <div className="modal-badge collectible">Коллекционный</div>
+            <div className="modal-badge collectible">{t('collectible')}</div>
           )}
 
           {modelAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Модель:</span>
+              <span className="modal-attr-label">{t('model')}</span>
               <span className="modal-attr-value">{modelAttr.name}</span>
               {modelAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -601,7 +592,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {backdropAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Фон:</span>
+              <span className="modal-attr-label">{t('background')}</span>
               <span className="modal-attr-value">{backdropAttr.name}</span>
               {backdropAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -613,7 +604,7 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
 
           {patternAttr && (
             <div className="modal-attr">
-              <span className="modal-attr-label">Паттерн:</span>
+              <span className="modal-attr-label">{t('pattern')}</span>
               <span className="modal-attr-value">{patternAttr.name}</span>
               {patternAttr.rarityPermille && (
                 <span className="modal-attr-rarity">
@@ -634,12 +625,12 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
           {withdrawSuccess && (
             <div className="withdraw-success">
               <span className="success-icon">✓</span>
-              <span>Подарок успешно выведен!</span>
+              <span>{t('giftWithdrawnSuccess')}</span>
             </div>
           )}
 
           {/* Кнопка вывода */}
-          <button 
+          <button
             className="withdraw-button"
             onClick={handleWithdraw}
             disabled={withdrawing || withdrawSuccess}
@@ -647,17 +638,17 @@ const GiftModal = ({ gift, onClose, userId, onWithdrawSuccess }) => {
             {withdrawing ? (
               <>
                 <div className="button-spinner"></div>
-                <span>Вывод...</span>
+                <span>{t('withdrawing')}</span>
               </>
             ) : withdrawSuccess ? (
               <>
                 <span className="success-icon">✓</span>
-                <span>Выведено</span>
+                <span>{t('withdrawn')}</span>
               </>
             ) : (
               <>
                 <span className="button-icon">💸</span>
-                <span>Вывести подарок</span>
+                <span>{t('withdrawGift')}</span>
               </>
             )}
           </button>

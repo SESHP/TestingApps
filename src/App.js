@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import { tonConnectOptions } from './utils/tonConnect';
 import { initTelegramApp } from './utils/telegramUtils';
+import { LanguageProvider } from './i18n/LanguageContext';
 import Profile from './pages/Profile';
 import Inventory from './pages/Inventory';
 import Guarantee from './pages/Guarantee';
@@ -30,20 +31,22 @@ function App() {
   };
 
   return (
-    <TonConnectUIProvider manifestUrl={tonConnectOptions.manifestUrl}>
-      {isLoading && <LoadingScreen onLoadComplete={handleLoadComplete} />}
-      <div className="app-container">
-        <Router>
-          <Routes>
-            <Route path="/" element={<Profile />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/guarantee" element={<Guarantee />} />
-          </Routes>
-          <BottomTabs />
-        </Router>
-      </div>
-    </TonConnectUIProvider>
+    <LanguageProvider>
+      <TonConnectUIProvider manifestUrl={tonConnectOptions.manifestUrl}>
+        {isLoading && <LoadingScreen onLoadComplete={handleLoadComplete} />}
+        <div className="app-container">
+          <Router>
+            <Routes>
+              <Route path="/" element={<Profile />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/guarantee" element={<Guarantee />} />
+            </Routes>
+            <BottomTabs />
+          </Router>
+        </div>
+      </TonConnectUIProvider>
+    </LanguageProvider>
   );
 }
 

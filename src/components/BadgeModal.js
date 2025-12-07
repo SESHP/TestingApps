@@ -2,12 +2,16 @@
 
 import React from 'react';
 import './BadgeModal.css';
-import Badge, { BADGE_CONFIG } from './Badge';
+import Badge, { BADGE_CONFIG, getBadgeConfig } from './Badge';
+import { useTranslation } from '../i18n/LanguageContext';
 
 const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
-  const badge = BADGE_CONFIG[currentBadge];
+  const translatedConfig = getBadgeConfig(t);
+  const badge = translatedConfig[currentBadge];
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -18,14 +22,12 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
   return (
     <div className="badge-modal-overlay" onClick={handleOverlayClick}>
       <div className="badge-modal">
-        {/* Кнопка закрытия */}
         <button className="badge-modal-close" onClick={onClose}>
           ✕
         </button>
 
-        {/* Закрепленный блок - текущий статус */}
         <div className="badge-modal-fixed">
-          <h3 className="badge-modal-title">Ваш текущий статус</h3>
+          <h3 className="badge-modal-title">{t('yourCurrentStatus')}</h3>
           <div className="badge-modal-current-badge">
             <Badge badgeType={currentBadge} size="large" />
           </div>
@@ -35,35 +37,37 @@ const BadgeModal = ({ isOpen, onClose, currentBadge, userData }) => {
           </div>
           <div className="badge-commission-info">
             <div className="commission-item">
-              <span className="commission-label">Ваша комиссия:</span>
+              <span className="commission-label">{t('yourCommission')}</span>
               <span className="commission-value" style={{ color: badge.color }}>
                 {badge.commission}%
               </span>
             </div>
           </div>
           <div className="badge-modal-divider"></div>
-          <h4 className="badge-modal-subtitle">Все статусы</h4>
+          <h4 className="badge-modal-subtitle">{t('allStatuses')}</h4>
         </div>
 
-        {/* Скроллящийся блок со списком статусов */}
         <div className="badge-modal-scrollable">
           <div className="badge-list">
-            {Object.entries(BADGE_CONFIG).map(([key, badgeInfo]) => (
-              <div 
-                key={key} 
-                className={`badge-list-item ${currentBadge === key ? 'current' : ''}`}
-              >
-                <div className="badge-list-left">
-                  <Badge badgeType={key} size="small" />
-                  <p className="badge-list-requirements">{badgeInfo.requirements}</p>
+            {Object.entries(BADGE_CONFIG).map(([key, badgeInfo]) => {
+              const translatedBadge = translatedConfig[key];
+              return (
+                <div
+                  key={key}
+                  className={`badge-list-item ${currentBadge === key ? 'current' : ''}`}
+                >
+                  <div className="badge-list-left">
+                    <Badge badgeType={key} size="small" />
+                    <p className="badge-list-requirements">{translatedBadge.requirements}</p>
+                  </div>
+                  <div className="badge-list-right">
+                    <span className="badge-list-commission" style={{ color: badgeInfo.color }}>
+                      {badgeInfo.commission}%
+                    </span>
+                  </div>
                 </div>
-                <div className="badge-list-right">
-                  <span className="badge-list-commission" style={{ color: badgeInfo.color }}>
-                    {badgeInfo.commission}%
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

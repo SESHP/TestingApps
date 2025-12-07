@@ -205,6 +205,7 @@ html.platform-macos-desktop .balance-panel {
 .profile-header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
   flex-shrink: 0;
   margin-left: auto;
 }

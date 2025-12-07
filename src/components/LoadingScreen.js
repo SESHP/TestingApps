@@ -1,8 +1,10 @@
 // src/components/LoadingScreen.js
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from '../i18n/LanguageContext';
 import './LoadingScreen.css';
 
 const LoadingScreen = ({ onLoadComplete }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const mouseRef = useRef({ x: null, y: null });
@@ -12,16 +14,16 @@ const LoadingScreen = ({ onLoadComplete }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const phrases = [
-    "Собираем подарки...",
-    "Подкручиваем реф коды...",
-    "Полируем интерфейс...",
-    "Поднимаем базу...",
-    "Убираем пыль с серверов...",
-    "Копим 10К старс...",
-    "Просим TON встать с колен...",
-    "Ждем альтсезон...",
-    "Синхронизируем TON...",
-    "Почти готово..."
+    t('loadingPhrase1'),
+    t('loadingPhrase2'),
+    t('loadingPhrase3'),
+    t('loadingPhrase4'),
+    t('loadingPhrase5'),
+    t('loadingPhrase6'),
+    t('loadingPhrase7'),
+    t('loadingPhrase8'),
+    t('loadingPhrase9'),
+    t('loadingPhrase10')
   ];
 
   const settings = {

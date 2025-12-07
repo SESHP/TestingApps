@@ -1,0 +1,93 @@
+/* Language Switcher Styles */
+
+.language-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.language-switcher:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.language-switcher:active {
+  transform: scale(0.98);
+}
+
+.language-option {
+  position: relative;
+  z-index: 2;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  min-width: 32px;
+  text-align: center;
+}
+
+.language-option.active {
+  color: #F27D00;
+}
+
+.language-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  background: linear-gradient(135deg, rgba(242, 125, 0, 0.2), rgba(242, 125, 0, 0.1));
+  border: 1px solid rgba(242, 125, 0, 0.3);
+  border-radius: 8px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  box-shadow:
+    0 2px 8px rgba(242, 125, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.language-indicator.right {
+  transform: translateX(calc(100% + 4px));
+}
+
+/* Animation on mount */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.language-switcher {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .language-switcher {
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .language-option {
+    padding: 5px 10px;
+    font-size: 11px;
+    min-width: 28px;
+  }
+}
